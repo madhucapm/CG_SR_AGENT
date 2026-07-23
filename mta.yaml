@@ -1,0 +1,99 @@
+_schema-version: 3.3.0
+ID: SupplierResilience
+description: A simple CAP project.
+version: 1.0.0
+modules:
+- name: SupplierResilience-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: SupplierResilience-auth
+  - name: SupplierResilience-db
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    instances: 1
+  build-parameters:
+    builder: npm-ci
+- name: SupplierResilience-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: SupplierResilience-db
+  parameters:
+    buildpack: nodejs_buildpack
+- name: SupplierResilience-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: SupplierResilience-destination-service
+    parameters:
+      content-target: true
+  - name: SupplierResilience_html_repo_host
+    parameters:
+      service-key:
+        name: SupplierResilience_html_repo_host-key
+  - name: SupplierResilience-auth
+    parameters:
+      service-key:
+        name: SupplierResilience-auth-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: sr_SupplierResilience_html_repo_host
+          ServiceInstanceName: SupplierResilience-html5-app-host-service
+          ServiceKeyName: SupplierResilience_html_repo_host-key
+          sap.cloud.service: sr
+        - Authentication: OAuth2UserTokenExchange
+          Name: sr_SupplierResilience_auth
+          ServiceInstanceName: SupplierResilience-auth
+          ServiceKeyName: SupplierResilience-auth-key
+          sap.cloud.service: sr
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+resources:
+- name: SupplierResilience-auth
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      oauth2-configuration:
+        credential-types:
+        - binding-secret
+        - x509
+      tenant-mode: dedicated
+      xsappname: SupplierResilience-auth
+    path: ./xs-security.json
+    service: xsuaa
+    service-plan: application
+- name: SupplierResilience-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+- name: SupplierResilience-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      version: 1.0.0
+    service: destination
+    service-name: SupplierResilience-destination-service
+    service-plan: lite
+- name: SupplierResilience_html_repo_host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: SupplierResilience-html5-app-host-service
+    service-plan: app-host
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm ci
+    - npx cds build --production

@@ -1,0 +1,289 @@
+html, body, #content {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.towerShell {
+    height: 100vh;
+    width: 100%;
+    background: #f4f6fa;
+}
+
+.towerNav {
+    width: 240px;
+    min-width: 240px;
+    background: #1a2233;
+    color: #fff;
+}
+
+.towerNav .sapTntNavLI,
+.towerNav .sapTntNavLIItem,
+.towerNav .sapTntNavLIItemText {
+    color: #dfe6f2 !important;
+}
+
+.workspace {
+    background: #f4f6fa;
+    height: 100%;
+}
+
+.topbar {
+    background: #ffffff;
+    border-bottom: 1px solid #e0e4ec;
+    padding: 0 1.5rem;
+    height: 3.25rem;
+}
+
+.brandTitle {
+    letter-spacing: 0.08rem;
+    color: #1a2233;
+    font-weight: 700;
+}
+
+.userAvatar {
+    margin-left: 0.5rem;
+}
+
+.mainScroll {
+    width: 100%;
+    height: calc(100vh - 3.25rem);
+}
+
+.contentPad {
+    padding: 1.5rem 2rem 2rem 2rem;
+    gap: 1.25rem;
+}
+
+.pageIntro {
+    margin-bottom: 0.5rem;
+}
+
+.eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.12rem;
+    color: #6b7690;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.subhead {
+    color: #6b7690;
+    margin-top: 0.25rem;
+}
+
+.metricStrip {
+    gap: 1rem;
+    margin: 0.5rem 0 1rem 0;
+}
+
+.metric {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    min-width: 200px;
+    flex: 1;
+}
+
+.metricLabel {
+    font-size: 0.72rem;
+    letter-spacing: 0.1rem;
+    color: #6b7690;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.sectionHeader {
+    margin: 1rem 0 0.5rem 0;
+    align-items: center;
+}
+
+.sectionMeta {
+    color: #6b7690;
+}
+
+.agentRow {
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.agentCard {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 10px;
+    padding: 1rem;
+    min-width: 220px;
+    flex: 1;
+    gap: 0.5rem;
+}
+
+.agentAvatar {
+    background: #3b5bdb;
+}
+
+.agentRole {
+    color: #6b7690;
+    font-size: 0.8rem;
+}
+
+.agentDetail {
+    color: #4a5468;
+    font-size: 0.8rem;
+}
+
+.incidentPanel {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    gap: 1rem;
+}
+
+.incidentId {
+    color: #6b7690;
+    font-weight: 600;
+    letter-spacing: 0.08rem;
+}
+
+.incidentMeta {
+    color: #6b7690;
+}
+
+.scoreBlock {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.incidentFacts {
+    gap: 2rem;
+    margin: 0.75rem 0;
+}
+
+.dangerText {
+    color: #c0392b;
+}
+
+.incidentColumns {
+    gap: 1.5rem;
+}
+
+.timelineCol, .planCol {
+    background: #f9fafc;
+    border: 1px solid #eceff5;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.timelineTime {
+    font-weight: 700;
+    color: #1a2233;
+}
+
+.timelineAgent {
+    color: #3b5bdb;
+    font-size: 0.75rem;
+    letter-spacing: 0.06rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.timelineDetail {
+    color: #4a5468;
+    font-size: 0.85rem;
+}
+
+.timelineRail {
+    min-width: 70px;
+}
+
+.optionItem {
+    padding: 0.5rem 0;
+    gap: 0.75rem;
+}
+
+.optionRank {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a2233;
+    min-width: 2rem;
+}
+
+.optionMeta {
+    color: #6b7690;
+    font-size: 0.8rem;
+}
+
+.approvalBar {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: #eef2fb;
+    border-radius: 8px;
+}
+
+.processView {
+    gap: 1rem;
+}
+
+.processMeta {
+    gap: 2rem;
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.processHeader {
+    margin-top: 0.5rem;
+}
+
+.processList {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 10px;
+}
+
+.processStep {
+    padding: 0.75rem 1rem;
+    gap: 1rem;
+}
+
+.stepNumber {
+    min-width: 2.25rem;
+    height: 2.25rem;
+    background: #3b5bdb;
+    color: #fff;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    font-weight: 700;
+}
+
+.stepBody {
+    gap: 0.35rem;
+}
+
+.stepActivity {
+    color: #4a5468;
+}
+
+.stepFacts {
+    gap: 2rem;
+    margin-top: 0.4rem;
+}
+
+.stepLabel {
+    font-size: 0.7rem;
+    letter-spacing: 0.1rem;
+    color: #6b7690;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.casesPanel {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 12px;
+    padding: 1rem;
+}

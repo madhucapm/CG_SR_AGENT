@@ -1,0 +1,13 @@
+{
+    "name": "supplierresilience-ui",
+    "version": "1.0.0",
+    "description": "Supplier Resilience UI5 application",
+    "private": true,
+    "scripts": {
+        "start": "ui5 serve --config=ui5.yaml --open index.html",
+        "build": "ui5 build --config=ui5.yaml --clean-dest --dest dist"
+    },
+    "devDependencies": {
+        "@ui5/cli": "^3.0.0"
+    }
+}

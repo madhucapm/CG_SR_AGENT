@@ -1,0 +1,363 @@
+<mvc:View
+    controllerName="supplier.resilience.controller.View1"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:tnt="sap.tnt"
+    xmlns:table="sap.ui.table"
+    xmlns:core="sap.ui.core"
+    xmlns:form="sap.ui.layout.form"
+    displayBlock="true"
+    height="100%">
+    <Page showHeader="false" enableScrolling="false">
+        <content>
+            <HBox class="towerShell">
+                <tnt:SideNavigation expanded="true" itemSelect="onNavSelect" class="towerNav">
+                    <tnt:NavigationList>
+                          <tnt:NavigationListItem key="cases" text="Cases" icon="sap-icon://alert" />
+                        <tnt:NavigationListItem key="control" text="Control tower" icon="sap-icon://home" />
+                        
+                        <tnt:NavigationListItem key="incidents" text="Incidents" icon="sap-icon://alert" />
+                        <tnt:NavigationListItem key="signals" text="Signal monitor" icon="sap-icon://activity-items" />
+                        <tnt:NavigationListItem key="planning" text="Planning queue" icon="sap-icon://process" />
+                        <tnt:NavigationListItem key="approvals" text="Approvals" icon="sap-icon://approvals" />
+                        <tnt:NavigationListItem key="audit" text="Audit trail" icon="sap-icon://history" />
+                    </tnt:NavigationList>
+                </tnt:SideNavigation>
+                <VBox class="workspace" width="100%">
+                    <Toolbar class="topbar">
+                        <Title text="SUPPLIER RESILIENCE" level="H1" class="brandTitle" />
+                        <ToolbarSpacer />
+                        <ObjectStatus text="LOCAL SIMULATION" state="Information" icon="sap-icon://laptop" />
+                        <Button icon="sap-icon://refresh" type="Transparent" tooltip="Refresh" press="onRefresh" />
+                        <Avatar initials="SR" displaySize="XS" backgroundColor="Accent6" class="userAvatar" />
+                    </Toolbar>
+                    <ScrollContainer vertical="true" height="100%" class="mainScroll">
+                        <VBox class="contentPad">
+
+                            <!-- Control Tower dashboard -->
+                            <VBox id="dashboardView" visible="true">
+                                <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
+                                    <VBox>
+                                        <Text text="{dashboard>/selectedWorkspace/eyebrow}" class="eyebrow" />
+                                        <Title text="{dashboard>/selectedWorkspace/title}" level="H2" />
+                                        <Text text="{dashboard>/selectedWorkspace/description}" class="subhead" />
+                                    </VBox>
+                                    <ObjectStatus text="Last sync {dashboard>/lastRefresh}" state="Success" icon="sap-icon://synchronize" />
+                                </HBox>
+                                <HBox class="metricStrip" wrap="Wrap">
+                                    <VBox class="metric">
+                                        <Text text="Active incidents" class="metricLabel" />
+                                        <Title text="{dashboard>/activeIncidents}" level="H3" />
+                                        <ObjectStatus text="1 critical" state="Error" />
+                                    </VBox>
+                                    <VBox class="metric">
+                                        <Text text="Materials at risk" class="metricLabel" />
+                                        <Title text="{dashboard>/materialsAtRisk}" level="H3" />
+                                        <ObjectStatus text="+4 since 08:00" state="Warning" />
+                                    </VBox>
+                                    <VBox class="metric">
+                                        <Text text="Portfolio coverage" class="metricLabel" />
+                                        <Title text="{dashboard>/coverage}" level="H3" />
+                                        <ObjectStatus text="−1.1 weeks" state="Error" />
+                                    </VBox>
+                                    <VBox class="metric">
+                                        <Text text="Signals today" class="metricLabel" />
+                                        <Title text="{dashboard>/signalsToday}" level="H3" />
+                                        <ObjectStatus text="All streams live" state="Success" />
+                                    </VBox>
+                                </HBox>
+                                <HBox class="sectionHeader" justifyContent="SpaceBetween">
+                                    <Title text="Agent network" level="H3" />
+                                    <Text text="5 agents · 1 human gate" class="sectionMeta" />
+                                </HBox>
+                                <HBox class="agentRow" items="{dashboard>/agents}">
+                                    <items>
+                                        <VBox class="agentCard">
+                                            <HBox justifyContent="SpaceBetween">
+                                                <Avatar initials="{dashboard>short}" displaySize="S" class="agentAvatar" />
+                                                <ObjectStatus text="{dashboard>status}" state="{= ${dashboard>tone} === 'good' ? 'Success' : ${dashboard>tone} === 'warn' ? 'Warning' : 'None'}" />
+                                            </HBox>
+                                            <Title text="{dashboard>name}" level="H4" />
+                                            <Text text="{dashboard>role}" class="agentRole" />
+                                            <ProgressIndicator percentValue="{dashboard>progress}" displayValue="{dashboard>progress}%" state="{= ${dashboard>tone} === 'warn' ? 'Warning' : 'Success'}" />
+                                            <Text text="{dashboard>detail}" class="agentDetail" />
+                                        </VBox>
+                                    </items>
+                                </HBox>
+                                <HBox class="sectionHeader" justifyContent="SpaceBetween">
+                                    <Title text="Priority incident" level="H3" />
+                                    <ObjectStatus text="{dashboard>/incident/status}" state="Warning" icon="sap-icon://pending" />
+                                </HBox>
+                                <VBox class="incidentPanel">
+                                    <HBox justifyContent="SpaceBetween" wrap="Wrap">
+                                        <VBox>
+                                            <Text text="{dashboard>/incident/id}" class="incidentId" />
+                                            <Title text="{dashboard>/incident/title}" level="H2" />
+                                            <Text text="{dashboard>/incident/supplier}  ·  {dashboard>/incident/material}" class="incidentMeta" />
+                                        </VBox>
+                                        <VBox class="scoreBlock">
+                                            <Text text="RAISE SCORE" class="metricLabel" />
+                                            <Title text="{dashboard>/incident/score}" level="H2" />
+                                            <ObjectStatus text="{dashboard>/incident/severity}" state="Error" />
+                                        </VBox>
+                                    </HBox>
+                                    <HBox class="incidentFacts" wrap="Wrap">
+                                        <VBox>
+                                            <Text text="Customer exposure" class="metricLabel" />
+                                            <Title text="{dashboard>/incident/exposure}" level="H4" />
+                                        </VBox>
+                                        <VBox>
+                                            <Text text="Time to survive" class="metricLabel" />
+                                            <Title text="{dashboard>/incident/tts}" level="H4" />
+                                        </VBox>
+                                        <VBox>
+                                            <Text text="Time to recover" class="metricLabel" />
+                                            <Title text="{dashboard>/incident/ttr}" level="H4" />
+                                        </VBox>
+                                        <VBox>
+                                            <Text text="Recovery gap" class="metricLabel" />
+                                            <Title text="{dashboard>/incident/gap}" level="H4" class="dangerText" />
+                                        </VBox>
+                                    </HBox>
+                                    <HBox class="incidentColumns" wrap="Wrap">
+                                        <VBox class="timelineCol" width="55%">
+                                            <Text text="DECISION TIMELINE" class="eyebrow" />
+                                            <List items="{dashboard>/timeline}" showSeparators="None" class="timeline">
+                                                <items>
+                                                    <CustomListItem>
+                                                        <HBox>
+                                                            <VBox class="timelineRail">
+                                                                <Text text="{dashboard>time}" class="timelineTime" />
+                                                            </VBox>
+                                                            <VBox class="timelineEvent">
+                                                                <Text text="{dashboard>agent}" class="timelineAgent" />
+                                                                <Title text="{dashboard>event}" level="H5" />
+                                                                <Text text="{dashboard>detail}" class="timelineDetail" />
+                                                            </VBox>
+                                                        </HBox>
+                                                    </CustomListItem>
+                                                </items>
+                                            </List>
+                                        </VBox>
+                                        <VBox class="planCol" width="45%">
+                                            <Text text="RANKED RESPONSE" class="eyebrow" />
+                                            <List items="{dashboard>/options}" showSeparators="Inner" class="optionList">
+                                                <items>
+                                                    <CustomListItem>
+                                                        <HBox alignItems="Center" class="optionItem">
+                                                            <Text text="{dashboard>rank}" class="optionRank" />
+                                                            <VBox width="100%">
+                                                                <HBox justifyContent="SpaceBetween">
+                                                                    <Title text="{dashboard>title}" level="H5" />
+                                                                    <ObjectStatus text="{dashboard>risk}" state="{= ${dashboard>risk} === 'Low' ? 'Success' : ${dashboard>risk} === 'Medium' ? 'Warning' : 'Error'}" />
+                                                                </HBox>
+                                                                <Text text="{dashboard>weeks} cover  ·  {dashboard>cost} cost delta" class="optionMeta" />
+                                                            </VBox>
+                                                        </HBox>
+                                                    </CustomListItem>
+                                                </items>
+                                            </List>
+                                            <HBox class="approvalBar" justifyContent="SpaceBetween" alignItems="Center">
+                                                <VBox>
+                                                    <Text text="HUMAN COMMIT GATE" class="eyebrow" />
+                                                    <Text text="Planner / SCRM approval required" />
+                                                </VBox>
+                                                <Button text="Review &amp; approve" type="Emphasized" icon="sap-icon://approvals" press="onApprove" />
+                                            </HBox>
+                                        </VBox>
+                                    </HBox>
+                                </VBox>
+                            </VBox>
+
+                            <!-- Cases view: sap.ui.table bound to OData Cases -->
+                            <VBox id="casesView" visible="false">
+                                <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
+                                    <VBox>
+                                        <Text text="{dashboard>/selectedWorkspace/eyebrow}" class="eyebrow" />
+                                        <Title text="{dashboard>/selectedWorkspace/title}" level="H2" />
+                                        <Text text="{dashboard>/selectedWorkspace/description}" class="subhead" />
+                                    </VBox>
+                                    <ObjectStatus text="{dashboard>/selectedWorkspace/status}" state="Information" icon="sap-icon://database" />
+                                </HBox>
+                                <VBox class="casesPanel">
+                                    <table:Table
+                                        id="casesTable"
+                                        rows="{path: '/Cases', parameters: {'$select': 'ID,caseId,eventId,status,priority,createdAt,createdBy,eventType,po,supplier,material,plant,delayedDays,eventTime'}}"
+                                        selectionMode="Single"
+                                        visibleRowCount="10"
+                                        ariaLabelledBy="casesTitle">
+                                        <table:extension>
+                                            <Toolbar>
+                                                <Title id="casesTitle" text="Cases" level="H4" />
+                                                <ToolbarSpacer />
+                                                <SearchField
+                                                    id="casesSearchField"
+                                                    width="20rem"
+                                                    placeholder="Search cases..."
+                                                    liveChange="onCasesSearch"
+                                                    search="onCasesSearch" />
+                                                <Button icon="sap-icon://refresh" tooltip="Refresh" press="onRefresh" />
+                                            </Toolbar>
+                                        </table:extension>
+                                        <table:columns>
+                                            <table:Column width="10rem">
+                                                <Label text="Case ID" />
+                                                <table:template>
+                                                    <Link text="{caseId}" press="onCaseIdPress" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="10rem">
+                                                <Label text="Event ID" />
+                                                <table:template>
+                                                    <Text text="{eventId}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="10rem">
+                                                <Label text="Status" />
+                                                <table:template>
+                                                    <ObjectStatus text="{status}" state="{= ${status} === 'Closed' || ${status} === 'Resolved' ? 'Success' : ${status} === 'In Progress' ? 'Warning' : 'Information'}" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="8rem">
+                                                <Label text="Priority" />
+                                                <table:template>
+                                                    <ObjectStatus text="{priority}" state="{= ${priority} === 'Critical' || ${priority} === 'High' ? 'Error' : ${priority} === 'Medium' ? 'Warning' : 'Success'}" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="14rem">
+                                                <Label text="Created At" />
+                                                <table:template>
+                                                    <Text text="{path: 'createdAt', type: 'sap.ui.model.odata.type.DateTimeOffset', formatOptions: {style: 'medium'}}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="14rem">
+                                                <Label text="Created By" />
+                                                <table:template>
+                                                    <Text text="{createdBy}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                        </table:columns>
+                                    </table:Table>
+                                </VBox>
+                                <Panel
+                                    id="caseDetailsPanel"
+                                    headerText="Case details"
+                                    visible="{caseDetails>/visible}"
+                                    class="caseDetailsPanel"
+                                    expandable="false">
+                                    <headerToolbar>
+                                        <Toolbar>
+                                            <Title text="Case details - {caseDetails>/caseId}" level="H4" />
+                                            <ToolbarSpacer />
+                                            <Button
+                                                icon="sap-icon://decline"
+                                                type="Transparent"
+                                                tooltip="Close"
+                                                press="onCloseCaseDetails" />
+                                        </Toolbar>
+                                    </headerToolbar>
+                                    <content>
+                                        <form:SimpleForm
+                                            editable="false"
+                                            layout="ResponsiveGridLayout"
+                                            labelSpanXL="4"
+                                            labelSpanL="4"
+                                            labelSpanM="4"
+                                            labelSpanS="12"
+                                            columnsXL="2"
+                                            columnsL="2"
+                                            columnsM="2"
+                                            singleContainerFullSize="false">
+                                            <form:content>
+                                                <Label text="Event Type" />
+                                                <Text text="{caseDetails>/eventType}" />
+                                                <Label text="PO" />
+                                                <Text text="{caseDetails>/po}" />
+                                                <Label text="Supplier" />
+                                                <Text text="{caseDetails>/supplier}" />
+                                                <Label text="Material" />
+                                                <Text text="{caseDetails>/material}" />
+                                                <Label text="Plant" />
+                                                <Text text="{caseDetails>/plant}" />
+                                                <Label text="Delayed Days" />
+                                                <Text text="{caseDetails>/delayedDays}" />
+                                                <Label text="Event Time" />
+                                                <Text text="{path: 'caseDetails>/eventTime', type: 'sap.ui.model.odata.type.DateTimeOffset', formatOptions: {style: 'medium'}}" />
+                                            </form:content>
+                                        </form:SimpleForm>
+                                    </content>
+                                </Panel>
+                            </VBox>
+
+                            <!-- Generic process workspace view -->
+                            <VBox id="processView" visible="false" class="processView">
+                                <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
+                                    <VBox>
+                                        <Text text="{dashboard>/selectedWorkspace/eyebrow}" class="eyebrow" />
+                                        <Title text="{dashboard>/selectedWorkspace/title}" level="H2" />
+                                        <Text text="{dashboard>/selectedWorkspace/description}" class="subhead" />
+                                    </VBox>
+                                    <ObjectStatus text="{dashboard>/selectedWorkspace/status}" state="Information" icon="sap-icon://activity-items" />
+                                </HBox>
+                                <HBox class="processMeta" wrap="Wrap">
+                                    <VBox>
+                                        <Text text="PROCESS OWNER" class="metricLabel" />
+                                        <Title text="{= ${dashboard>/selectedView} === 'signals' ? 'Early-Warning' : ${dashboard>/selectedView} === 'planning' ? 'Survival Planner' : 'Coordinator'}" level="H4" />
+                                    </VBox>
+                                    <VBox>
+                                        <Text text="STEPS IN WORKFLOW" class="metricLabel" />
+                                        <Title text="{= ${dashboard>/selectedSteps}.length}" level="H4" />
+                                    </VBox>
+                                    <VBox>
+                                        <Text text="MODE" class="metricLabel" />
+                                        <ObjectStatus text="Local simulation" state="Information" />
+                                    </VBox>
+                                </HBox>
+                                <HBox class="processHeader" justifyContent="SpaceBetween" alignItems="Center">
+                                    <VBox>
+                                        <Text text="PROCESS STEP INVENTORY" class="eyebrow" />
+                                        <Title text="Execution sequence" level="H3" />
+                                    </VBox>
+                                    <Text text="Trigger → activity → output → SLA" class="sectionMeta" />
+                                </HBox>
+                                <List items="{dashboard>/selectedSteps}" class="processList" showSeparators="Inner" noDataText="No process steps are configured for this workspace yet.">
+                                    <items>
+                                        <CustomListItem>
+                                            <HBox class="processStep" alignItems="Start">
+                                                <VBox class="stepNumber">
+                                                    <Text text="{dashboard>id}" />
+                                                </VBox>
+                                                <VBox class="stepBody" width="100%">
+                                                    <HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
+                                                        <Title text="{dashboard>title}" level="H4" />
+                                                        <ObjectStatus text="{dashboard>state}" state="{= ${dashboard>state} === 'Complete' || ${dashboard>state} === 'Live' ? 'Success' : ${dashboard>state} === 'Running' ? 'Warning' : 'Information'}" />
+                                                    </HBox>
+                                                    <Text text="{dashboard>activity}" class="stepActivity" />
+                                                    <HBox class="stepFacts" wrap="Wrap">
+                                                        <VBox>
+                                                            <Text text="TRIGGER" class="stepLabel" />
+                                                            <Text text="{dashboard>trigger}" />
+                                                        </VBox>
+                                                        <VBox>
+                                                            <Text text="OUTPUT" class="stepLabel" />
+                                                            <Text text="{dashboard>output}" />
+                                                        </VBox>
+                                                        <VBox>
+                                                            <Text text="SLA" class="stepLabel" />
+                                                            <Text text="{dashboard>sla}" />
+                                                        </VBox>
+                                                    </HBox>
+                                                </VBox>
+                                            </HBox>
+                                        </CustomListItem>
+                                    </items>
+                                </List>
+                            </VBox>
+
+                        </VBox>
+                    </ScrollContainer>
+                </VBox>
+            </HBox>
+        </content>
+    </Page>
+</mvc:View>

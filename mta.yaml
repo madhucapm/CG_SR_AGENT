@@ -55,6 +55,30 @@ modules:
         existing_destinations_policy: ignore
   build-parameters:
     no-source: true
+- name: supplierresilience-app-content
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: SupplierResilience_html_repo_host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - supplierresilience.zip
+      name: supplierresilience
+      target-path: resources/
+- name: supplierresilience
+  type: html5
+  path: app/supplierresilience
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build
+    supported-platforms: []
 resources:
 - name: SupplierResilience-auth
   type: org.cloudfoundry.managed-service

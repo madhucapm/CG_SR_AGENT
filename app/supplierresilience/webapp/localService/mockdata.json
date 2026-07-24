@@ -1,0 +1,333 @@
+{
+    "lastRefresh": "07:32 UTC",
+    "activeIncidents": 6,
+    "materialsAtRisk": 18,
+    "coverage": "3.4 wks",
+    "signalsToday": 214,
+    "selectedView": "control",
+    "selectedWorkspace": {
+        "eyebrow": "CONTROL TOWER",
+        "title": "Live resilience snapshot",
+        "description": "Cross-agent view of active signals, incidents, and recovery plans.",
+        "status": "Streams live"
+    },
+    "selectedSteps": [],
+    "agents": [
+        {
+            "short": "EW",
+            "name": "Early-Warning Agent",
+            "role": "Signal ingestion & scoring",
+            "status": "Live",
+            "tone": "good",
+            "progress": 92,
+            "detail": "214 signals ingested · 6 escalated in last hour"
+        },
+        {
+            "short": "SP",
+            "name": "Survival Planner",
+            "role": "TTS / TTR simulation",
+            "status": "Running",
+            "tone": "warn",
+            "progress": 68,
+            "detail": "Simulating 3 scenarios for CASE-1004"
+        },
+        {
+            "short": "SR",
+            "name": "Sourcing Router",
+            "role": "Alt-supplier orchestration",
+            "status": "Standby",
+            "tone": "good",
+            "progress": 45,
+            "detail": "2 pre-qualified suppliers on standby"
+        },
+        {
+            "short": "CO",
+            "name": "Coordinator",
+            "role": "Cross-function workflow",
+            "status": "Live",
+            "tone": "good",
+            "progress": 80,
+            "detail": "Coordinating buyer, planner, quality"
+        },
+        {
+            "short": "AU",
+            "name": "Audit Agent",
+            "role": "Decision provenance",
+            "status": "Live",
+            "tone": "good",
+            "progress": 100,
+            "detail": "All decisions time-stamped"
+        }
+    ],
+    "incident": {
+        "id": "CASE-1004",
+        "title": "Semiconductor shortage — Tier-2 fab outage",
+        "supplier": "Fab-East Ltd.",
+        "material": "MPU-A55",
+        "status": "Awaiting approval",
+        "score": 87,
+        "severity": "Critical",
+        "exposure": "€ 4.2M",
+        "tts": "9 days",
+        "ttr": "21 days",
+        "gap": "-12 days"
+    },
+    "timeline": [
+        {
+            "time": "06:12",
+            "agent": "EARLY-WARNING",
+            "event": "Signal cluster escalated",
+            "detail": "News + shipping AIS + supplier portal delta"
+        },
+        {
+            "time": "06:24",
+            "agent": "SURVIVAL PLANNER",
+            "event": "Simulation complete",
+            "detail": "3 recovery options generated"
+        },
+        {
+            "time": "06:41",
+            "agent": "SOURCING ROUTER",
+            "event": "Alt-supplier pre-check passed",
+            "detail": "Supplier B, Supplier D qualified"
+        },
+        {
+            "time": "07:05",
+            "agent": "COORDINATOR",
+            "event": "Human gate opened",
+            "detail": "Planner / SCRM approval required"
+        }
+    ],
+    "options": [
+        {
+            "rank": "1",
+            "title": "Dual-source with Supplier B (60/40)",
+            "risk": "Low",
+            "weeks": "+2.1 wks",
+            "cost": "+3.4%"
+        },
+        {
+            "rank": "2",
+            "title": "Expedite existing PO via air freight",
+            "risk": "Medium",
+            "weeks": "+1.2 wks",
+            "cost": "+8.7%"
+        },
+        {
+            "rank": "3",
+            "title": "Re-design to MPU-A50 (spec swap)",
+            "risk": "High",
+            "weeks": "+4.0 wks",
+            "cost": "-2.1%"
+        }
+    ],
+    "workspaces": {
+        "control": {
+            "eyebrow": "CONTROL TOWER",
+            "title": "Live resilience snapshot",
+            "description": "Cross-agent view of active signals, incidents, and recovery plans.",
+            "status": "Streams live",
+            "steps": []
+        },
+        "incidents": {
+            "eyebrow": "INCIDENT WORKSPACE",
+            "title": "Incident triage & response",
+            "description": "Prioritized incidents with agent-driven playbooks.",
+            "status": "6 active incidents",
+            "steps": [
+                {
+                    "id": "1",
+                    "title": "Intake",
+                    "state": "Complete",
+                    "activity": "Correlate signals into a case",
+                    "trigger": "Signal score > 70",
+                    "output": "Case record",
+                    "sla": "< 5 min"
+                },
+                {
+                    "id": "2",
+                    "title": "Impact assessment",
+                    "state": "Running",
+                    "activity": "Compute TTS / TTR / exposure",
+                    "trigger": "Case created",
+                    "output": "Impact profile",
+                    "sla": "< 15 min"
+                },
+                {
+                    "id": "3",
+                    "title": "Response planning",
+                    "state": "Pending",
+                    "activity": "Rank recovery options",
+                    "trigger": "Impact profile ready",
+                    "output": "Ranked options",
+                    "sla": "< 30 min"
+                },
+                {
+                    "id": "4",
+                    "title": "Human approval",
+                    "state": "Pending",
+                    "activity": "Planner / SCRM decision",
+                    "trigger": "Options ranked",
+                    "output": "Approved plan",
+                    "sla": "< 2 h"
+                }
+            ]
+        },
+        "signals": {
+            "eyebrow": "SIGNAL MONITOR",
+            "title": "Early-warning stream",
+            "description": "Live external + internal signal ingestion.",
+            "status": "214 signals today",
+            "steps": [
+                {
+                    "id": "1",
+                    "title": "Ingest",
+                    "state": "Live",
+                    "activity": "Pull news, AIS, ERP, portal deltas",
+                    "trigger": "Continuous",
+                    "output": "Raw signal",
+                    "sla": "streaming"
+                },
+                {
+                    "id": "2",
+                    "title": "Normalize",
+                    "state": "Live",
+                    "activity": "Enrich with supplier/material graph",
+                    "trigger": "Signal received",
+                    "output": "Enriched signal",
+                    "sla": "< 30 s"
+                },
+                {
+                    "id": "3",
+                    "title": "Score",
+                    "state": "Live",
+                    "activity": "Assign RAISE score",
+                    "trigger": "Signal enriched",
+                    "output": "Scored signal",
+                    "sla": "< 1 min"
+                },
+                {
+                    "id": "4",
+                    "title": "Escalate",
+                    "state": "Live",
+                    "activity": "Open case if score > 70",
+                    "trigger": "Threshold breach",
+                    "output": "Case",
+                    "sla": "< 2 min"
+                }
+            ]
+        },
+        "planning": {
+            "eyebrow": "PLANNING QUEUE",
+            "title": "Survival planner workbench",
+            "description": "Recovery scenarios awaiting simulation or approval.",
+            "status": "3 in queue",
+            "steps": [
+                {
+                    "id": "1",
+                    "title": "Scenario draft",
+                    "state": "Complete",
+                    "activity": "Define scope & levers",
+                    "trigger": "Case opened",
+                    "output": "Scenario shell",
+                    "sla": "< 10 min"
+                },
+                {
+                    "id": "2",
+                    "title": "Simulate",
+                    "state": "Running",
+                    "activity": "Run TTS/TTR simulation",
+                    "trigger": "Scenario ready",
+                    "output": "Outcome",
+                    "sla": "< 20 min"
+                },
+                {
+                    "id": "3",
+                    "title": "Rank",
+                    "state": "Pending",
+                    "activity": "Rank by risk / cost / speed",
+                    "trigger": "Simulation done",
+                    "output": "Ranked options",
+                    "sla": "< 5 min"
+                }
+            ]
+        },
+        "approvals": {
+            "eyebrow": "APPROVALS",
+            "title": "Human commit gate",
+            "description": "Awaiting planner, SCRM or finance sign-off.",
+            "status": "2 awaiting decision",
+            "steps": [
+                {
+                    "id": "1",
+                    "title": "Package",
+                    "state": "Complete",
+                    "activity": "Assemble evidence packet",
+                    "trigger": "Options ranked",
+                    "output": "Decision packet",
+                    "sla": "< 5 min"
+                },
+                {
+                    "id": "2",
+                    "title": "Route",
+                    "state": "Complete",
+                    "activity": "Route to approver",
+                    "trigger": "Packet ready",
+                    "output": "Approval task",
+                    "sla": "< 5 min"
+                },
+                {
+                    "id": "3",
+                    "title": "Decide",
+                    "state": "Pending",
+                    "activity": "Approve / reject / amend",
+                    "trigger": "Task received",
+                    "output": "Decision",
+                    "sla": "< 2 h"
+                }
+            ]
+        },
+        "audit": {
+            "eyebrow": "AUDIT TRAIL",
+            "title": "Decision provenance log",
+            "description": "Time-stamped record of every agent and human action.",
+            "status": "Immutable log",
+            "steps": [
+                {
+                    "id": "1",
+                    "title": "Capture",
+                    "state": "Live",
+                    "activity": "Record agent/human event",
+                    "trigger": "Any action",
+                    "output": "Event record",
+                    "sla": "real-time"
+                },
+                {
+                    "id": "2",
+                    "title": "Attest",
+                    "state": "Live",
+                    "activity": "Sign with tenant key",
+                    "trigger": "Event captured",
+                    "output": "Signed event",
+                    "sla": "< 1 s"
+                },
+                {
+                    "id": "3",
+                    "title": "Publish",
+                    "state": "Live",
+                    "activity": "Expose to audit view",
+                    "trigger": "Event signed",
+                    "output": "Audit entry",
+                    "sla": "< 1 s"
+                }
+            ]
+        },
+        "cases": {
+            "eyebrow": "CASES",
+            "title": "All cases",
+            "description": "Complete case backlog across all workspaces.",
+            "status": "Live from CAP service",
+            "steps": []
+        }
+    }
+}

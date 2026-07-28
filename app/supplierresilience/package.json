@@ -5,7 +5,8 @@
     "private": true,
     "scripts": {
         "start": "ui5 serve --config=ui5.yaml --open index.html",
-        "build": "ui5 build --config=ui5.yaml --clean-dest --dest dist"
+        "build:ui": "ui5 build --config=ui5.yaml --clean-dest --dest dist",
+        "build": "npm run build:ui && cp xs-app.json dist/ && cd dist && rm -f supplierresilience.zip && zip -r supplierresilience.zip . -x supplierresilience.zip"
     },
     "devDependencies": {
         "@ui5/cli": "^3.0.0"

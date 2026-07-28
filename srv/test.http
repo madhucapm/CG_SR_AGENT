@@ -1,0 +1,80 @@
+### ====================================
+### Early Warning Agent - Test Requests
+### ====================================
+### Use the "Send Request" link above each request to execute
+
+### ------------------------------------------
+### 1. Trigger Delay Alert - HIGH Priority (10 days)
+### ------------------------------------------
+POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+Content-Type: application/json
+
+{
+    "supplier": "Acme Corp",
+    "material": "Steel Rods A-500",
+    "delayedDays": 10,
+    "po": "PO-2024-001",
+    "plant": "Plant-Munich"
+}
+
+### ------------------------------------------
+### 2. Trigger Delay Alert - CRITICAL Priority (20 days)
+### ------------------------------------------
+POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+Content-Type: application/json
+
+{
+    "supplier": "Global Electronics Ltd",
+    "material": "Semiconductor Chip XC-7000",
+    "delayedDays": 20,
+    "po": "PO-2024-URGENT",
+    "plant": "Plant-Shanghai"
+}
+
+### ------------------------------------------
+### 3. Trigger Delay Alert - MEDIUM Priority (5 days)
+### ------------------------------------------
+POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+Content-Type: application/json
+
+{
+    "supplier": "Parts Unlimited",
+    "material": "Aluminum Housing B-200",
+    "delayedDays": 5,
+    "po": "PO-2024-003",
+    "plant": "Plant-Berlin"
+}
+
+### ------------------------------------------
+### 4. Trigger Delay Alert - LOW Priority (2 days)
+### ------------------------------------------
+POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+Content-Type: application/json
+
+{
+    "supplier": "Quick Supply Co",
+    "material": "Packaging Material P-100",
+    "delayedDays": 2,
+    "po": "PO-2024-004",
+    "plant": "Plant-London"
+}
+
+### ------------------------------------------
+### 5. Get All Cases (verify alerts were created)
+### ------------------------------------------
+GET http://localhost:4004/supplier-resilience/Cases
+
+### ------------------------------------------
+### 6. Get Cases with filter - Open status only
+### ------------------------------------------
+GET http://localhost:4004/supplier-resilience/Cases?$filter=status eq 'Open'
+
+### ------------------------------------------
+### 7. Get Cases with filter - Critical priority only
+### ------------------------------------------
+GET http://localhost:4004/supplier-resilience/Cases?$filter=priority eq 'Critical'
+
+### ------------------------------------------
+### 8. Get Cases with filter - Delivery Delay events
+### ------------------------------------------
+GET http://localhost:4004/supplier-resilience/Cases?$filter=eventType eq 'Delivery Delay'

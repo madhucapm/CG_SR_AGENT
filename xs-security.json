@@ -1,20 +1,69 @@
 {
-  "xsappname": "supplierresilience",
+  "xsappname": "SupplierResilience-auth",
   "tenant-mode": "dedicated",
-  "description": "Security profile of called application",
+  "description": "Security profile for Supplier Resilience application",
   "scopes": [
     {
+      "name": "$XSAPPNAME.user",
+      "description": "User scope for accessing the application"
+    },
+    {
+      "name": "$XSAPPNAME.admin",
+      "description": "Admin scope for full access"
+    },
+    {
       "name": "uaa.user",
-      "description": "UAA"
+      "description": "UAA user scope"
     }
   ],
   "role-templates": [
     {
+      "name": "Viewer",
+      "description": "View data in the application",
+      "scope-references": [
+        "$XSAPPNAME.user"
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Full access to the application",
+      "scope-references": [
+        "$XSAPPNAME.user",
+        "$XSAPPNAME.admin"
+      ]
+    },
+    {
       "name": "Token_Exchange",
-      "description": "UAA",
+      "description": "UAA token exchange",
       "scope-references": [
         "uaa.user"
       ]
     }
-  ]
+  ],
+  "role-collections": [
+    {
+      "name": "SupplierResilience_Viewer",
+      "description": "Viewer role collection for Supplier Resilience",
+      "role-template-references": [
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.Token_Exchange"
+      ]
+    },
+    {
+      "name": "SupplierResilience_Admin",
+      "description": "Admin role collection for Supplier Resilience",
+      "role-template-references": [
+        "$XSAPPNAME.Admin",
+        "$XSAPPNAME.Token_Exchange"
+      ]
+    }
+  ],
+  "oauth2-configuration": {
+    "credential-types": ["binding-secret", "x509"],
+    "redirect-uris": [
+      "https://*.cfapps.eu10.hana.ondemand.com/**",
+      "https://*.launchpad.cfapps.eu10.hana.ondemand.com/**"
+    ]
+  },
+  "attributes": []
 }

@@ -3,121 +3,153 @@ ID: SupplierResilience
 description: A simple CAP project.
 version: 1.0.0
 modules:
-- name: SupplierResilience-srv
-  type: nodejs
-  path: gen/srv
-  requires:
-  - name: SupplierResilience-auth
-  - name: SupplierResilience-db
-  provides:
-  - name: srv-api
-    properties:
-      srv-url: ${default-url}
-  parameters:
-    buildpack: nodejs_buildpack
-    instances: 1
-  build-parameters:
-    builder: npm-ci
-- name: SupplierResilience-db-deployer
-  type: hdb
-  path: gen/db
-  requires:
-  - name: SupplierResilience-db
-  parameters:
-    buildpack: nodejs_buildpack
-- name: SupplierResilience-destination-content
-  type: com.sap.application.content
-  requires:
-  - name: SupplierResilience-destination-service
-    parameters:
-      content-target: true
-  - name: SupplierResilience_html_repo_host
-    parameters:
-      service-key:
-        name: SupplierResilience_html_repo_host-key
-  - name: SupplierResilience-auth
-    parameters:
-      service-key:
-        name: SupplierResilience-auth-key
-  parameters:
-    content:
-      instance:
-        destinations:
-        - Name: sr_SupplierResilience_html_repo_host
-          ServiceInstanceName: SupplierResilience-html5-app-host-service
-          ServiceKeyName: SupplierResilience_html_repo_host-key
-          sap.cloud.service: sr
-        - Authentication: OAuth2UserTokenExchange
-          Name: sr_SupplierResilience_auth
-          ServiceInstanceName: SupplierResilience-auth
-          ServiceKeyName: SupplierResilience-auth-key
-          sap.cloud.service: sr
-        existing_destinations_policy: ignore
-  build-parameters:
-    no-source: true
-- name: supplierresilience-app-content
-  type: com.sap.application.content
-  path: .
-  requires:
-  - name: SupplierResilience_html_repo_host
-    parameters:
-      content-target: true
-  build-parameters:
-    build-result: resources
+  - name: SupplierResilience-approuter
+    type: approuter.nodejs
+    path: approuter
     requires:
-    - artifacts:
-      - supplierresilience.zip
-      name: supplierresilience
-      target-path: resources/
-- name: supplierresilience
-  type: html5
-  path: app/supplierresilience
-  build-parameters:
-    build-result: dist
-    builder: custom
-    commands:
-    - npm install
-    - npm run build
-    supported-platforms: []
+      - name: SupplierResilience-auth
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+          forwardAuthToken: true
+      - name: SupplierResilience_html_repo_runtime
+      - name: SupplierResilience-destination-service
+    properties:
+      SEND_XFRAMEOPTIONS: false
+    parameters:
+      disk-quota: 256M
+      memory: 256M
+      destinations:
+        - name: ui5
+          url: https://ui5.sap.com
+    build-parameters:
+      builder: npm-ci
+
+  - name: SupplierResilience-srv
+    type: nodejs
+    path: gen/srv
+    requires:
+      - name: SupplierResilience-auth
+      - name: SupplierResilience-db
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    parameters:
+      buildpack: nodejs_buildpack
+      instances: 1
+    build-parameters:
+      builder: npm-ci
+  - name: SupplierResilience-db-deployer
+    type: hdb
+    path: gen/db
+    requires:
+      - name: SupplierResilience-db
+    parameters:
+      buildpack: nodejs_buildpack
+  - name: SupplierResilience-destination-content
+    type: com.sap.application.content
+    requires:
+      - name: SupplierResilience-destination-service
+        parameters:
+          content-target: true
+      - name: SupplierResilience_html_repo_host
+        parameters:
+          service-key:
+            name: SupplierResilience_html_repo_host-key
+      - name: SupplierResilience-auth
+        parameters:
+          service-key:
+            name: SupplierResilience-auth-key
+      - name: srv-api
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Name: sr_SupplierResilience_html_repo_host
+              ServiceInstanceName: SupplierResilience-html5-app-host-service
+              ServiceKeyName: SupplierResilience_html_repo_host-key
+              sap.cloud.service: sr
+            - Authentication: OAuth2UserTokenExchange
+              Name: sr_SupplierResilience_auth
+              ServiceInstanceName: SupplierResilience-auth
+              ServiceKeyName: SupplierResilience-auth-key
+              sap.cloud.service: sr
+            - Name: SupplierResilience-srv-api
+              URL: ~{srv-api/srv-url}
+              Authentication: OAuth2UserTokenExchange
+              TokenServiceInstanceName: SupplierResilience-auth
+              TokenServiceKeyName: SupplierResilience-auth-key
+              sap.cloud.service: sr
+              HTML5.DynamicDestination: true
+              HTML5.ForwardAuthToken: true
+          existing_destinations_policy: update
+    build-parameters:
+      no-source: true
+  - name: supplierresilience-app-content
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: SupplierResilience_html_repo_host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - artifacts:
+            - supplierresilience.zip
+          name: supplierresilience
+          target-path: resources/
+  - name: supplierresilience
+    type: html5
+    path: app/supplierresilience
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm install
+        - npm run build
+      supported-platforms:
+        []
 resources:
-- name: SupplierResilience-auth
-  type: org.cloudfoundry.managed-service
-  parameters:
-    config:
-      oauth2-configuration:
-        credential-types:
-        - binding-secret
-        - x509
-      tenant-mode: dedicated
-      xsappname: SupplierResilience-auth
-    path: ./xs-security.json
-    service: xsuaa
-    service-plan: application
-- name: SupplierResilience-db
-  type: com.sap.xs.hdi-container
-  parameters:
-    service: hana
-    service-plan: hdi-shared
-- name: SupplierResilience-destination-service
-  type: org.cloudfoundry.managed-service
-  parameters:
-    config:
-      HTML5Runtime_enabled: true
-      version: 1.0.0
-    service: destination
-    service-name: SupplierResilience-destination-service
-    service-plan: lite
-- name: SupplierResilience_html_repo_host
-  type: org.cloudfoundry.managed-service
-  parameters:
-    service: html5-apps-repo
-    service-name: SupplierResilience-html5-app-host-service
-    service-plan: app-host
+  - name: SupplierResilience-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      path: ./xs-security.json
+      service: xsuaa
+      service-plan: application
+  - name: SupplierResilience-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+  - name: SupplierResilience-destination-service
+    type: org.cloudfoundry.managed-service
+    parameters:
+      config:
+        HTML5Runtime_enabled: true
+        version: 1.0.0
+      service: destination
+      service-name: SupplierResilience-destination-service
+      service-plan: lite
+  - name: SupplierResilience_html_repo_host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-name: SupplierResilience-html5-app-host-service
+      service-plan: app-host
+  - name: SupplierResilience_html_repo_runtime
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-runtime
 parameters:
   enable-parallel-deployments: true
 build-parameters:
   before-all:
-  - builder: custom
-    commands:
-    - npm ci
-    - npx cds build --production
+    - builder: custom
+      commands:
+        - npm ci
+        - npx cds build --production

@@ -1,5 +1,5 @@
 <mvc:View
-    controllerName="supplier.resilience.controller.View1"
+    controllerName="supplierresilience.controller.View1"
     xmlns="sap.m"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:tnt="sap.tnt"
@@ -286,7 +286,7 @@
                                 <VBox class="casesPanel">
                                     <table:Table
                                         id="casesTable"
-                                        rows="{path: '/Cases', parameters: {'$select': 'ID,caseId,eventId,status,priority,createdAt,createdBy,eventType,po,supplier,material,plant,delayedDays,eventTime'}}"
+                                        rows="{path: '/Cases', parameters: {'$select': 'ID,caseId,eventId,status,priority,createdAt,createdBy,eventType,po,supplier,material,plant,delayDays,eventTime'}}"
                                         selectionMode="Single"
                                         visibleRowCount="10"
                                         ariaLabelledBy="casesTitle">
@@ -384,7 +384,7 @@
                                                 <Label text="Plant" />
                                                 <Text text="{caseDetails>/plant}" />
                                                 <Label text="Delayed Days" />
-                                                <Text text="{caseDetails>/delayedDays}" />
+                                                <Text text="{caseDetails>/delayDays}" />
                                                 <Label text="Event Time" />
                                                 <Text text="{path: 'caseDetails>/eventTime', type: 'sap.ui.model.odata.type.DateTimeOffset', formatOptions: {style: 'medium'}}" />
                                             </form:content>

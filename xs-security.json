@@ -40,30 +40,13 @@
       ]
     }
   ],
-  "role-collections": [
-    {
-      "name": "SupplierResilience_Viewer",
-      "description": "Viewer role collection for Supplier Resilience",
-      "role-template-references": [
-        "$XSAPPNAME.Viewer",
-        "$XSAPPNAME.Token_Exchange"
-      ]
-    },
-    {
-      "name": "SupplierResilience_Admin",
-      "description": "Admin role collection for Supplier Resilience",
-      "role-template-references": [
-        "$XSAPPNAME.Admin",
-        "$XSAPPNAME.Token_Exchange"
-      ]
-    }
-  ],
   "oauth2-configuration": {
-    "credential-types": ["binding-secret", "x509"],
-    "redirect-uris": [
-      "https://*.cfapps.eu10.hana.ondemand.com/**",
-      "https://*.launchpad.cfapps.eu10.hana.ondemand.com/**"
-    ]
+   "redirect-uris": [
+ 
+  "https://*.cfapps.eu10-004.hana.ondemand.com/**",
+  "https://*.cfapps.eu10.hana.ondemand.com/**"
+],
+    "system-attributes": []
   },
   "attributes": []
 }

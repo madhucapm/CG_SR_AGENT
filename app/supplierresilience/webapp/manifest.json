@@ -1,15 +1,14 @@
 {
     "_version": "1.59.0",
     "sap.app": {
-        "id": "supplier.resilience",
+        "id": "supplierresilience",
         "type": "application",
         "i18n": "i18n/i18n.properties",
         "applicationVersion": {
-            "version": "1.0.0"
+            "version": "1.0.4"
         },
         "title": "{{appTitle}}",
         "description": "{{appDescription}}",
-        "resources": "resources.json",
         "sourceTemplate": {
             "id": "@sap/generator-fiori:basic",
             "version": "1.13.1",
@@ -74,7 +73,7 @@
             "i18n": {
                 "type": "sap.ui.model.resource.ResourceModel",
                 "settings": {
-                    "bundleName": "supplier.resilience.i18n.i18n"
+                    "bundleName": "supplierresilience.i18n.i18n"
                 }
             },
             "": {
@@ -99,7 +98,7 @@
             ]
         },
         "rootView": {
-            "viewName": "supplier.resilience.view.App",
+            "viewName": "supplierresilience.view.App",
             "type": "XML",
             "async": true,
             "id": "app"
@@ -109,7 +108,7 @@
                 "routerClass": "sap.m.routing.Router",
                 "viewType": "XML",
                 "async": true,
-                "viewPath": "supplier.resilience.view",
+                "viewPath": "supplierresilience.view",
                 "controlAggregation": "pages",
                 "controlId": "app",
                 "clearControlAggregation": false
@@ -133,7 +132,6 @@
         }
     },
     "sap.cloud": {
-        "public": true,
-        "service": "sr"
+        "service": "com.capgemini.supplierresilience"
     }
 }

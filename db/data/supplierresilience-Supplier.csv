@@ -1,0 +1,7 @@
+ID;supplierId;name;category;location;otif;previousDelays;trend;avgLeadTimeDays;qualityRating;contractStatus;alternateSuppliers;criticalMaterials;lastDeliveryDate;totalOrdersYTD;onTimeDeliveriesYTD;notes
+8128ef8d-f195-5e8a-93b8-9f71bf6e946e;SUP001;Bharat Aluminum Ltd;Raw Materials;Mumbai, India;72;3;DETERIORATING;14;85;ACTIVE;["SUP006"];["AL_SHEET_001","AL_SHEET_002"];2025-05-10;45;32;Primary aluminum supplier
+88fef937-bda0-52a1-897b-63dbd7b004a4;SUP002;IndoPak Glass Industries;Packaging;Pune, India;88;1;STABLE;10;92;ACTIVE;["SUP007"];["GLASS_BOTTLE_001"];2025-05-12;38;33;Glass bottle supplier
+e12c6c66-5361-5883-b001-527f3ea230b6;SUP003;Plastix Corp;Packaging;Chennai, India;95;0;IMPROVING;7;98;ACTIVE;[];["PET_PREFORM_001"];2025-05-14;52;49;PET preform supplier
+f4245666-588a-5c85-ab00-8bd6d8ed343f;SUP004;SugarCo India;Raw Materials;Delhi, India;82;2;STABLE;3;88;ACTIVE;["SUP008"];["SUGAR_001"];2025-05-13;60;49;Primary sugar supplier
+526a9b59-2c89-5259-955e-bcd674f45e30;SUP005;CapMakers Pvt Ltd;Packaging;Bangalore, India;91;1;STABLE;5;90;ACTIVE;[];["CAP_001"];2025-05-11;30;27;Closure supplier
+06ca3e37-ec13-57cb-9876-2a0b7bb3f492;SUP006;Global Metals Inc;Raw Materials;Detroit, USA;85;1;STABLE;21;87;ACTIVE;[];["AL_SHEET_001"];2025-04-28;12;10;Alternative aluminum supplier

@@ -7,7 +7,7 @@ sap.ui.define([
 ], function (Controller, JSONModel, MessageToast, Filter, FilterOperator) {
     "use strict";
 
-    return Controller.extend("supplier.resilience.controller.View1", {
+    return Controller.extend("supplierresilience.controller.View1", {
 
         onInit: function () {
             var oCaseDetailsModel = new JSONModel({
@@ -18,7 +18,7 @@ sap.ui.define([
                 supplier: "",
                 material: "",
                 plant: "",
-                delayedDays: "",
+                delayDays: "",
                 eventTime: null
             });
             this.getView().setModel(oCaseDetailsModel, "caseDetails");
@@ -45,7 +45,7 @@ sap.ui.define([
                 supplier: oSync.supplier || "",
                 material: oSync.material || "",
                 plant: oSync.plant || "",
-                delayedDays: (oSync.delayedDays !== undefined && oSync.delayedDays !== null) ? oSync.delayedDays : "",
+                delayDays: (oSync.delayDays !== undefined && oSync.delayDays !== null) ? oSync.delayDays : "",
                 eventTime: oSync.eventTime || null
             });
 
@@ -61,7 +61,7 @@ sap.ui.define([
                         supplier: oData.supplier || "",
                         material: oData.material || "",
                         plant: oData.plant || "",
-                        delayedDays: (oData.delayedDays !== undefined && oData.delayedDays !== null) ? oData.delayedDays : "",
+                        delayDays: (oData.delayDays !== undefined && oData.delayDays !== null) ? oData.delayDays : "",
                         eventTime: oData.eventTime || null
                     });
                 }).catch(function () {

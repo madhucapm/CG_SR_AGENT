@@ -6,7 +6,7 @@
 ### ------------------------------------------
 ### 1. Trigger Delay Alert - HIGH Priority (10 days)
 ### ------------------------------------------
-POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+POST http://localhost:4004/odata/v4/supplier-resilience/triggerDelayAlert
 Content-Type: application/json
 
 {
@@ -20,13 +20,13 @@ Content-Type: application/json
 ### ------------------------------------------
 ### 2. Trigger Delay Alert - CRITICAL Priority (20 days)
 ### ------------------------------------------
-POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+POST http://localhost:4004/odata/v4/supplier-resilience/triggerDelayAlert
 Content-Type: application/json
 
 {
     "supplier": "Global Electronics Ltd",
     "material": "Semiconductor Chip XC-7000",
-    "delayedDays": 20,
+    "delayedDays": 22,
     "po": "PO-2024-URGENT",
     "plant": "Plant-Shanghai"
 }
@@ -34,7 +34,7 @@ Content-Type: application/json
 ### ------------------------------------------
 ### 3. Trigger Delay Alert - MEDIUM Priority (5 days)
 ### ------------------------------------------
-POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+POST http://localhost:4004/odata/v4/supplier-resilience/triggerDelayAlert
 Content-Type: application/json
 
 {
@@ -48,7 +48,7 @@ Content-Type: application/json
 ### ------------------------------------------
 ### 4. Trigger Delay Alert - LOW Priority (2 days)
 ### ------------------------------------------
-POST http://localhost:4004/supplier-resilience/triggerDelayAlert
+POST http://localhost:4004/odata/v4/supplier-resilience/triggerDelayAlert
 Content-Type: application/json
 
 {
@@ -62,19 +62,379 @@ Content-Type: application/json
 ### ------------------------------------------
 ### 5. Get All Cases (verify alerts were created)
 ### ------------------------------------------
-GET http://localhost:4004/supplier-resilience/Cases
+GET http://localhost:4004/odata/v4/supplier-resilience/Cases
 
 ### ------------------------------------------
 ### 6. Get Cases with filter - Open status only
 ### ------------------------------------------
-GET http://localhost:4004/supplier-resilience/Cases?$filter=status eq 'Open'
+GET http://localhost:4004/odata/v4/supplier-resilience/Cases?$filter=status eq 'Open'
 
 ### ------------------------------------------
 ### 7. Get Cases with filter - Critical priority only
 ### ------------------------------------------
-GET http://localhost:4004/supplier-resilience/Cases?$filter=priority eq 'Critical'
+GET http://localhost:4004/odata/v4/supplier-resilience/Cases?$filter=priority eq 'Critical'
 
 ### ------------------------------------------
 ### 8. Get Cases with filter - Delivery Delay events
 ### ------------------------------------------
-GET http://localhost:4004/supplier-resilience/Cases?$filter=eventType eq 'Delivery Delay'
+GET http://localhost:4004/odata/v4/supplier-resilience/Cases?$filter=eventType eq 'Delivery Delay'
+
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### Supplier Resilience Service - API Test Suite
+### ═══════════════════════════════════════════════════════════════════════════════
+### This file tests all the migrated agent functionality from Python to CAP/Node.js
+### Run with REST Client extension in VS Code / BAS
+### ═══════════════════════════════════════════════════════════════════════════════
+
+@baseUrl = http://localhost:4004/odata/v4/supplierresilience
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### HEALTH & CONFIGURATION
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Health Check
+# Equivalent to: GET /api/v1/health
+GET {{baseUrl}}/health()
+Content-Type: application/json
+
+###
+
+### Get Configuration
+GET {{baseUrl}}/getConfig()
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### MASTER DATA ENTITIES (OData)
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Get All Suppliers
+GET {{baseUrl}}/Suppliers
+Content-Type: application/json
+
+###
+
+### Get Single Supplier
+GET {{baseUrl}}/Suppliers('SUP001')
+Content-Type: application/json
+
+###
+
+### Get All Materials
+GET {{baseUrl}}/Materials
+Content-Type: application/json
+
+###
+
+### Get Single Material (for Early Warning tests)
+GET {{baseUrl}}/Materials('AL_SHEET_001')
+Content-Type: application/json
+
+###
+
+### Get All Inventory
+GET {{baseUrl}}/Inventory
+Content-Type: application/json
+
+###
+
+### Get Inventory for Specific Material and Plant
+GET {{baseUrl}}/Inventory?$filter=materialId eq 'AL_SHEET_001' and plant eq 'MUMBAI'
+Content-Type: application/json
+
+###
+
+### Get All Demands
+GET {{baseUrl}}/Demands
+Content-Type: application/json
+
+###
+
+### Get Demand for Specific Material
+GET {{baseUrl}}/Demands?$filter=materialId eq 'AL_SHEET_001'
+Content-Type: application/json
+
+###
+
+### Get All Purchase Orders
+GET {{baseUrl}}/PurchaseOrders
+Content-Type: application/json
+
+###
+
+### Get Delayed Purchase Orders
+GET {{baseUrl}}/PurchaseOrders?$filter=status eq 'DELAYED'
+Content-Type: application/json
+
+###
+
+### Get All Disruption Events
+GET {{baseUrl}}/DisruptionEvents
+Content-Type: application/json
+
+###
+
+### Get All Cases
+GET {{baseUrl}}/Cases
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### AGENT ACTIONS - EARLY WARNING
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Run Early Warning Agent
+# Tests deterministic risk scoring
+# Expected: Same input always produces same risk score
+POST {{baseUrl}}/runEarlyWarning
+Content-Type: application/json
+
+{
+    "caseId": "TEST-EW-001",
+    "supplier": "SUP001",
+    "material": "AL_SHEET_001",
+    "plant": "MUMBAI",
+    "delayDays": 14
+}
+
+###
+
+### Run Early Warning - Different Supplier (High OTIF)
+POST {{baseUrl}}/runEarlyWarning
+Content-Type: application/json
+
+{
+    "caseId": "TEST-EW-002",
+    "supplier": "SUP003",
+    "material": "PET_PREFORM_001",
+    "plant": "MUMBAI",
+    "delayDays": 5
+}
+
+###
+
+### Assess Supplier (Quick Assessment)
+# Equivalent to: GET /api/v1/suppliers/{id}/assess
+GET {{baseUrl}}/assessSupplier(supplierId='SUP001',delayDays=14)
+Content-Type: application/json
+
+###
+
+### Assess High-Performing Supplier
+GET {{baseUrl}}/assessSupplier(supplierId='SUP003',delayDays=0)
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### AGENT ACTIONS - SURVIVAL
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Run Survival Agent
+# Tests inventory survival calculation
+# Expected: Deterministic survival weeks based on inventory/demand
+POST {{baseUrl}}/runSurvival
+Content-Type: application/json
+
+{
+    "caseId": "TEST-SURV-001",
+    "material": "AL_SHEET_001",
+    "plant": "MUMBAI",
+    "supplierRecoveryWeeks": 4
+}
+
+###
+
+### Run Survival - Different Material
+POST {{baseUrl}}/runSurvival
+Content-Type: application/json
+
+{
+    "caseId": "TEST-SURV-002",
+    "material": "PET_PREFORM_001",
+    "plant": "MUMBAI",
+    "supplierRecoveryWeeks": 3
+}
+
+###
+
+### Run Survival - High Recovery Time (Expect Shortfall)
+POST {{baseUrl}}/runSurvival
+Content-Type: application/json
+
+{
+    "caseId": "TEST-SURV-003",
+    "material": "AL_SHEET_001",
+    "plant": "PUNE",
+    "supplierRecoveryWeeks": 8
+}
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### AGENT ACTIONS - COORDINATOR (Full Workflow)
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Run Coordinator - Full Event Processing
+# This is the main workflow that:
+# 1. Validates the event
+# 2. Creates a disruption case
+# 3. Calls Early Warning Agent
+# 4. Calls Survival Agent
+# 5. Consolidates results with recommendation
+POST {{baseUrl}}/runCoordinator
+Content-Type: application/json
+
+{
+    "eventId": "EVT-TEST-001",
+    "eventType": "DELIVERY_DELAY",
+    "eventTime": "2025-05-20T10:30:00Z",
+    "po": "PO-2025-001",
+    "supplier": "SUP001",
+    "material": "AL_SHEET_001",
+    "plant": "MUMBAI",
+    "delayDays": 14
+}
+
+###
+
+### Run Coordinator - Critical Delay (21+ days)
+POST {{baseUrl}}/runCoordinator
+Content-Type: application/json
+
+{
+    "eventId": "EVT-TEST-002",
+    "eventType": "DELIVERY_DELAY",
+    "eventTime": "2025-05-23T09:45:00Z",
+    "po": "PO-2025-004",
+    "supplier": "SUP001",
+    "material": "AL_SHEET_001",
+    "plant": "PUNE",
+    "delayDays": 21
+}
+
+###
+
+### Run Coordinator - Low-Risk Supplier
+POST {{baseUrl}}/runCoordinator
+Content-Type: application/json
+
+{
+    "eventId": "EVT-TEST-003",
+    "eventType": "DELIVERY_DELAY",
+    "eventTime": "2025-05-21T08:15:00Z",
+    "po": "PO-2025-002",
+    "supplier": "SUP003",
+    "material": "PET_PREFORM_001",
+    "plant": "MUMBAI",
+    "delayDays": 5
+}
+
+###
+
+### Run Coordinator - Invalid Event (Missing Required Fields)
+# Should return validation error
+POST {{baseUrl}}/runCoordinator
+Content-Type: application/json
+
+{
+    "eventId": "EVT-INVALID",
+    "eventType": "UNKNOWN_TYPE",
+    "po": "PO-2025-001"
+}
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### LEGACY API - triggerDelayAlert
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Trigger Delay Alert (Legacy Compatibility)
+POST {{baseUrl}}/triggerDelayAlert
+Content-Type: application/json
+
+{
+    "supplier": "SUP001",
+    "material": "AL_SHEET_001",
+    "delayedDays": 14,
+    "po": "PO-2025-TEST",
+    "plant": "MUMBAI"
+}
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### RESULT ENTITIES
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Get Early Warning Results
+GET {{baseUrl}}/EarlyWarningResults
+Content-Type: application/json
+
+###
+
+### Get Survival Results
+GET {{baseUrl}}/SurvivalResults
+Content-Type: application/json
+
+###
+
+### Get Cases with High Priority
+GET {{baseUrl}}/Cases?$filter=priority eq 'Critical' or priority eq 'High'
+Content-Type: application/json
+
+###
+
+### Get Cases Requiring Action
+GET {{baseUrl}}/Cases?$filter=status eq 'ACTION_REQUIRED'
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### VALIDATION TEST CASES
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Test with Non-Existent Supplier
+POST {{baseUrl}}/runEarlyWarning
+Content-Type: application/json
+
+{
+    "caseId": "TEST-INVALID-001",
+    "supplier": "NONEXISTENT",
+    "material": "AL_SHEET_001",
+    "plant": "MUMBAI",
+    "delayDays": 14
+}
+
+###
+
+### Test with Non-Existent Material
+POST {{baseUrl}}/runSurvival
+Content-Type: application/json
+
+{
+    "caseId": "TEST-INVALID-002",
+    "material": "NONEXISTENT_MAT",
+    "plant": "MUMBAI",
+    "supplierRecoveryWeeks": 4
+}
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### OData Queries with Expansion
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Get Materials with specific criticality
+GET {{baseUrl}}/Materials?$filter=criticality eq 'HIGH'
+Content-Type: application/json
+
+###
+
+### Get Suppliers with low OTIF
+GET {{baseUrl}}/Suppliers?$filter=otif lt 80
+Content-Type: application/json
+
+###
+
+### Get Suppliers with declining trend
+GET {{baseUrl}}/Suppliers?$filter=trend eq 'DECLINING'
+Content-Type: application/json
+
+###
+
+### Count materials by criticality
+GET {{baseUrl}}/Materials?$count=true
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### END OF TEST SUITE
+### ═══════════════════════════════════════════════════════════════════════════════

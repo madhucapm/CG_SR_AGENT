@@ -1,0 +1,6 @@
+ID;eventId;eventType;eventTime;po;supplier;material;plant;delayDays;description;source;processed
+82ec0c79-1448-558a-8583-55b2c9770fe6;EVT001;PO_DELAY;2025-05-20T10:30:00Z;PO-2025-001;SUP001;AL_SHEET_001;MUMBAI;14;Primary aluminum delayed due to supplier factory maintenance;EVENT_MESH;false
+ab61fa0d-4aee-56f2-80a9-c8b49feb55f1;EVT002;PO_DELAY;2025-05-21T08:15:00Z;PO-2025-002;SUP002;GLASS_BOTTLE_001;PUNE;7;Glass bottles delayed due to logistics issues;EVENT_MESH;false
+e8996638-41fd-58b1-98b9-e8ed7d13d997;EVT003;QUALITY_ISSUE;2025-05-22T14:00:00Z;PO-2025-003;SUP003;PET_PREFORM_001;MUMBAI;0;Batch requires additional quality checks;MANUAL;false
+ea3f8d64-af79-501f-a670-d9a69f143e57;EVT004;PO_DELAY;2025-05-23T09:45:00Z;PO-2025-004;SUP001;AL_SHEET_001;PUNE;21;Aluminum supplier facing raw material shortage;EVENT_MESH;false
+64274bac-bfb6-582e-b145-b5c55b1088ed;EVT005;PO_DELAY;2025-05-24T11:20:00Z;PO-2025-005;SUP004;SUGAR_001;MUMBAI;5;Sugar shipment held at customs;EVENT_MESH;false

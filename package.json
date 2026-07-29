@@ -11,7 +11,9 @@
     "@sap/cds-dk": "^9"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "start:hybrid": "cds bind --exec -- cds-serve --profile hybrid",
+    "watch:hybrid": "cds watch --profile hybrid"
   },
   "private": true,
   "cds": {

@@ -1,6 +1,6 @@
 specVersion: "3.0"
 metadata:
-  name: supplier.resilience
+  name: supplierresilience
 type: application
 resources:
   configuration:

@@ -3,7 +3,7 @@ sap.ui.define([
 ], function (Controller) {
     "use strict";
 
-    return Controller.extend("supplier.resilience.controller.App", {
+    return Controller.extend("supplierresilience.controller.App", {
         onInit: function () {
         }
     });

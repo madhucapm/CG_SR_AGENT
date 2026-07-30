@@ -436,5 +436,207 @@ GET {{baseUrl}}/Materials?$count=true
 Content-Type: application/json
 
 ### ═══════════════════════════════════════════════════════════════════════════════
+### DASHBOARD APIs
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Dashboard Summary - Get all KPIs
+# Returns aggregated metrics for main dashboard view
+GET {{baseUrl}}/getDashboardSummary()
+Content-Type: application/json
+
+###
+
+### List All Cases
+# Returns all cases without filters
+GET {{baseUrl}}/listCases()
+Content-Type: application/json
+
+###
+
+### List Cases - Filter by Status
+GET {{baseUrl}}/listCases(status='Open')
+Content-Type: application/json
+
+###
+
+### List Cases - Filter by Priority
+GET {{baseUrl}}/listCases(priority='High')
+Content-Type: application/json
+
+###
+
+### List Cases - Multiple Filters
+GET {{baseUrl}}/listCases(status='Open',priority='High',limit=10)
+Content-Type: application/json
+
+###
+
+### List Cases - Filter by Plant
+GET {{baseUrl}}/listCases(plant='MUMBAI')
+Content-Type: application/json
+
+###
+
+### List Cases - Filter by Supplier
+GET {{baseUrl}}/listCases(supplier='ABC_METALS')
+Content-Type: application/json
+
+###
+
+### Get Case Detail
+# Returns full case information with early warning and survival results
+GET {{baseUrl}}/getCaseDetail(caseId='CASE-1001')
+Content-Type: application/json
+
+###
+
+### Get Case Detail - Another Case
+GET {{baseUrl}}/getCaseDetail(caseId='CASE-1002')
+Content-Type: application/json
+
+###
+
+### Get Case History / Timeline
+# Returns audit trail of status changes for a case
+GET {{baseUrl}}/getCaseHistory(caseId='CASE-1001')
+Content-Type: application/json
+
+###
+
+### Delete Case
+# Removes a case and its associated results
+# WARNING: This permanently deletes the case
+POST {{baseUrl}}/deleteCase
+Content-Type: application/json
+
+{
+    "caseId": "CASE-TEST-DELETE"
+}
+
+###
+
+### Inventory Health Overview
+# Returns inventory health status for all materials with survival calculations
+GET {{baseUrl}}/getInventoryHealth()
+Content-Type: application/json
+
+###
+
+### Supplier Risk Overview
+# Returns supplier performance and risk metrics
+GET {{baseUrl}}/getSupplierRiskOverview()
+Content-Type: application/json
+
+###
+
+### Risk Analytics
+# Returns risk distribution and analytics data for charts
+GET {{baseUrl}}/getRiskAnalytics()
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### DASHBOARD API - Combined Scenarios
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Scenario 1: Dashboard Initial Load
+# Call these in sequence to populate a dashboard
+
+# Step 1: Get summary KPIs
+GET {{baseUrl}}/getDashboardSummary()
+Content-Type: application/json
+
+###
+
+# Step 2: Get recent cases for table
+GET {{baseUrl}}/listCases(limit=10)
+Content-Type: application/json
+
+###
+
+# Step 3: Get supplier risk overview
+GET {{baseUrl}}/getSupplierRiskOverview()
+Content-Type: application/json
+
+###
+
+# Step 4: Get inventory alerts
+GET {{baseUrl}}/getInventoryHealth()
+Content-Type: application/json
+
+###
+
+### Scenario 2: Case Detail View
+# When user clicks on a case
+
+# Get full case details
+GET {{baseUrl}}/getCaseDetail(caseId='CASE-1001')
+Content-Type: application/json
+
+###
+
+# Get case timeline/history
+GET {{baseUrl}}/getCaseHistory(caseId='CASE-1001')
+Content-Type: application/json
+
+###
+
+### Scenario 3: Risk Dashboard
+# For risk-focused dashboard view
+
+# Get risk analytics
+GET {{baseUrl}}/getRiskAnalytics()
+Content-Type: application/json
+
+###
+
+# Get high-risk cases
+GET {{baseUrl}}/listCases(priority='Critical')
+Content-Type: application/json
+
+###
+
+# Get supplier risk data
+GET {{baseUrl}}/getSupplierRiskOverview()
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### DASHBOARD API - OData Entity Queries
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### Get Case Histories Entity
+GET {{baseUrl}}/CaseHistories
+Content-Type: application/json
+
+###
+
+### Get Case Histories for Specific Case
+GET {{baseUrl}}/CaseHistories?$filter=caseId eq 'CASE-1001'
+Content-Type: application/json
+
+###
+
+### Get Early Warning Results with High Risk
+GET {{baseUrl}}/EarlyWarningResults?$filter=riskLevel eq 'HIGH'
+Content-Type: application/json
+
+###
+
+### Get Survival Results Requiring Action
+GET {{baseUrl}}/SurvivalResults?$filter=actionRequired eq true
+Content-Type: application/json
+
+###
+
+### Get Cases by Event Type
+GET {{baseUrl}}/Cases?$filter=eventType eq 'PO_DELAY'&$orderby=createdAt desc
+Content-Type: application/json
+
+###
+
+### Get Cases with Recommendation
+GET {{baseUrl}}/Cases?$filter=recommendation ne null&$select=caseId,status,priority,recommendation
+Content-Type: application/json
+
+### ═══════════════════════════════════════════════════════════════════════════════
 ### END OF TEST SUITE
 ### ═══════════════════════════════════════════════════════════════════════════════

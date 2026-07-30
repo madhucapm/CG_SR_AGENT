@@ -219,6 +219,22 @@ entity SurvivalResult : cuid, managed {
     error                   : String(500);
 }
 
+/**
+ * Case History / Timeline
+ * Tracks status changes and agent actions for audit trail
+ * Used by dashboard to show case timeline
+ */
+entity CaseHistory : cuid, managed {
+    caseId          : String(30) @mandatory;
+    timestamp       : Timestamp;
+    previousStatus  : String(30);
+    newStatus       : String(30);
+    action          : String(200);              // Description of what happened
+    agent           : String(50);               // Which agent performed the action
+    details         : LargeString;              // JSON or detailed description
+    userId          : String(100);              // User who triggered (if manual)
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INDEXES for performance (optional, CAP handles automatically for common queries)

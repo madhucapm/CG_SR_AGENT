@@ -30,6 +30,16 @@ catch (e) { console.warn('[Service] agents/early-warning not loaded:', e.message
 try { ({ SurvivalAgent } = require('./agents/survival')); }
 catch (e) { console.warn('[Service] agents/survival not loaded:', e.message); }
 
+// SAP Cloud SDK — used to call the S/4HANA `S4R` destination configured in
+// the BTP Destination service. Loaded defensively so the CAP srv still starts
+// locally even if the SDK is not yet installed.
+let executeHttpRequest = null;
+try {
+    ({ executeHttpRequest } = require('@sap-cloud-sdk/http-client'));
+} catch (e) {
+    console.warn('[Service] @sap-cloud-sdk/http-client not loaded:', e.message);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilities & constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,6 +372,7 @@ module.exports = cds.service.impl(async function () {
                 eventId: c.eventId,
                 status: c.status,
                 priority: c.priority,
+                po: c.po,
                 supplier: c.supplier,
                 material: c.material,
                 plant: c.plant,
@@ -511,6 +522,209 @@ module.exports = cds.service.impl(async function () {
                 earlyWarning: null,
                 survival: null,
                 error: error.message
+            };
+        }
+    });
+
+    /**
+     * Get Purchase Order Details from S/4HANA
+     * GET /odata/v4/supplier-resilience/getPurchaseOrderDetails(po='...')
+     *
+     * Consumes the BTP `S4R` destination and calls two S/4HANA OData v2
+     * endpoints of API_PURCHASEORDER_PROCESS_SRV in parallel:
+     *   - A_PurchaseOrder('<po>')                 → header
+     *   - A_PurchaseOrderItem?$filter=PurchaseOrder eq '<po>'  → items
+     * The raw responses are normalized into flat objects for the UI.
+     */
+    this.on('getPurchaseOrderDetails', async (req) => {
+        logger.info('getPurchaseOrderDetails function called');
+
+        const { po } = req.data;
+
+        if (!po) {
+            return {
+                success: false,
+                po: null,
+                purchaseOrder: null,
+                purchaseOrderItems: [],
+                error: 'po is required'
+            };
+        }
+
+        if (!executeHttpRequest) {
+            return {
+                success: false,
+                po: po,
+                purchaseOrder: null,
+                purchaseOrderItems: [],
+                error: '@sap-cloud-sdk/http-client is not available on the server'
+            };
+        }
+
+        // OData v2 endpoints of API_PURCHASEORDER_PROCESS_SRV
+        const HEADER_URL =
+            `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrder('${encodeURIComponent(po)}')?$format=json`;
+        const ITEMS_URL =
+            `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrderItem?$filter=` +
+            encodeURIComponent(`PurchaseOrder eq '${po}'`) + `&$format=json`;
+
+        // OData v2 endpoint of API_MATERIAL_DOCUMENT_SRV — goods movements
+        // (101 = GR against PO, 102 = reversal of GR, 122 = return delivery)
+        // for the same PO. Reuses the same `S4R` destination.
+        const MATERIAL_DOC_URL =
+            `/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentItem?$select=` +
+            `MaterialDocument,MaterialDocumentYear,MaterialDocumentItem,` +
+            `PurchaseOrder,PurchaseOrderItem,PostingDate,GoodsMovementType,` +
+            `Material,Plant,QuantityInEntryUnit,EntryUnit,Supplier` +
+            `&$filter=` +
+            encodeURIComponent(
+                `PurchaseOrder eq '${po}' and (` +
+                `GoodsMovementType eq '101' or ` +
+                `GoodsMovementType eq '102' or ` +
+                `GoodsMovementType eq '122')`
+            ) +
+            `&$format=json`;
+
+        const destination = { destinationName: 'S4R' };
+        const commonOptions = {
+            method: 'GET',
+            headers: { Accept: 'application/json' }
+        };
+
+        try {
+            logger.info(`getPurchaseOrderDetails calling S4R for PO ${po}`);
+            // Call all three endpoints in parallel. The material-document
+            // call is wrapped so its failure does NOT reject the whole
+            // Promise.all — header/items must remain available even if the
+            // goods-movement service is unavailable or the PO has no GRs.
+            const [headerResp, itemsResp, matDocRespOrErr] = await Promise.all([
+                executeHttpRequest(destination, { ...commonOptions, url: HEADER_URL }),
+                executeHttpRequest(destination, { ...commonOptions, url: ITEMS_URL }),
+                executeHttpRequest(destination, { ...commonOptions, url: MATERIAL_DOC_URL })
+                    .catch((err) => {
+                        logger.warn(`getPurchaseOrderDetails material-document call failed: ${err && err.message ? err.message : err}`);
+                        return { __failed: true, error: err };
+                    })
+            ]);
+
+            // Both v2 payload shapes are handled: { d: { ... } } for a single
+            // entity and { d: { results: [ ... ] } } for a collection. If the
+            // service is v4 (unlikely for this SRV, but harmless), fall back
+            // to the raw body.
+            const hData = headerResp && headerResp.data ? headerResp.data : {};
+            const iData = itemsResp && itemsResp.data ? itemsResp.data : {};
+
+            const rawHeader = (hData.d && !hData.d.results) ? hData.d
+                : (hData.d && hData.d.results && hData.d.results[0]) ? hData.d.results[0]
+                : hData;
+
+            const rawItems = (iData.d && Array.isArray(iData.d.results)) ? iData.d.results
+                : (Array.isArray(iData.value)) ? iData.value
+                : (Array.isArray(iData)) ? iData
+                : [];
+
+            // Normalize (stringify) known fields; keep only what the CDS type declares
+            const asStr = (v) => (v === undefined || v === null) ? '' : String(v);
+
+            const purchaseOrder = rawHeader ? {
+                PurchaseOrder:               asStr(rawHeader.PurchaseOrder),
+                PurchaseOrderType:           asStr(rawHeader.PurchaseOrderType),
+                CompanyCode:                 asStr(rawHeader.CompanyCode),
+                PurchasingOrganization:      asStr(rawHeader.PurchasingOrganization),
+                PurchasingGroup:             asStr(rawHeader.PurchasingGroup),
+                Supplier:                    asStr(rawHeader.Supplier),
+                SupplierPhoneNumber:         asStr(rawHeader.SupplierPhoneNumber),
+                DocumentCurrency:            asStr(rawHeader.DocumentCurrency),
+                PurchaseOrderDate:           asStr(rawHeader.PurchaseOrderDate),
+                CreatedByUser:               asStr(rawHeader.CreatedByUser),
+                CreationDate:                asStr(rawHeader.CreationDate),
+                LastChangeDateTime:          asStr(rawHeader.LastChangeDateTime),
+                PurchaseOrderNetAmount:      asStr(rawHeader.PurchaseOrderNetAmount),
+                Language:                    asStr(rawHeader.Language),
+                PaymentTerms:                asStr(rawHeader.PaymentTerms),
+                AddressName:                 asStr(rawHeader.AddressName),
+                AddressCityName:             asStr(rawHeader.AddressCityName),
+                AddressCountry:              asStr(rawHeader.AddressCountry)
+            } : null;
+
+            const purchaseOrderItems = rawItems.map((it) => ({
+                PurchaseOrder:              asStr(it.PurchaseOrder),
+                PurchaseOrderItem:          asStr(it.PurchaseOrderItem),
+                PurchaseOrderItemText:      asStr(it.PurchaseOrderItemText),
+                Material:                   asStr(it.Material),
+                Plant:                      asStr(it.Plant),
+                StorageLocation:            asStr(it.StorageLocation),
+                OrderQuantity:              asStr(it.OrderQuantity),
+                PurchaseOrderQuantityUnit:  asStr(it.PurchaseOrderQuantityUnit),
+                NetPriceAmount:             asStr(it.NetPriceAmount),
+                NetPriceQuantity:           asStr(it.NetPriceQuantity),
+                DocumentCurrency:           asStr(it.DocumentCurrency),
+                ScheduleLineDeliveryDate:   asStr(it.ScheduleLineDeliveryDate),
+                IsCompletelyDelivered:      it.IsCompletelyDelivered === true || it.IsCompletelyDelivered === 'true',
+                PurchaseOrderItemCategory:  asStr(it.PurchaseOrderItemCategory)
+            }));
+
+            // Normalize Material Document rows. If the parallel call failed
+            // we return an empty array so header/items still render on the UI.
+            let materialDocuments = [];
+            if (matDocRespOrErr && !matDocRespOrErr.__failed) {
+                const mData = matDocRespOrErr.data ? matDocRespOrErr.data : {};
+                const rawMatDocs = (mData.d && Array.isArray(mData.d.results)) ? mData.d.results
+                    : (Array.isArray(mData.value)) ? mData.value
+                    : (Array.isArray(mData)) ? mData
+                    : [];
+                materialDocuments = rawMatDocs.map((md) => ({
+                    MaterialDocument:     asStr(md.MaterialDocument),
+                    MaterialDocumentYear: asStr(md.MaterialDocumentYear),
+                    MaterialDocumentItem: asStr(md.MaterialDocumentItem),
+                    PostingDate:          asStr(md.PostingDate),
+                    GoodsMovementType:    asStr(md.GoodsMovementType),
+                    PurchaseOrder:        asStr(md.PurchaseOrder),
+                    PurchaseOrderItem:    asStr(md.PurchaseOrderItem),
+                    Material:             asStr(md.Material),
+                    Plant:                asStr(md.Plant),
+                    QuantityInEntryUnit:  asStr(md.QuantityInEntryUnit),
+                    EntryUnit:            asStr(md.EntryUnit),
+                    Supplier:             asStr(md.Supplier)
+                }));
+            }
+
+            return {
+                success: true,
+                po: po,
+                purchaseOrder: purchaseOrder,
+                purchaseOrderItems: purchaseOrderItems,
+                materialDocuments: materialDocuments,
+                error: null
+            };
+
+        } catch (error) {
+            // The SAP Cloud SDK often wraps the real cause deep inside
+            // error.cause / error.rootCause / axios error.response. Surface as
+            // much detail as possible so the browser payload tells us WHY it
+            // failed (missing service binding, 401 from S/4, ETIMEDOUT via
+            // Cloud Connector, destination not found, etc.).
+            const detail =
+                (error && error.rootCause && error.rootCause.message) ||
+                (error && error.cause     && error.cause.message)     ||
+                (error && error.response  && error.response.data && (
+                    (error.response.data.error && (error.response.data.error.message && error.response.data.error.message.value || error.response.data.error.message)) ||
+                    (typeof error.response.data === 'string' ? error.response.data : JSON.stringify(error.response.data).substring(0, 500))
+                )) ||
+                (error && error.message) ||
+                String(error);
+
+            logger.error(`getPurchaseOrderDetails error: ${detail}`);
+            if (error && error.stack) {
+                logger.error(error.stack);
+            }
+            return {
+                success: false,
+                po: po,
+                purchaseOrder: null,
+                purchaseOrderItems: [],
+                materialDocuments: [],
+                error: detail
             };
         }
     });

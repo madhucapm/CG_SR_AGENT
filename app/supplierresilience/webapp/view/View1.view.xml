@@ -13,13 +13,14 @@
             <HBox class="towerShell">
                 <tnt:SideNavigation expanded="true" itemSelect="onNavSelect" class="towerNav">
                     <tnt:NavigationList>
-                          <tnt:NavigationListItem key="cases" text="Cases" icon="sap-icon://alert" />
-                        <tnt:NavigationListItem key="control" text="Control tower" icon="sap-icon://home" />
-                        
+                                            <tnt:NavigationListItem key="control" text="Control tower" icon="sap-icon://home" />
+                        <tnt:NavigationListItem key="coordinator" text="Coordinator Agent" icon="sap-icon://workflow-tasks" />
+
                         <tnt:NavigationListItem key="incidents" text="Early Warning Agent" icon="sap-icon://alert" />
                         <tnt:NavigationListItem key="signals" text="Survival Planner Agent" icon="sap-icon://activity-items" />
                         <tnt:NavigationListItem key="planning" text="Substitution Checker Agent" icon="sap-icon://process" />
                         <tnt:NavigationListItem key="approvals" text="Scenario &amp; Recommendation Agent" icon="sap-icon://approvals" />
+                        <tnt:NavigationListItem key="cases" text="Cases" icon="sap-icon://alert" />
                         <tnt:NavigationListItem key="audit" text="Audit trail" icon="sap-icon://history" />
                     </tnt:NavigationList>
                 </tnt:SideNavigation>
@@ -42,29 +43,19 @@
                                         <Title text="{dashboard>/selectedWorkspace/title}" level="H2" />
                                         <Text text="{dashboard>/selectedWorkspace/description}" class="subhead" />
                                     </VBox>
+                                    <HBox alignItems="Center" class="casesDropdownWrap">
+                                        <Label text="Cases" labelFor="casesDropdown" class="casesDropdownLabel" />
+                                        <ComboBox
+                                            id="casesDropdown"
+                                            width="18rem"
+                                            placeholder="Loading cases…"
+                                            selectedKey="{dashboard>/selectedCaseId}"
+                                            selectionChange="onCaseDropdownSelect"
+                                            items="{path: 'dashboard>/caseOptions', templateShareable: false}">
+                                            <core:Item key="{dashboard>caseId}" text="{dashboard>caseId}" />
+                                        </ComboBox>
+                                    </HBox>
                                     <ObjectStatus text="Last sync {dashboard>/lastRefresh}" state="Success" icon="sap-icon://synchronize" />
-                                </HBox>
-                                <HBox class="metricStrip" wrap="Wrap">
-                                    <VBox class="metric">
-                                        <Text text="Active incidents" class="metricLabel" />
-                                        <Title text="{dashboard>/activeIncidents}" level="H3" />
-                                        <ObjectStatus text="1 critical" state="Error" />
-                                    </VBox>
-                                    <VBox class="metric">
-                                        <Text text="Materials at risk" class="metricLabel" />
-                                        <Title text="{dashboard>/materialsAtRisk}" level="H3" />
-                                        <ObjectStatus text="+4 since 08:00" state="Warning" />
-                                    </VBox>
-                                    <VBox class="metric">
-                                        <Text text="Portfolio coverage" class="metricLabel" />
-                                        <Title text="{dashboard>/coverage}" level="H3" />
-                                        <ObjectStatus text="−1.1 weeks" state="Error" />
-                                    </VBox>
-                                    <VBox class="metric">
-                                        <Text text="Signals today" class="metricLabel" />
-                                        <Title text="{dashboard>/signalsToday}" level="H3" />
-                                        <ObjectStatus text="All streams live" state="Success" />
-                                    </VBox>
                                 </HBox>
                                 <HBox class="sectionHeader" justifyContent="SpaceBetween">
                                     <Title text="Agent network" level="H3" />
@@ -188,89 +179,7 @@
                                         </VBox>
                                     </items>
                                 </HBox>
-                                <HBox class="sectionHeader" justifyContent="SpaceBetween">
-                                    <Title text="Priority incident" level="H3" />
-                                    <ObjectStatus text="{dashboard>/incident/status}" state="Warning" icon="sap-icon://pending" />
-                                </HBox>
-                                <VBox class="incidentPanel">
-                                    <HBox justifyContent="SpaceBetween" wrap="Wrap">
-                                        <VBox>
-                                            <Text text="{dashboard>/incident/id}" class="incidentId" />
-                                            <Title text="{dashboard>/incident/title}" level="H2" />
-                                            <Text text="{dashboard>/incident/supplier}  ·  {dashboard>/incident/material}" class="incidentMeta" />
-                                        </VBox>
-                                        <VBox class="scoreBlock">
-                                            <Text text="RAISE SCORE" class="metricLabel" />
-                                            <Title text="{dashboard>/incident/score}" level="H2" />
-                                            <ObjectStatus text="{dashboard>/incident/severity}" state="Error" />
-                                        </VBox>
-                                    </HBox>
-                                    <HBox class="incidentFacts" wrap="Wrap">
-                                        <VBox>
-                                            <Text text="Customer exposure" class="metricLabel" />
-                                            <Title text="{dashboard>/incident/exposure}" level="H4" />
-                                        </VBox>
-                                        <VBox>
-                                            <Text text="Time to survive" class="metricLabel" />
-                                            <Title text="{dashboard>/incident/tts}" level="H4" />
-                                        </VBox>
-                                        <VBox>
-                                            <Text text="Time to recover" class="metricLabel" />
-                                            <Title text="{dashboard>/incident/ttr}" level="H4" />
-                                        </VBox>
-                                        <VBox>
-                                            <Text text="Recovery gap" class="metricLabel" />
-                                            <Title text="{dashboard>/incident/gap}" level="H4" class="dangerText" />
-                                        </VBox>
-                                    </HBox>
-                                    <HBox class="incidentColumns" wrap="Wrap">
-                                        <VBox class="timelineCol" width="55%">
-                                            <Text text="DECISION TIMELINE" class="eyebrow" />
-                                            <List items="{dashboard>/timeline}" showSeparators="None" class="timeline">
-                                                <items>
-                                                    <CustomListItem>
-                                                        <HBox>
-                                                            <VBox class="timelineRail">
-                                                                <Text text="{dashboard>time}" class="timelineTime" />
-                                                            </VBox>
-                                                            <VBox class="timelineEvent">
-                                                                <Text text="{dashboard>agent}" class="timelineAgent" />
-                                                                <Title text="{dashboard>event}" level="H5" />
-                                                                <Text text="{dashboard>detail}" class="timelineDetail" />
-                                                            </VBox>
-                                                        </HBox>
-                                                    </CustomListItem>
-                                                </items>
-                                            </List>
-                                        </VBox>
-                                        <VBox class="planCol" width="45%">
-                                            <Text text="RANKED RESPONSE" class="eyebrow" />
-                                            <List items="{dashboard>/options}" showSeparators="Inner" class="optionList">
-                                                <items>
-                                                    <CustomListItem>
-                                                        <HBox alignItems="Center" class="optionItem">
-                                                            <Text text="{dashboard>rank}" class="optionRank" />
-                                                            <VBox width="100%">
-                                                                <HBox justifyContent="SpaceBetween">
-                                                                    <Title text="{dashboard>title}" level="H5" />
-                                                                    <ObjectStatus text="{dashboard>risk}" state="{= ${dashboard>risk} === 'Low' ? 'Success' : ${dashboard>risk} === 'Medium' ? 'Warning' : 'Error'}" />
-                                                                </HBox>
-                                                                <Text text="{dashboard>weeks} cover  ·  {dashboard>cost} cost delta" class="optionMeta" />
-                                                            </VBox>
-                                                        </HBox>
-                                                    </CustomListItem>
-                                                </items>
-                                            </List>
-                                            <HBox class="approvalBar" justifyContent="SpaceBetween" alignItems="Center">
-                                                <VBox>
-                                                    <Text text="HUMAN COMMIT GATE" class="eyebrow" />
-                                                    <Text text="Planner / SCRM approval required" />
-                                                </VBox>
-                                                <Button text="Review &amp; approve" type="Emphasized" icon="sap-icon://approvals" press="onApprove" />
-                                            </HBox>
-                                        </VBox>
-                                    </HBox>
-                                </VBox>
+                                <!-- Priority incident section removed by request -->
                             </VBox>
 
                             <!-- Cases view: sap.ui.table bound to OData Cases -->
@@ -393,7 +302,119 @@
                                 </Panel>
                             </VBox>
 
-                            <!-- Generic process workspace view -->
+                            <!-- Coordinator Agent view: sap.ui.table bound to coordinator JSON model -->
+                            <VBox id="coordinatorView" visible="false">
+                                <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
+                                    <VBox>
+                                        <Text text="COORDINATOR AGENT" class="eyebrow" />
+                                        <Title text="Coordinator workflow results" level="H2" />
+                                        <Text text="Consolidated output from the Coordinator Agent orchestration." class="subhead" />
+                                    </VBox>
+                                    <ObjectStatus text="Live" state="Success" icon="sap-icon://workflow-tasks" />
+                                </HBox>
+                                <VBox class="casesPanel" height="calc(100vh - 300px)">
+                                    <table:Table
+                                        id="coordinatorTable"
+                                        rows="{coordinator>/results}"
+                                        selectionMode="Single"
+                                        visibleRowCount="12"
+                                        minAutoRowCount="10"
+                                        visibleRowCountMode="Auto"
+                                        threshold="50"
+                                        busy="{coordinator>/busy}"
+                                        ariaLabelledBy="coordinatorTitle">
+                                        <table:extension>
+                                            <Toolbar>
+                                                <Title id="coordinatorTitle" text="Coordinator Agent Results" level="H4" />
+                                                <ToolbarSpacer />
+                                                <SearchField
+                                                    id="coordinatorSearchField"
+                                                    width="22rem"
+                                                    placeholder="Search by Case ID, Priority, Status, Supplier..."
+                                                    liveChange="onCoordinatorSearch"
+                                                    search="onCoordinatorSearch" />
+                                                <Button icon="sap-icon://refresh" tooltip="Refresh" press="onCoordinatorRefresh" />
+                                            </Toolbar>
+                                        </table:extension>
+                                        <table:columns>
+                                            <table:Column width="10rem">
+                                                <Label text="Case ID" />
+                                                <table:template>
+                                                    <Text text="{coordinator>caseId}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="9rem">
+                                                <Label text="Event ID" />
+                                                <table:template>
+                                                    <Text text="{coordinator>eventId}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="8rem">
+                                                <Label text="PO" />
+                                                <table:template>
+                                                    <Text text="{coordinator>po}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="10rem">
+                                                <Label text="Status" />
+                                                <table:template>
+                                                    <ObjectStatus text="{coordinator>status}" state="{= ${coordinator>status} === 'ACTION_REQUIRED' ? 'Error' : ${coordinator>status} === 'MONITORING' || ${coordinator>status} === 'RESOLVED' || ${coordinator>status} === 'CLOSED' ? 'Success' : 'Warning'}" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="7rem">
+                                                <Label text="Priority" />
+                                                <table:template>
+                                                    <ObjectStatus text="{coordinator>priority}" state="{= ${coordinator>priority} === 'CRITICAL' || ${coordinator>priority} === 'HIGH' ? 'Error' : ${coordinator>priority} === 'MEDIUM' ? 'Warning' : 'Success'}" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="7rem">
+                                                <Label text="Supplier" />
+                                                <table:template>
+                                                    <Text text="{coordinator>supplier}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="9rem">
+                                                <Label text="Material" />
+                                                <table:template>
+                                                    <Text text="{coordinator>material}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="7rem">
+                                                <Label text="Plant" />
+                                                <table:template>
+                                                    <Text text="{coordinator>plant}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="6rem" hAlign="End">
+                                                <Label text="Delay Days" />
+                                                <table:template>
+                                                    <Text text="{coordinator>delayDays}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="9rem">
+                                                <Label text="Event Type" />
+                                                <table:template>
+                                                    <Text text="{coordinator>eventType}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="11rem">
+                                                <Label text="Created At" />
+                                                <table:template>
+                                                    <Text text="{coordinator>createdAt}" wrapping="false" />
+                                                </table:template>
+                                            </table:Column>
+                                            <table:Column width="24rem">
+                                                <Label text="Recommendation" />
+                                                <table:template>
+                                                    <Text text="{coordinator>recommendation}" wrapping="true" />
+                                                </table:template>
+                                            </table:Column>
+                                        </table:columns>
+                                    </table:Table>
+                                </VBox>
+                            </VBox>
+
+                            <!-- Agent sub-tab view (Early Warning, Survival Planner, Substitution Checker, Scenario & Recommendation) -->
                             <VBox id="processView" visible="false" class="processView">
                                 <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
                                     <VBox>
@@ -401,61 +422,289 @@
                                         <Title text="{dashboard>/selectedWorkspace/title}" level="H2" />
                                         <Text text="{dashboard>/selectedWorkspace/description}" class="subhead" />
                                     </VBox>
+                                    <HBox alignItems="Center" class="casesDropdownWrap">
+                                        <Label text="Cases" labelFor="agentTabCasesDropdown" class="casesDropdownLabel" />
+                                        <ComboBox
+                                            id="agentTabCasesDropdown"
+                                            width="18rem"
+                                            placeholder="Loading cases…"
+                                            selectedKey="{dashboard>/selectedCaseId}"
+                                            selectionChange="onCaseDropdownSelect"
+                                            items="{path: 'dashboard>/caseOptions', templateShareable: false}">
+                                            <core:Item key="{dashboard>caseId}" text="{dashboard>caseId}" />
+                                        </ComboBox>
+                                    </HBox>
                                     <ObjectStatus text="{dashboard>/selectedWorkspace/status}" state="Information" icon="sap-icon://activity-items" />
                                 </HBox>
-                                <HBox class="processMeta" wrap="Wrap">
-                                    <VBox>
-                                        <Text text="PROCESS OWNER" class="metricLabel" />
-                                        <Title text="{= ${dashboard>/selectedView} === 'signals' ? 'Early-Warning' : ${dashboard>/selectedView} === 'planning' ? 'Survival Planner' : 'Coordinator'}" level="H4" />
-                                    </VBox>
-                                    <VBox>
-                                        <Text text="STEPS IN WORKFLOW" class="metricLabel" />
-                                        <Title text="{= ${dashboard>/selectedSteps}.length}" level="H4" />
-                                    </VBox>
-                                    <VBox>
-                                        <Text text="MODE" class="metricLabel" />
-                                        <ObjectStatus text="Local simulation" state="Information" />
-                                    </VBox>
-                                </HBox>
-                                <HBox class="processHeader" justifyContent="SpaceBetween" alignItems="Center">
-                                    <VBox>
-                                        <Text text="PROCESS STEP INVENTORY" class="eyebrow" />
-                                        <Title text="Execution sequence" level="H3" />
-                                    </VBox>
-                                    <Text text="Trigger → activity → output → SLA" class="sectionMeta" />
-                                </HBox>
-                                <List items="{dashboard>/selectedSteps}" class="processList" showSeparators="Inner" noDataText="No process steps are configured for this workspace yet.">
+
+                                <!-- Active agent output card (agent-specific for the currently selected sub-tab + case).
+                                     Visible whenever there is either an active agent for the selected sub-tab, OR
+                                     we are on an agent tab that has fresh live-analysis data (Early Warning /
+                                     Survival Planner). -->
+                                <HBox class="agentRow"
+                                      visible="{= !!${dashboard>/activeAgent}
+                                                || (${dashboard>/selectedView} === 'incidents' &amp;&amp; ${poDetails>/hasResult})
+                                                || (${dashboard>/selectedView} === 'signals'   &amp;&amp; ${survival>/hasResult}) }">
                                     <items>
-                                        <CustomListItem>
-                                            <HBox class="processStep" alignItems="Start">
-                                                <VBox class="stepNumber">
-                                                    <Text text="{dashboard>id}" />
-                                                </VBox>
-                                                <VBox class="stepBody" width="100%">
-                                                    <HBox justifyContent="SpaceBetween" alignItems="Center" wrap="Wrap">
-                                                        <Title text="{dashboard>title}" level="H4" />
-                                                        <ObjectStatus text="{dashboard>state}" state="{= ${dashboard>state} === 'Complete' || ${dashboard>state} === 'Live' ? 'Success' : ${dashboard>state} === 'Running' ? 'Warning' : 'Information'}" />
-                                                    </HBox>
-                                                    <Text text="{dashboard>activity}" class="stepActivity" />
-                                                    <HBox class="stepFacts" wrap="Wrap">
-                                                        <VBox>
-                                                            <Text text="TRIGGER" class="stepLabel" />
-                                                            <Text text="{dashboard>trigger}" />
-                                                        </VBox>
-                                                        <VBox>
-                                                            <Text text="OUTPUT" class="stepLabel" />
-                                                            <Text text="{dashboard>output}" />
-                                                        </VBox>
-                                                        <VBox>
-                                                            <Text text="SLA" class="stepLabel" />
-                                                            <Text text="{dashboard>sla}" />
-                                                        </VBox>
-                                                    </HBox>
-                                                </VBox>
+                                        <!-- Left column: the existing agent overview card (activities + outputs).
+                                             Only rendered when the getCaseDetail response actually contains agent data. -->
+                                        <VBox class="agentCard" visible="{= !!${dashboard>/activeAgent} }">
+                                            <HBox alignItems="Center" class="agentHeader">
+                                                <core:Icon 
+                                                    src="sap-icon://it-host" 
+                                                    class="agentIconBox agentIconBox-green"
+                                                    visible="{= ${dashboard>/activeAgent/color} === 'green'}" />
+                                                <core:Icon 
+                                                    src="sap-icon://it-host" 
+                                                    class="agentIconBox agentIconBox-blue"
+                                                    visible="{= ${dashboard>/activeAgent/color} === 'blue'}" />
+                                                <core:Icon 
+                                                    src="sap-icon://it-host" 
+                                                    class="agentIconBox agentIconBox-teal"
+                                                    visible="{= ${dashboard>/activeAgent/color} === 'teal'}" />
+                                                <core:Icon 
+                                                    src="sap-icon://it-host" 
+                                                    class="agentIconBox agentIconBox-orange"
+                                                    visible="{= ${dashboard>/activeAgent/color} === 'orange'}" />
+                                                <core:Icon 
+                                                    src="sap-icon://it-host" 
+                                                    class="agentIconBox agentIconBox-purple"
+                                                    visible="{= ${dashboard>/activeAgent/color} === 'purple'}" />
+                                                <Title text="{dashboard>/activeAgent/name}" level="H4" 
+                                                       class="{= 'agentTitle agentTitle-' + ${dashboard>/activeAgent/color}}" />
                                             </HBox>
-                                        </CustomListItem>
+                                            <VBox class="agentActivities">
+                                                <List items="{dashboard>/activeAgent/activities}" showSeparators="None" class="activityList">
+                                                    <items>
+                                                        <CustomListItem class="activityItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{dashboard>}" class="activityText" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+                                            </VBox>
+                                            <!-- Outputs Section - Green -->
+                                            <VBox class="agentOutputs agentOutputs-green" visible="{= ${dashboard>/activeAgent/color} === 'green'}">
+                                                <Text text="{dashboard>/activeAgent/outputTitle}" class="outputTitle outputTitle-green" />
+                                                <List items="{dashboard>/activeAgent/outputs}" showSeparators="None" class="outputList">
+                                                    <items>
+                                                        <CustomListItem class="outputItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{dashboard>label}: " class="outputLabel" />
+                                                                <Text text="{dashboard>value}" class="outputValue" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+                                            </VBox>
+                                            <!-- Outputs Section - Blue -->
+                                            <VBox class="agentOutputs agentOutputs-blue" visible="{= ${dashboard>/activeAgent/color} === 'blue'}">
+                                                <Text text="{dashboard>/activeAgent/outputTitle}" class="outputTitle outputTitle-blue" />
+                                                <List items="{dashboard>/activeAgent/outputs}" showSeparators="None" class="outputList">
+                                                    <items>
+                                                        <CustomListItem class="outputItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{dashboard>label}: " class="outputLabel" />
+                                                                <Text text="{dashboard>value}" class="outputValue" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+                                            </VBox>
+                                            <!-- Outputs Section - Teal -->
+                                            <VBox class="agentOutputs agentOutputs-teal" visible="{= ${dashboard>/activeAgent/color} === 'teal'}">
+                                                <Text text="{dashboard>/activeAgent/outputTitle}" class="outputTitle outputTitle-teal" />
+                                                <List items="{dashboard>/activeAgent/outputs}" showSeparators="None" class="outputList">
+                                                    <items>
+                                                        <CustomListItem class="outputItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{dashboard>label}: " class="outputLabel" />
+                                                                <Text text="{dashboard>value}" class="outputValue" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+                                            </VBox>
+                                            <!-- Outputs Section - Orange -->
+                                            <VBox class="agentOutputs agentOutputs-orange" visible="{= ${dashboard>/activeAgent/color} === 'orange'}">
+                                                <Text text="{dashboard>/activeAgent/outputTitle}" class="outputTitle outputTitle-orange" />
+                                                <List items="{dashboard>/activeAgent/outputs}" showSeparators="None" class="outputList">
+                                                    <items>
+                                                        <CustomListItem class="outputItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{dashboard>label}: " class="outputLabel" />
+                                                                <Text text="{dashboard>value}" class="outputValue" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+                                            </VBox>
+                                        </VBox>
+
+                                        <!-- Live Early Warning Analysis (only on the Early Warning sub-tab).
+                                             Populated by getPurchaseOrderDetails which consumes the BTP `S4R`
+                                             destination and calls the S/4HANA API_PURCHASEORDER_PROCESS_SRV OData
+                                             service for the PO header + PO items. -->
+                                        <VBox class="agentCard"
+                                              visible="{= ${dashboard>/selectedView} === 'incidents'}"
+                                              busyIndicatorDelay="0"
+                                              busy="{poDetails>/busy}">
+                                            <HBox alignItems="Center" class="agentHeader">
+                                                <core:Icon src="sap-icon://bar-chart" class="agentIconBox agentIconBox-green" />
+                                                <Title text="Live Early Warning Analysis" level="H4"
+                                                       class="agentTitle agentTitle-green" />
+                                            </HBox>
+                                            <VBox class="agentOutputs agentOutputs-green">
+                                                <Text text="Case: {dashboard>/selectedCaseId} — PO: {poDetails>/po}"
+                                                      class="outputTitle outputTitle-green" />
+
+                                                <!-- PO Header fields -->
+                                                <Text text="Header" class="outputLabel" />
+                                                <List items="{poDetails>/headerItems}" showSeparators="None"
+                                                      class="outputList"
+                                                      noDataText="No PO header data available. Pick a case with a PO to load live S/4HANA data.">
+                                                    <items>
+                                                        <CustomListItem class="outputItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{poDetails>label}: " class="outputLabel" />
+                                                                <Text text="{poDetails>value}" class="outputValue" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+
+                                                <!-- PO Items table -->
+                                                <Text text="Line Items ({= ${poDetails>/items}.length })"
+                                                      class="outputLabel" />
+                                                <Table items="{poDetails>/items}"
+                                                       growing="true"
+                                                       growingThreshold="10"
+                                                       mode="None"
+                                                       noDataText="No PO line items available for this case.">
+                                                    <columns>
+                                                        <Column><Text text="Item" /></Column>
+                                                        <Column><Text text="Material" /></Column>
+                                                        <Column><Text text="Description" /></Column>
+                                                        <Column hAlign="End"><Text text="Qty" /></Column>
+                                                        <Column><Text text="Unit" /></Column>
+                                                        <Column><Text text="Plant" /></Column>
+                                                        <Column hAlign="End"><Text text="Net Price" /></Column>
+                                                        <Column><Text text="Curr." /></Column>
+                                                        <Column><Text text="Delivery Date" /></Column>
+                                                    </columns>
+                                                    <items>
+                                                        <ColumnListItem>
+                                                            <cells>
+                                                                <Text text="{poDetails>PurchaseOrderItem}" />
+                                                                <Text text="{poDetails>Material}" />
+                                                                <Text text="{poDetails>PurchaseOrderItemText}" />
+                                                                <Text text="{poDetails>OrderQuantity}" />
+                                                                <Text text="{poDetails>PurchaseOrderQuantityUnit}" />
+                                                                <Text text="{poDetails>Plant}" />
+                                                                <Text text="{poDetails>NetPriceAmount}" />
+                                                                <Text text="{poDetails>DocumentCurrency}" />
+                                                                <Text text="{poDetails>ScheduleLineDeliveryDate}" />
+                                                            </cells>
+                                                        </ColumnListItem>
+                                                    </items>
+                                                </Table>
+
+                                                <!-- Material Documents (Goods Movements) table.
+                                                     Sourced from S/4HANA API_MATERIAL_DOCUMENT_SRV via the same
+                                                     `S4R` destination. Movement types shown: 101 (GR), 102
+                                                     (reversal of GR), 122 (return to vendor). Duplicate
+                                                     fields already displayed elsewhere on the card
+                                                     (PurchaseOrder, Material, Plant, Supplier) are omitted. -->
+                                                <Text text="Material Documents ({= ${poDetails>/materialDocuments}.length })"
+                                                      class="outputLabel" />
+                                                <Table items="{poDetails>/materialDocuments}"
+                                                       growing="true"
+                                                       growingThreshold="10"
+                                                       mode="None"
+                                                       noDataText="No goods movement documents found for this PO.">
+                                                    <columns>
+                                                        <Column><Text text="Material Doc" /></Column>
+                                                        <Column><Text text="Year" /></Column>
+                                                        <Column><Text text="Item" /></Column>
+                                                        <Column><Text text="PO Item" /></Column>
+                                                        <Column><Text text="Movement Type" /></Column>
+                                                        <Column><Text text="Posting Date" /></Column>
+                                                        <Column hAlign="End"><Text text="Qty" /></Column>
+                                                        <Column><Text text="Unit" /></Column>
+                                                    </columns>
+                                                    <items>
+                                                        <ColumnListItem>
+                                                            <cells>
+                                                                <Text text="{poDetails>MaterialDocument}" />
+                                                                <Text text="{poDetails>MaterialDocumentYear}" />
+                                                                <Text text="{poDetails>MaterialDocumentItem}" />
+                                                                <Text text="{poDetails>PurchaseOrderItem}" />
+                                                                <Text text="{poDetails>GoodsMovementType}" />
+                                                                <Text text="{poDetails>PostingDate}" />
+                                                                <Text text="{poDetails>QuantityInEntryUnit}" />
+                                                                <Text text="{poDetails>EntryUnit}" />
+                                                            </cells>
+                                                        </ColumnListItem>
+                                                    </items>
+                                                </Table>
+                                            </VBox>
+                                        </VBox>
+
+                                        <!-- Right column: Live Survival Planner analysis (only on the Survival Planner
+                                             sub-tab). Populated by a POST to runSurvival fired from the controller when
+                                             the user is on the Survival Planner tab and picks a case (or switches to
+                                             the tab with a case already selected). -->
+                                        <VBox class="agentCard"
+                                              visible="{= ${dashboard>/selectedView} === 'signals'}"
+                                              busyIndicatorDelay="0"
+                                              busy="{survival>/busy}">
+                                            <HBox alignItems="Center" class="agentHeader">
+                                                <core:Icon src="sap-icon://bar-chart" class="agentIconBox agentIconBox-blue" />
+                                                <Title text="Live Survival Analysis" level="H4"
+                                                       class="agentTitle agentTitle-blue" />
+                                            </HBox>
+                                            <VBox class="agentOutputs agentOutputs-blue">
+                                                <Text text="Case: {survival>/caseId}"
+                                                      class="outputTitle outputTitle-blue" />
+                                                <List items="{survival>/items}" showSeparators="None"
+                                                      class="outputList"
+                                                      noDataText="No live analysis yet. Pick a case above to run the Survival Planner agent.">
+                                                    <items>
+                                                        <CustomListItem class="outputItem">
+                                                            <HBox alignItems="Center">
+                                                                <Text text="•" class="bulletPoint" />
+                                                                <Text text="{survival>label}: " class="outputLabel" />
+                                                                <Text text="{survival>value}" class="outputValue" />
+                                                            </HBox>
+                                                        </CustomListItem>
+                                                    </items>
+                                                </List>
+                                            </VBox>
+                                        </VBox>
                                     </items>
-                                </List>
+                                </HBox>
+
+                                <!-- Fallback when no agent data is available for the selected case.
+                                     Hidden on the Early Warning / Survival Planner tabs when live analysis
+                                     has returned data, so that only the corresponding Live Analysis panel
+                                     is displayed. -->
+                                <VBox
+                                    visible="{= !${dashboard>/activeAgent}
+                                             &amp;&amp; !(${dashboard>/selectedView} === 'incidents' &amp;&amp; ${poDetails>/hasResult})
+                                             &amp;&amp; !(${dashboard>/selectedView} === 'signals'   &amp;&amp; ${survival>/hasResult}) }"
+                                    class="contentPad">
+                                    <MessageStrip
+                                        text="No agent data available for the selected case. Please pick a case from the dropdown above, or wait for data to load."
+                                        type="Information"
+                                        showIcon="true" />
+                                </VBox>
                             </VBox>
 
                         </VBox>

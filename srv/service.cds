@@ -90,6 +90,7 @@ service SupplierResilienceService {
             eventId         : String;
             status          : String;
             priority        : String;
+            po              : String;
             supplier        : String;
             material        : String;
             plant           : String;
@@ -173,6 +174,73 @@ service SupplierResilienceService {
             calculatedAt        : String;
         };
         error           : String;
+    };
+    
+    /**
+     * Get Purchase Order Details from S/4HANA
+     * 
+     * Calls the S/4HANA API_PURCHASEORDER_PROCESS_SRV OData service via the
+     * BTP `S4R` destination to fetch live PO header and PO items for a given
+     * purchase order number. Used by the Early Warning Agent live analysis.
+     * 
+     * @param po - Purchase order number
+     * 
+     * @returns PO header + line-items
+     */
+    function getPurchaseOrderDetails(po : String) returns {
+        success             : Boolean;
+        po                  : String;
+        purchaseOrder       : {
+            PurchaseOrder                   : String;
+            PurchaseOrderType               : String;
+            CompanyCode                     : String;
+            PurchasingOrganization          : String;
+            PurchasingGroup                 : String;
+            Supplier                        : String;
+            SupplierPhoneNumber             : String;
+            DocumentCurrency                : String;
+            PurchaseOrderDate               : String;
+            CreatedByUser                   : String;
+            CreationDate                    : String;
+            LastChangeDateTime              : String;
+            PurchaseOrderNetAmount          : String;
+            Language                        : String;
+            PaymentTerms                    : String;
+            AddressName                     : String;
+            AddressCityName                 : String;
+            AddressCountry                  : String;
+        };
+        purchaseOrderItems  : array of {
+            PurchaseOrder                   : String;
+            PurchaseOrderItem               : String;
+            PurchaseOrderItemText           : String;
+            Material                        : String;
+            Plant                           : String;
+            StorageLocation                 : String;
+            OrderQuantity                   : String;
+            PurchaseOrderQuantityUnit       : String;
+            NetPriceAmount                  : String;
+            NetPriceQuantity                : String;
+            DocumentCurrency                : String;
+            ScheduleLineDeliveryDate        : String;
+            IsCompletelyDelivered           : Boolean;
+            PurchaseOrderItemCategory       : String;
+        };
+        materialDocuments   : array of {
+            MaterialDocument                : String;
+            MaterialDocumentYear            : String;
+            MaterialDocumentItem            : String;
+            PostingDate                     : String;
+            GoodsMovementType               : String;
+            PurchaseOrder                   : String;
+            PurchaseOrderItem               : String;
+            Material                        : String;
+            Plant                           : String;
+            QuantityInEntryUnit             : String;
+            EntryUnit                       : String;
+            Supplier                        : String;
+        };
+        error               : String;
     };
     
     /**

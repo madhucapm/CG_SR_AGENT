@@ -15,3 +15,12 @@ framework:
     - name: sap.tnt
     - name: sap.ui.table
     - name: themelib_sap_horizon
+server:
+  customMiddleware:
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertError: true
+        backend:
+          - path: /odata
+            url: https://capgemini-service-sas---medallion-cg-pbs-genai-dev-gen-1a247cd3.cfapps.eu10-004.hana.ondemand.com

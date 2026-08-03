@@ -4,11 +4,19 @@
     "description": "Supplier Resilience UI5 application",
     "private": true,
     "scripts": {
-        "start": "ui5 serve --config=ui5.yaml --open index.html",
+        "start": "fiori run --open index.html",
+        "start:ui5": "ui5 serve --config=ui5.yaml --open index.html",
         "build:ui": "ui5 build --config=ui5.yaml --clean-dest --dest dist",
         "build": "npm run build:ui && cp xs-app.json dist/ && cd dist && rm -f supplierresilience.zip && zip -r supplierresilience.zip . -x supplierresilience.zip"
     },
     "devDependencies": {
-        "@ui5/cli": "^3.0.0"
+        "@ui5/cli": "^3.0.0",
+        "@sap/ux-ui5-tooling": "^1",
+        "ui5-middleware-simpleproxy": "^3.0.0"
+    },
+    "ui5": {
+        "dependencies": [
+            "@sap/ux-ui5-tooling"
+        ]
     }
 }

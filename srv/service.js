@@ -433,7 +433,7 @@ module.exports = cds.service.impl(async function () {
                 };
             }
             
-            // Get early warning result
+            // Get early warning result — first try persisted result, else run agent on-demand
             let earlyWarning = null;
             if (EarlyWarningResults) {
                 const ewResult = await SELECT.one.from(EarlyWarningResults).where({ caseId: caseId });
@@ -461,7 +461,46 @@ module.exports = cds.service.impl(async function () {
                 }
             }
             
-            // Get survival result
+            // If no persisted early-warning result, run the agent on-demand so the UI
+            // always sees at least one agent output for each case.
+            if (!earlyWarning && earlyWarningAgent) {
+                try {
+                    const ewLive = await earlyWarningAgent.run({
+                        caseId:    caseData.caseId,
+                        supplier:  caseData.supplier,
+                        material:  caseData.material,
+                        plant:     caseData.plant,
+                        delayDays: caseData.delayDays
+                    });
+                    if (ewLive) {
+                        const bd = ewLive.scoreBreakdown || {};
+                        earlyWarning = {
+                            status:                   ewLive.status,
+                            riskScore:                ewLive.riskScore,
+                            riskLevel:                ewLive.riskLevel,
+                            supplierPerformanceScore: bd.supplierPerformance || 0,
+                            delaySeverityScore:       bd.delaySeverity || 0,
+                            materialCriticalityScore: bd.materialCriticality || 0,
+                            affectedScopeScore:       bd.affectedScope || 0,
+                            revenueExposureScore:     bd.revenueExposure || 0,
+                            supplierId:               ewLive.supplierId,
+                            supplierName:             ewLive.supplierName,
+                            supplierOtif:             ewLive.supplierOtif,
+                            supplierTrend:            ewLive.supplierTrend,
+                            materialId:               ewLive.materialId,
+                            materialCriticality:      ewLive.materialCriticality,
+                            affectedPlants:           ewLive.affectedPlants || [],
+                            affectedSkus:             ewLive.affectedSkus || [],
+                            topRiskDrivers:           ewLive.topRiskDrivers || [],
+                            calculatedAt:             ewLive.calculatedAt || getCurrentTimestamp()
+                        };
+                    }
+                } catch (ewErr) {
+                    logger.warn(`getCaseDetail: on-demand early-warning failed: ${ewErr.message}`);
+                }
+            }
+            
+            // Get survival result — first try persisted result, else run agent on-demand
             let survival = null;
             if (SurvivalResults) {
                 const survResult = await SELECT.one.from(SurvivalResults).where({ caseId: caseId });
@@ -486,6 +525,44 @@ module.exports = cds.service.impl(async function () {
                         actionRequired: survResult.actionRequired,
                         calculatedAt: survResult.calculatedAt ? new Date(survResult.calculatedAt).toISOString() : null
                     };
+                }
+            }
+            
+            // If no persisted survival result, run the agent on-demand so the UI
+            // always sees at least one agent output for each case.
+            if (!survival && survivalAgent) {
+                try {
+                    const survLive = await survivalAgent.run({
+                        caseId:                caseData.caseId,
+                        material:              caseData.material,
+                        plant:                 caseData.plant,
+                        supplierRecoveryWeeks: 4
+                    });
+                    if (survLive) {
+                        const ib = survLive.inventoryBreakdown || {};
+                        survival = {
+                            status:                survLive.status,
+                            material:              survLive.material,
+                            plant:                 survLive.plant,
+                            currentStock:          parseFloat(ib.currentStock) || 0,
+                            blockedStock:          parseFloat(ib.blockedStock) || 0,
+                            reservedStock:         parseFloat(ib.reservedStock) || 0,
+                            inTransitStock:        parseFloat(ib.inTransitStock) || 0,
+                            availableInventory:    parseFloat(survLive.availableInventory) || 0,
+                            calculationFormula:    ib.calculationFormula,
+                            weeklyDemand:          parseFloat(survLive.weeklyDemand) || 0,
+                            unit:                  survLive.unit,
+                            survivalWeeks:         parseFloat(survLive.survivalWeeks) || 0,
+                            supplierRecoveryWeeks: survLive.supplierRecoveryWeeks,
+                            coverageGapWeeks:      parseFloat(survLive.coverageGapWeeks) || 0,
+                            uncoveredWeeks:        parseFloat(survLive.uncoveredWeeks) || 0,
+                            shortfallQuantity:     parseFloat(survLive.shortfallQuantity) || 0,
+                            actionRequired:        survLive.actionRequired,
+                            calculatedAt:          survLive.calculatedAt || getCurrentTimestamp()
+                        };
+                    }
+                } catch (survErr) {
+                    logger.warn(`getCaseDetail: on-demand survival failed: ${survErr.message}`);
                 }
             }
             

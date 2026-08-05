@@ -33,6 +33,7 @@ const targets = [
     { file: 'db/data/supplierresilience-Demand.csv',          keyCols: ['materialId', 'plant'] },
     { file: 'db/data/supplierresilience-PurchaseOrder.csv',   keyCols: ['poNumber'] },
     { file: 'db/data/supplierresilience-DisruptionEvent.csv', keyCols: ['eventId'] },
+    { file: 'db/data/supplierresilience-Case.csv',            keyCols: ['caseId'] },
 ];
 
 const DELIM = ';';

@@ -35,151 +35,15 @@
                     <ScrollContainer vertical="true" height="100%" class="mainScroll">
                         <VBox class="contentPad">
 
-                            <!-- Control Tower dashboard -->
-                            <VBox id="dashboardView" visible="true">
-                                <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
-                                    <VBox>
-                                        <Text text="{dashboard>/selectedWorkspace/eyebrow}" class="eyebrow" />
-                                        <Title text="{dashboard>/selectedWorkspace/title}" level="H2" />
-                                        <Text text="{dashboard>/selectedWorkspace/description}" class="subhead" />
-                                    </VBox>
-                                    <HBox alignItems="Center" class="casesDropdownWrap">
-                                        <Label text="Cases" labelFor="casesDropdown" class="casesDropdownLabel" />
-                                        <ComboBox
-                                            id="casesDropdown"
-                                            width="18rem"
-                                            placeholder="Loading cases…"
-                                            selectedKey="{dashboard>/selectedCaseId}"
-                                            selectionChange="onCaseDropdownSelect"
-                                            items="{path: 'dashboard>/caseOptions', templateShareable: false}">
-                                            <core:Item key="{dashboard>caseId}" text="{dashboard>caseId}" />
-                                        </ComboBox>
-                                    </HBox>
-                                    <ObjectStatus text="Last sync {dashboard>/lastRefresh}" state="Success" icon="sap-icon://synchronize" />
-                                </HBox>
-                                <HBox class="sectionHeader" justifyContent="SpaceBetween">
-                                    <Title text="Agent network" level="H3" />
-                                    <Text text="5 agents · 1 human gate" class="sectionMeta" />
-                                </HBox>
-                                <HBox class="agentRow" items="{dashboard>/agents}">
-                                    <items>
-                                        <VBox class="agentCard">
-                                            <!-- Header: Robot Icon + Title -->
-                                            <HBox alignItems="Center" class="agentHeader">
-                                                <core:Icon 
-                                                    src="sap-icon://it-host" 
-                                                    class="agentIconBox agentIconBox-green"
-                                                    visible="{= ${dashboard>color} === 'green'}" />
-                                                <core:Icon 
-                                                    src="sap-icon://it-host" 
-                                                    class="agentIconBox agentIconBox-blue"
-                                                    visible="{= ${dashboard>color} === 'blue'}" />
-                                                <core:Icon 
-                                                    src="sap-icon://it-host" 
-                                                    class="agentIconBox agentIconBox-teal"
-                                                    visible="{= ${dashboard>color} === 'teal'}" />
-                                                <core:Icon 
-                                                    src="sap-icon://it-host" 
-                                                    class="agentIconBox agentIconBox-orange"
-                                                    visible="{= ${dashboard>color} === 'orange'}" />
-                                                <core:Icon 
-                                                    src="sap-icon://it-host" 
-                                                    class="agentIconBox agentIconBox-purple"
-                                                    visible="{= ${dashboard>color} === 'purple'}" />
-                                                <Title text="{dashboard>name}" level="H4" class="{= 'agentTitle agentTitle-' + ${dashboard>color}}" />
-                                            </HBox>
-                                            <!-- Activities List -->
-                                            <VBox class="agentActivities">
-                                                <List items="{dashboard>activities}" showSeparators="None" class="activityList">
-                                                    <items>
-                                                        <CustomListItem class="activityItem">
-                                                            <HBox alignItems="Center">
-                                                                <Text text="•" class="bulletPoint" />
-                                                                <Text text="{dashboard>}" class="activityText" />
-                                                            </HBox>
-                                                        </CustomListItem>
-                                                    </items>
-                                                </List>
-                                            </VBox>
-                                            <!-- Outputs Section - Green -->
-                                            <VBox class="agentOutputs agentOutputs-green" visible="{= ${dashboard>color} === 'green'}">
-                                                <Text text="{dashboard>outputTitle}" class="outputTitle outputTitle-green" />
-                                                <List items="{dashboard>outputs}" showSeparators="None" class="outputList">
-                                                    <items>
-                                                        <CustomListItem class="outputItem">
-                                                            <HBox alignItems="Center">
-                                                                <Text text="•" class="bulletPoint" />
-                                                                <Text text="{dashboard>label}: " class="outputLabel" />
-                                                                <Text text="{dashboard>value}" class="outputValue" />
-                                                            </HBox>
-                                                        </CustomListItem>
-                                                    </items>
-                                                </List>
-                                            </VBox>
-                                            <!-- Outputs Section - Blue -->
-                                            <VBox class="agentOutputs agentOutputs-blue" visible="{= ${dashboard>color} === 'blue'}">
-                                                <Text text="{dashboard>outputTitle}" class="outputTitle outputTitle-blue" />
-                                                <List items="{dashboard>outputs}" showSeparators="None" class="outputList">
-                                                    <items>
-                                                        <CustomListItem class="outputItem">
-                                                            <HBox alignItems="Center">
-                                                                <Text text="•" class="bulletPoint" />
-                                                                <Text text="{dashboard>label}: " class="outputLabel" />
-                                                                <Text text="{dashboard>value}" class="outputValue" />
-                                                            </HBox>
-                                                        </CustomListItem>
-                                                    </items>
-                                                </List>
-                                            </VBox>
-                                            <!-- Outputs Section - Teal -->
-                                            <VBox class="agentOutputs agentOutputs-teal" visible="{= ${dashboard>color} === 'teal'}">
-                                                <Text text="{dashboard>outputTitle}" class="outputTitle outputTitle-teal" />
-                                                <List items="{dashboard>outputs}" showSeparators="None" class="outputList">
-                                                    <items>
-                                                        <CustomListItem class="outputItem">
-                                                            <HBox alignItems="Center">
-                                                                <Text text="•" class="bulletPoint" />
-                                                                <Text text="{dashboard>label}: " class="outputLabel" />
-                                                                <Text text="{dashboard>value}" class="outputValue" />
-                                                            </HBox>
-                                                        </CustomListItem>
-                                                    </items>
-                                                </List>
-                                            </VBox>
-                                            <!-- Outputs Section - Orange -->
-                                            <VBox class="agentOutputs agentOutputs-orange" visible="{= ${dashboard>color} === 'orange'}">
-                                                <Text text="{dashboard>outputTitle}" class="outputTitle outputTitle-orange" />
-                                                <List items="{dashboard>outputs}" showSeparators="None" class="outputList">
-                                                    <items>
-                                                        <CustomListItem class="outputItem">
-                                                            <HBox alignItems="Center">
-                                                                <Text text="•" class="bulletPoint" />
-                                                                <Text text="{dashboard>label}: " class="outputLabel" />
-                                                                <Text text="{dashboard>value}" class="outputValue" />
-                                                            </HBox>
-                                                        </CustomListItem>
-                                                    </items>
-                                                </List>
-                                            </VBox>
-                                            <!-- Outputs Section - Purple -->
-                                            <VBox class="agentOutputs agentOutputs-purple" visible="{= ${dashboard>color} === 'purple'}">
-                                                <Text text="{dashboard>outputTitle}" class="outputTitle outputTitle-purple" />
-                                                <List items="{dashboard>outputs}" showSeparators="None" class="outputList">
-                                                    <items>
-                                                        <CustomListItem class="outputItem">
-                                                            <HBox alignItems="Center">
-                                                                <Text text="•" class="bulletPoint" />
-                                                                <Text text="{dashboard>label}: " class="outputLabel" />
-                                                                <Text text="{dashboard>value}" class="outputValue" />
-                                                            </HBox>
-                                                        </CustomListItem>
-                                                    </items>
-                                                </List>
-                                            </VBox>
-                                        </VBox>
-                                    </items>
-                                </HBox>
-                                <!-- Priority incident section removed by request -->
+                            <!--
+                                Control Tower home (redesigned).
+                                All previous inline markup for the Control Tower
+                                landing page has been removed and replaced by a
+                                single composed fragment for maintainability.
+                                See view/fragments/ControlTowerHome.fragment.xml
+                            -->
+                            <VBox id="dashboardView" visible="true" class="dashboardViewWrap">
+                                <core:Fragment fragmentName="supplierresilience.view.fragments.ControlTowerHome" type="XML" />
                             </VBox>
 
                             <!-- Cases view: sap.ui.table bound to OData Cases -->
@@ -448,7 +312,7 @@
                                     <items>
                                         <!-- Left column: the existing agent overview card (activities + outputs).
                                              Only rendered when the getCaseDetail response actually contains agent data. -->
-                                        <VBox class="agentCard" visible="{= !!${dashboard>/activeAgent} }">
+                                        <VBox class="agentCard" visible="{= !!${dashboard>/activeAgent} &amp;&amp; ${dashboard>/selectedView} !== 'incidents' }">
                                             <HBox alignItems="Center" class="agentHeader">
                                                 <core:Icon 
                                                     src="sap-icon://it-host" 
@@ -552,6 +416,7 @@
                                              destination and calls the S/4HANA API_PURCHASEORDER_PROCESS_SRV OData
                                              service for the PO header + PO items. -->
                                         <VBox class="agentCard"
+                                              width="100%"
                                               visible="{= ${dashboard>/selectedView} === 'incidents'}"
                                               busyIndicatorDelay="0"
                                               busy="{poDetails>/busy}">
@@ -583,28 +448,38 @@
                                                 <!-- PO Items table -->
                                                 <Text text="Line Items ({= ${poDetails>/items}.length })"
                                                       class="outputLabel" />
+                                                <!--
+                                                    Line-items table.
+                                                    Explicit column widths + responsive pop-in stop the
+                                                    header text from collapsing letter-by-letter when the
+                                                    card is narrow. Secondary columns (Plant, Net Price,
+                                                    Currency, Delivery Date, Unit) fold into a pop-in row
+                                                    below the primary cells on smaller viewports.
+                                                -->
                                                 <Table items="{poDetails>/items}"
                                                        growing="true"
                                                        growingThreshold="10"
                                                        mode="None"
+                                                       fixedLayout="false"
+                                                       class="poItemsTable"
                                                        noDataText="No PO line items available for this case.">
                                                     <columns>
-                                                        <Column><Text text="Item" /></Column>
-                                                        <Column><Text text="Material" /></Column>
+                                                        <Column width="4rem"><Text text="Item" /></Column>
+                                                        <Column width="9rem"><Text text="Material" /></Column>
                                                         <Column><Text text="Description" /></Column>
-                                                        <Column hAlign="End"><Text text="Qty" /></Column>
-                                                        <Column><Text text="Unit" /></Column>
-                                                        <Column><Text text="Plant" /></Column>
-                                                        <Column hAlign="End"><Text text="Net Price" /></Column>
-                                                        <Column><Text text="Curr." /></Column>
-                                                        <Column><Text text="Delivery Date" /></Column>
+                                                        <Column width="5rem" hAlign="End"><Text text="Qty" /></Column>
+                                                        <Column width="4rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Unit" /></Column>
+                                                        <Column width="6rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Plant" /></Column>
+                                                        <Column width="7rem" hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Net Price" /></Column>
+                                                        <Column width="4rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Curr." /></Column>
+                                                        <Column width="9rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Delivery Date" /></Column>
                                                     </columns>
                                                     <items>
                                                         <ColumnListItem>
                                                             <cells>
                                                                 <Text text="{poDetails>PurchaseOrderItem}" />
                                                                 <Text text="{poDetails>Material}" />
-                                                                <Text text="{poDetails>PurchaseOrderItemText}" />
+                                                                <Text text="{poDetails>PurchaseOrderItemText}" wrapping="true" />
                                                                 <Text text="{poDetails>OrderQuantity}" />
                                                                 <Text text="{poDetails>PurchaseOrderQuantityUnit}" />
                                                                 <Text text="{poDetails>Plant}" />
@@ -628,16 +503,18 @@
                                                        growing="true"
                                                        growingThreshold="10"
                                                        mode="None"
+                                                       fixedLayout="false"
+                                                       class="poMatDocsTable"
                                                        noDataText="No goods movement documents found for this PO.">
                                                     <columns>
-                                                        <Column><Text text="Material Doc" /></Column>
-                                                        <Column><Text text="Year" /></Column>
-                                                        <Column><Text text="Item" /></Column>
-                                                        <Column><Text text="PO Item" /></Column>
-                                                        <Column><Text text="Movement Type" /></Column>
-                                                        <Column><Text text="Posting Date" /></Column>
-                                                        <Column hAlign="End"><Text text="Qty" /></Column>
-                                                        <Column><Text text="Unit" /></Column>
+                                                        <Column width="7rem"><Text text="Material Doc" /></Column>
+                                                        <Column width="4rem"><Text text="Year" /></Column>
+                                                        <Column width="4rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Item" /></Column>
+                                                        <Column width="5rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="PO Item" /></Column>
+                                                        <Column width="7rem"><Text text="Movement Type" /></Column>
+                                                        <Column width="8rem"><Text text="Posting Date" /></Column>
+                                                        <Column width="5rem" hAlign="End"><Text text="Qty" /></Column>
+                                                        <Column width="4rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Unit" /></Column>
                                                     </columns>
                                                     <items>
                                                         <ColumnListItem>

@@ -541,3 +541,379 @@ html, body, #content {
     gap: 1rem;
     flex-wrap: wrap;
 }
+
+/* =========================================================================
+   Control Tower – redesigned home page (dark theme).
+   Scoped under `.ctHome` so other tabs (Cases, Coordinator, Agent sub-tabs)
+   keep the existing light theme untouched.
+   ========================================================================= */
+
+/* The dashboardView wrapper gets a dark canvas so the hero bleeds edge-to-edge */
+.dashboardViewWrap {
+    background: #0b1226;
+    padding: 0;
+    margin: -1.5rem -2rem -2rem -2rem; /* neutralize .contentPad padding */
+}
+
+.ctHome {
+    padding: 1.25rem 1.5rem 2rem 1.5rem;
+    gap: 1.25rem;
+    background: #0b1226;
+    color: #e6ecff;
+    min-height: 100%;
+}
+
+/* ---------- Hero header ---------- */
+.ctHero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background:
+        radial-gradient(1200px 400px at 90% -20%, rgba(64, 120, 255, 0.35), transparent 60%),
+        radial-gradient(600px 300px at 100% 50%, rgba(120, 60, 220, 0.25), transparent 70%),
+        linear-gradient(135deg, #0a1024 0%, #0e1a3a 60%, #0a1024 100%);
+    padding: 2rem 2.5rem;
+    min-height: 220px;
+    border: 1px solid rgba(80, 120, 220, 0.15);
+}
+
+.ctHeroGlobe {
+    position: absolute;
+    top: 50%;
+    right: -60px;
+    width: 480px;
+    height: 480px;
+    transform: translateY(-50%);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 30% 30%, rgba(120, 180, 255, 0.55) 0%, rgba(60, 120, 220, 0.25) 30%, rgba(20, 40, 90, 0.15) 55%, transparent 70%),
+        repeating-linear-gradient(0deg,   rgba(120, 180, 255, 0.15) 0 1px, transparent 1px 22px),
+        repeating-linear-gradient(90deg,  rgba(120, 180, 255, 0.15) 0 1px, transparent 1px 22px);
+    opacity: 0.55;
+    pointer-events: none;
+    box-shadow: 0 0 120px 20px rgba(80, 140, 240, 0.15) inset;
+}
+
+.ctHeroContent {
+    position: relative;
+    z-index: 1;
+    max-width: 60%;
+    gap: 0.4rem;
+}
+
+.ctGreeting .sapMFTHtml,
+.ctGreeting {
+    color: #ffffff !important;
+    font-size: 2.25rem !important;
+    font-weight: 700 !important;
+    line-height: 1.15 !important;
+    margin: 0 0 0.25rem 0;
+}
+
+.ctGreetingName { color: #4ea3ff; }
+
+.ctPersonaWrap { margin: 0.5rem 0 0.75rem 0; }
+
+.ctPersonaBadge.sapMBtn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #dfe8ff !important;
+    border-radius: 8px !important;
+    height: 2rem !important;
+    padding: 0 0.75rem !important;
+    opacity: 1 !important;
+}
+.ctPersonaBadge.sapMBtn .sapMBtnInner {
+    background: transparent !important;
+    color: #dfe8ff !important;
+    border: none !important;
+}
+.ctPersonaBadge .sapMBtnIcon { color: #b6c6ff !important; }
+
+.ctTagline {
+    color: #c9d5f5 !important;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* ---------- Body grid + card shell ---------- */
+.ctBodyGrid { margin: 0 !important; }
+
+.ctCard {
+    background: #0f1834;
+    border: 1px solid rgba(80, 120, 220, 0.18);
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 1rem 1.25rem;
+    gap: 0.75rem;
+    min-height: 100%;
+}
+
+.ctCardHeader { gap: 0.5rem; margin-bottom: 0.25rem; }
+
+.ctCardHeaderIcon.sapUiIcon {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.15rem;
+}
+.ctCardHeaderIcon.sapUiIcon.ctIcon-blue::before   { color: #4ea3ff !important; }
+.ctCardHeaderIcon.sapUiIcon.ctIcon-purple::before { color: #b58bff !important; }
+
+.ctCardTitle.sapMTitle {
+    color: #ffffff !important;
+    font-size: 1.05rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+}
+
+
+/* ---------- Global Risks card ---------- */
+.ctRiskList,
+.ctRiskList.sapMList,
+.ctRiskList .sapMListItems {
+    background: transparent !important;
+    border: none !important;
+}
+
+.ctRiskItem.sapMCustomLI,
+.ctRiskItem {
+    background: #131e40 !important;
+    border: 1px solid rgba(80, 120, 220, 0.18) !important;
+    border-radius: 10px !important;
+    padding: 0.75rem 0.9rem !important;
+    margin-bottom: 0.6rem !important;
+}
+.ctRiskItem .sapMLIBContent { padding: 0 !important; }
+.ctRiskItem:hover {
+    background: #172550 !important;
+    cursor: pointer;
+}
+
+.ctRiskRow { width: 100%; gap: 0.75rem; }
+
+.ctRiskLeft { gap: 0.85rem; flex: 1; min-width: 0; }
+
+.ctRiskIconWrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.ctRiskIconWrap-amber  { background: rgba(255, 176, 32, 0.15);  border: 1px solid rgba(255, 176, 32, 0.35); }
+.ctRiskIconWrap-red    { background: rgba(255, 80,  80, 0.15);  border: 1px solid rgba(255, 80,  80, 0.35); }
+.ctRiskIconWrap-blue   { background: rgba(80,  160, 255, 0.15); border: 1px solid rgba(80,  160, 255, 0.35); }
+.ctRiskIconWrap-teal   { background: rgba(64,  200, 208, 0.15); border: 1px solid rgba(64,  200, 208, 0.35); }
+.ctRiskIconWrap-green  { background: rgba(72,  200, 128, 0.15); border: 1px solid rgba(72,  200, 128, 0.35); }
+
+.ctRiskIcon.sapUiIcon { font-size: 1.15rem; }
+.ctRiskIcon.sapUiIcon.ctRiskIcon-amber::before  { color: #ffb020 !important; }
+.ctRiskIcon.sapUiIcon.ctRiskIcon-red::before    { color: #ff5050 !important; }
+.ctRiskIcon.sapUiIcon.ctRiskIcon-blue::before   { color: #4ea3ff !important; }
+.ctRiskIcon.sapUiIcon.ctRiskIcon-teal::before   { color: #40c8d0 !important; }
+.ctRiskIcon.sapUiIcon.ctRiskIcon-green::before  { color: #48c880 !important; }
+
+.ctRiskText { min-width: 0; gap: 0.15rem; }
+
+.ctRiskTitle.sapMTitle {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+}
+.ctRiskTitle.ctRiskTitle-amber .sapMTitleInner,
+.ctRiskTitle.ctRiskTitle-amber { color: #ffb020 !important; }
+.ctRiskTitle.ctRiskTitle-red   .sapMTitleInner,
+.ctRiskTitle.ctRiskTitle-red   { color: #ff5b6e !important; }
+.ctRiskTitle.ctRiskTitle-blue  .sapMTitleInner,
+.ctRiskTitle.ctRiskTitle-blue  { color: #4ea3ff !important; }
+.ctRiskTitle.ctRiskTitle-teal  .sapMTitleInner,
+.ctRiskTitle.ctRiskTitle-teal  { color: #40c8d0 !important; }
+.ctRiskTitle.ctRiskTitle-green .sapMTitleInner,
+.ctRiskTitle.ctRiskTitle-green { color: #48c880 !important; }
+
+.ctRiskDescription {
+    color: #a9b6dd !important;
+    font-size: 0.82rem !important;
+    line-height: 1.4;
+}
+
+.ctRiskRight { gap: 0.6rem; flex-shrink: 0; }
+.ctRiskMeta  { min-width: 190px; gap: 0.15rem; }
+.ctRiskMetaRow { gap: 0.6rem; justify-content: flex-start; }
+
+.ctRiskMetaLabel.sapMLabel {
+    color: #8895c2 !important;
+    font-size: 0.78rem !important;
+    min-width: 70px;
+    font-weight: 400 !important;
+}
+.ctRiskMetaValue {
+    color: #dfe8ff !important;
+    font-size: 0.82rem !important;
+    font-weight: 500;
+}
+
+.ctRiskBadge {
+    display: inline-block;
+    padding: 0.05rem 0.55rem !important;
+    border-radius: 4px !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    line-height: 1.35;
+}
+.ctBadge-critical { color: #ff6b6b !important; background: rgba(255, 80, 80, 0.15); border: 1px solid rgba(255, 80, 80, 0.4); }
+.ctBadge-high     { color: #ffb020 !important; background: rgba(255, 176, 32, 0.15); border: 1px solid rgba(255, 176, 32, 0.4); }
+.ctBadge-medium   { color: #ffd257 !important; background: rgba(255, 210, 87, 0.12); border: 1px solid rgba(255, 210, 87, 0.35); }
+
+.ctRiskChevron.sapUiIcon {
+    color: #6b7aa8 !important;
+    font-size: 0.9rem;
+    margin-left: 0.25rem;
+}
+.ctRiskChevron.sapUiIcon::before { color: #6b7aa8 !important; }
+
+.ctRisksFooter { margin-top: 0.25rem; }
+
+.ctViewAllLink.sapMLnk,
+.ctViewAllLink { color: #4ea3ff !important; font-weight: 500; }
+.ctViewAllLink .sapMLnkIcon,
+.ctViewAllLink .sapUiIcon::before { color: #4ea3ff !important; }
+
+.ctViewAllLinkIcon.sapUiIcon {
+    color: #4ea3ff !important;
+    font-size: 0.85rem;
+    margin-left: 0.35rem;
+}
+.ctViewAllLinkIcon.sapUiIcon::before { color: #4ea3ff !important; }
+
+
+/* ---------- AI Assistant card ---------- */
+.ctAiCard { align-items: stretch; }
+
+.ctAiGlyphWrap {
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0 0.25rem 0;
+}
+
+.ctAiGlyphCircle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(140, 90, 220, 0.25) 0%, rgba(80, 60, 180, 0.15) 45%, transparent 70%);
+    border: 2px solid rgba(180, 130, 255, 0.55);
+    box-shadow:
+        0 0 40px rgba(140, 90, 220, 0.35),
+        inset 0 0 40px rgba(140, 90, 220, 0.15);
+    align-items: center;
+    justify-content: center;
+}
+
+.ctAiGlyphIcon.sapUiIcon {
+    font-size: 4rem;
+    color: #d8c6ff !important;
+}
+.ctAiGlyphIcon.sapUiIcon::before { color: #d8c6ff !important; }
+
+.ctAiHeadlineWrap {
+    align-items: center;
+    padding: 0.25rem 0.5rem 0.5rem 0.5rem;
+    gap: 0.35rem;
+}
+
+.ctAiHeadline.sapMTitle {
+    color: #ffffff !important;
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+    text-align: center;
+    margin: 0 !important;
+}
+
+.ctAiSubline {
+    color: #a9b6dd !important;
+    font-size: 0.85rem !important;
+    line-height: 1.45;
+    max-width: 32rem;
+}
+
+.ctAiActions { gap: 0.6rem; margin-top: 0.5rem; }
+
+.ctAiAction.sapMBtn {
+    background: #131e40 !important;
+    border: 1px solid rgba(80, 120, 220, 0.25) !important;
+    border-radius: 8px !important;
+    height: 2.85rem !important;
+    padding: 0 1rem !important;
+    justify-content: flex-start !important;
+}
+.ctAiAction.sapMBtn .sapMBtnInner {
+    background: transparent !important;
+    border: none !important;
+    color: #dfe8ff !important;
+    justify-content: flex-start !important;
+    width: 100%;
+}
+.ctAiAction .sapMBtnIcon {
+    color: #a9b6dd !important;
+    margin-right: 0.75rem;
+}
+.ctAiAction .sapMBtnContent {
+    text-align: left;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+.ctAiAction.sapMBtn:hover,
+.ctAiAction.sapMBtn:hover .sapMBtnInner {
+    background: #172550 !important;
+}
+
+.ctAiActionPrimary.sapMBtn {
+    background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%) !important;
+    border: 1px solid rgba(180, 130, 255, 0.55) !important;
+    box-shadow: 0 4px 18px rgba(124, 58, 237, 0.35);
+}
+.ctAiActionPrimary.sapMBtn .sapMBtnInner {
+    background: transparent !important;
+    color: #ffffff !important;
+}
+.ctAiActionPrimary .sapMBtnIcon,
+.ctAiActionPrimary .sapMBtnContent {
+    color: #ffffff !important;
+}
+.ctAiActionPrimary.sapMBtn:hover,
+.ctAiActionPrimary.sapMBtn:hover .sapMBtnInner {
+    background: linear-gradient(90deg, #4338ca 0%, #6d28d9 100%) !important;
+}
+
+/* -------------------------------------------------------------------------
+   Early Warning sub-tab — "Live Early Warning Analysis" card + PO tables.
+   Ensures the card can actually flex-grow inside .agentRow now that its
+   sibling (the static agent-overview card) is hidden on this tab, and that
+   the sap.m.Table rows have room to breathe so column headers don't wrap
+   letter-by-letter.
+   ------------------------------------------------------------------------- */
+.processView .agentRow > .agentCard {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.poItemsTable,
+.poMatDocsTable {
+    margin-top: 0.5rem;
+}
+.poItemsTable .sapMListTblCell,
+.poMatDocsTable .sapMListTblCell {
+    padding: 0.4rem 0.6rem;
+}
+.poItemsTable .sapMListTblHeaderCell,
+.poMatDocsTable .sapMListTblHeaderCell {
+    white-space: nowrap;
+}
+
+
+@media (max-width: 900px) {
+    .ctHeroContent { max-width: 100%; }
+    .ctHeroGlobe   { opacity: 0.25; }
+    .ctRiskRight   { flex-direction: column; align-items: flex-end; }
+    .ctRiskMeta    { min-width: 0; }
+}
+

@@ -1,0 +1,81 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        "Today's Global Supply Chain Risks" panel.
+        Rows are driven by dashboard>/globalRisks (see mockdata.json / controller
+        `_loadGlobalRisks`). Each row shows a colored circular icon, colored
+        title, description, plus a right-side risk-level / region / time block
+        and a chevron to open the risk detail.
+    -->
+    <VBox class="ctCard ctRisksCard">
+        <!-- Card header -->
+        <HBox alignItems="Center" class="ctCardHeader">
+            <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
+            <Title text="{i18n>ctGlobalRisksTitle}" level="H3" class="ctCardTitle" />
+        </HBox>
+
+        <!--
+            Risk list.
+            The row-level classes (icon wrap color, icon color, title color,
+            severity badge) are pre-computed in the model (see mockdata.json
+            `iconWrapClass` / `iconClass` / `titleClass` / `badgeClass`) so
+            the view stays fully declarative — no expression bindings on
+            `class`, which UI5 does not evaluate against the row context.
+            The press handler lives on the List (`itemPress`) rather than
+            each CustomListItem, per UI5 best practice.
+        -->
+        <List
+            items="{dashboard>/globalRisks}"
+            showSeparators="None"
+            class="ctRiskList"
+            noDataText="{i18n>ctNoRisks}"
+            itemPress=".onRiskPress">
+            <CustomListItem class="ctRiskItem" type="Active">
+                <HBox alignItems="Center" class="ctRiskRow" justifyContent="SpaceBetween">
+                    <!-- Left: icon + title + description -->
+                    <HBox alignItems="Center" class="ctRiskLeft">
+                        <VBox class="{dashboard>iconWrapClass}" alignItems="Center" justifyContent="Center">
+                            <core:Icon src="{dashboard>icon}" class="{dashboard>iconClass}" />
+                        </VBox>
+                        <VBox class="ctRiskText">
+                            <Title text="{dashboard>title}" level="H4" class="{dashboard>titleClass}" wrapping="true" />
+                            <Text text="{dashboard>description}" class="ctRiskDescription" wrapping="true" />
+                        </VBox>
+                    </HBox>
+
+                    <!-- Right: meta grid + chevron -->
+                    <HBox alignItems="Center" class="ctRiskRight">
+                        <VBox class="ctRiskMeta">
+                            <HBox alignItems="Center" class="ctRiskMetaRow">
+                                <Label text="{i18n>ctRiskLevel}" class="ctRiskMetaLabel" />
+                                <Text text="{dashboard>riskLevel}" class="{dashboard>badgeClass}" />
+                            </HBox>
+                            <HBox alignItems="Center" class="ctRiskMetaRow">
+                                <Label text="{i18n>ctRegion}" class="ctRiskMetaLabel" />
+                                <Text text="{dashboard>region}" class="ctRiskMetaValue" />
+                            </HBox>
+                            <HBox alignItems="Center" class="ctRiskMetaRow">
+                                <Label text="{i18n>ctTime}" class="ctRiskMetaLabel" />
+                                <Text text="{dashboard>time}" class="ctRiskMetaValue" />
+                            </HBox>
+                        </VBox>
+                        <core:Icon src="sap-icon://slim-arrow-right" class="ctRiskChevron" />
+                    </HBox>
+                </HBox>
+            </CustomListItem>
+        </List>
+
+        <!--
+            Footer link. `sap.m.Link` has no `icon` property, so we compose
+            the arrow using an HBox + separate core:Icon next to the Link.
+        -->
+        <HBox justifyContent="End" alignItems="Center" class="ctRisksFooter">
+            <Link
+                text="{i18n>ctViewAllDisruptions}"
+                press=".onViewAllDisruptions"
+                class="ctViewAllLink" />
+            <core:Icon src="sap-icon://slim-arrow-right" class="ctViewAllLinkIcon" />
+        </HBox>
+    </VBox>
+</core:FragmentDefinition>

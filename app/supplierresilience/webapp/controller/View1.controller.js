@@ -3,8 +3,9 @@ sap.ui.define([
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
     "sap/ui/model/Filter",
-    "sap/ui/model/FilterOperator"
-], function (Controller, JSONModel, MessageToast, Filter, FilterOperator) {
+    "sap/ui/model/FilterOperator",
+    "sap/ui/core/format/DateFormat"
+], function (Controller, JSONModel, MessageToast, Filter, FilterOperator, DateFormat) {
     "use strict";
 
     return Controller.extend("supplierresilience.controller.View1", {
@@ -68,11 +69,121 @@ sap.ui.define([
             });
             this.getView().setModel(oPoDetailsModel, "poDetails");
 
+            // User model powering the Control Tower hero header greeting.
+            // Currently seeded with a static persona; when real auth is
+            // available this can be populated from /user-api or a CAP
+            // getCurrentUser function without changing the view.
+            var oUserModel = new JSONModel({
+                greeting: this._computeGreeting(),
+                name: "Nikhil",
+                role: "Procurement Lead"
+            });
+            this.getView().setModel(oUserModel, "user");
+
             // Start loading cases immediately on app init. The retry logic
             // inside _loadCoordinatorData handles the case where the
             // dashboard JSONModel hasn't been fully wired to the view yet
             // when the fetch response arrives.
             this._loadCoordinatorData();
+        },
+
+        /**
+         * Compute a time-of-day greeting for the Control Tower hero header.
+         * Kept intentionally simple; can be extended to honor the user's
+         * locale/timezone once we wire real user info.
+         */
+        _computeGreeting: function () {
+            var iHour = new Date().getHours();
+            if (iHour < 12) { return "Good Morning"; }
+            if (iHour < 17) { return "Good Afternoon"; }
+            return "Good Evening";
+        },
+
+        // ─────────────────────────────────────────────────────────────
+        //  Control Tower home – new-design event handlers
+        // ─────────────────────────────────────────────────────────────
+
+        /**
+         * Row press on the "Today's Global Supply Chain Risks" list.
+         * Bound to `List#itemPress`, so the pressed row is exposed via
+         * the `listItem` event parameter (not the event source itself,
+         * which is the List). For now we just surface a MessageToast;
+         * can be wired to a detail dialog / route later.
+         */
+        onRiskPress: function (oEvent) {
+            var oItem = oEvent.getParameter("listItem") || oEvent.getSource();
+            var oCtx  = oItem && oItem.getBindingContext("dashboard");
+            if (!oCtx) { return; }
+            var oRisk = oCtx.getObject() || {};
+            MessageToast.show("Opening risk: " + (oRisk.title || oRisk.id || ""));
+        },
+
+        /**
+         * Footer "View all disruptions →" link. Navigates the user to
+         * the Cases sub-tab which shows the full case backlog.
+         */
+        onViewAllDisruptions: function () {
+            this._selectSideNav("cases");
+        },
+
+        /**
+         * AI Assistant – "Investigate a Risk" primary action. Sends the
+         * user to the Early Warning Agent sub-tab which is the entry
+         * point for risk investigation.
+         */
+        onInvestigateRisk: function () {
+            this._selectSideNav("incidents");
+            MessageToast.show("Investigate a Risk");
+        },
+
+        /** AI Assistant – "Ask a Question" placeholder action. */
+        onAskQuestion: function () {
+            MessageToast.show("Ask a Question – coming soon");
+        },
+
+        /** AI Assistant – "View Recommended Actions" – opens Scenario tab. */
+        onViewRecommendedActions: function () {
+            this._selectSideNav("approvals");
+            MessageToast.show("View Recommended Actions");
+        },
+
+        /** AI Assistant – "Upload or Add Information" placeholder action. */
+        onUploadInfo: function () {
+            MessageToast.show("Upload or Add Information – coming soon");
+        },
+
+        /**
+         * Programmatically switch the side-navigation to a given key.
+         * Mirrors what onNavSelect does when the user clicks the nav,
+         * so the rest of the app (agent sub-tabs, case list) reacts
+         * consistently regardless of what triggered the switch.
+         */
+        _selectSideNav: function (sKey) {
+            var oDashboard = this.getView().getModel("dashboard");
+            if (!oDashboard || !sKey) { return; }
+
+            oDashboard.setProperty("/selectedView", sKey);
+            oDashboard.setProperty("/selectedSteps", oDashboard.getProperty("/workspaces/" + sKey + "/steps") || []);
+            oDashboard.setProperty("/selectedWorkspace",
+                oDashboard.getProperty("/workspaces/" + sKey) || oDashboard.getProperty("/workspaces/control"));
+
+            var oDashView   = this.byId("dashboardView");
+            var oCasesView  = this.byId("casesView");
+            var oCoordView  = this.byId("coordinatorView");
+            var oProcView   = this.byId("processView");
+            if (oDashView)  { oDashView.setVisible(sKey === "control"); }
+            if (oCasesView) { oCasesView.setVisible(sKey === "cases"); }
+            if (oCoordView) { oCoordView.setVisible(sKey === "coordinator"); }
+            if (oProcView)  { oProcView.setVisible(sKey !== "control" && sKey !== "cases" && sKey !== "coordinator"); }
+
+            this._updateActiveAgent();
+
+            var sExistingCaseId = oDashboard.getProperty("/selectedCaseId");
+            if (sKey === "incidents" && sExistingCaseId) {
+                this._loadPoDetailsForCase(sExistingCaseId);
+            } else if (sKey === "signals" && sExistingCaseId) {
+                this._runSurvivalAgent(sExistingCaseId);
+            }
         },
 
         /**
@@ -673,10 +784,21 @@ sap.ui.define([
             }).then(function (oData) {
                 console.log("[PO] getPurchaseOrderDetails response:", oData);
                 var aHeader = that._buildPoHeaderItems(oData && oData.purchaseOrder);
+                // Normalize OData V2 "/Date(...)/" fields on the array rows
+                // so the tables render "Aug 5, 2026" instead of the raw
+                // wire format. Non-date fields are passed through untouched.
                 var aItems  = (oData && Array.isArray(oData.purchaseOrderItems))
-                    ? oData.purchaseOrderItems : [];
+                    ? oData.purchaseOrderItems.map(function (r) {
+                        return that._formatRowDates(r,
+                            ["ScheduleLineDeliveryDate"], []);
+                    })
+                    : [];
                 var aMatDocs = (oData && Array.isArray(oData.materialDocuments))
-                    ? oData.materialDocuments : [];
+                    ? oData.materialDocuments.map(function (r) {
+                        return that._formatRowDates(r,
+                            ["PostingDate", "DocumentDate"], []);
+                    })
+                    : [];
                 if (oPo) {
                     oPo.setProperty("/headerItems",       aHeader);
                     oPo.setProperty("/items",             aItems);
@@ -703,13 +825,84 @@ sap.ui.define([
         },
 
         /**
+         * Format an S/4HANA OData V2 date/datetime value into a
+         * human-readable string. Accepts:
+         *   - The raw OData v2 wire format "/Date(1785801600000)/" or
+         *     "/Date(1785801600000+0000)/"
+         *   - ISO strings (e.g. "2026-08-05T00:00:00")
+         *   - `Date` instances
+         *   - Plain millisecond numbers
+         * Returns the input unchanged when it can't be parsed, so callers
+         * never lose information on malformed values.
+         *
+         * @param {*} vValue           value from the backend
+         * @param {boolean} bWithTime  true to include time (used for
+         *                             LastChangeDateTime), false for
+         *                             plain calendar dates
+         * @returns {string} formatted string or the original value
+         */
+        _formatSapDate: function (vValue, bWithTime) {
+            if (vValue === undefined || vValue === null || vValue === "") {
+                return "";
+            }
+            var oDate = null;
+            if (vValue instanceof Date) {
+                oDate = vValue;
+            } else if (typeof vValue === "number" && isFinite(vValue)) {
+                oDate = new Date(vValue);
+            } else if (typeof vValue === "string") {
+                // OData V2 wire format: /Date(1785801600000)/ or /Date(...+0000)/
+                var m = vValue.match(/\/Date\((-?\d+)([+\-]\d{4})?\)\//);
+                if (m) {
+                    oDate = new Date(parseInt(m[1], 10));
+                } else {
+                    var iParsed = Date.parse(vValue);
+                    if (!isNaN(iParsed)) { oDate = new Date(iParsed); }
+                }
+            }
+            if (!oDate || isNaN(oDate.getTime())) {
+                return String(vValue);
+            }
+            var oFormatter = bWithTime
+                ? DateFormat.getDateTimeInstance({ style: "medium" })
+                : DateFormat.getDateInstance({ style: "medium" });
+            return oFormatter.format(oDate);
+        },
+
+        /**
+         * Run every /Date(...)/ style field inside a plain object through
+         * `_formatSapDate` so downstream tables (Line Items, Material
+         * Documents) don't have to deal with the raw OData wire format.
+         * Non-date fields are left untouched. Returns a shallow copy.
+         *
+         * @param {Object} oRow             row object from the backend
+         * @param {string[]} aDateFields    date-only field names
+         * @param {string[]} aDateTimeFields datetime field names
+         */
+        _formatRowDates: function (oRow, aDateFields, aDateTimeFields) {
+            if (!oRow) { return oRow; }
+            var oCopy = Object.assign({}, oRow);
+            var that = this;
+            (aDateFields || []).forEach(function (s) {
+                if (oCopy[s]) { oCopy[s] = that._formatSapDate(oCopy[s], false); }
+            });
+            (aDateTimeFields || []).forEach(function (s) {
+                if (oCopy[s]) { oCopy[s] = that._formatSapDate(oCopy[s], true); }
+            });
+            return oCopy;
+        },
+
+        /**
          * Flatten a purchaseOrder header object into an array of
          *   { label, value }
          * rows for a sap.m.List binding. Only non-empty fields are pushed.
+         * Date fields are normalized through `_formatSapDate` so the UI
+         * shows "Aug 5, 2026" instead of "/Date(1785801600000)/".
          */
         _buildPoHeaderItems: function (oPo) {
             var arr = [];
             if (!oPo) { return arr; }
+            var that = this;
             var push = function (l, v) {
                 if (v !== undefined && v !== null && v !== "") {
                     arr.push({ label: l, value: String(v) });
@@ -723,10 +916,10 @@ sap.ui.define([
             push("Supplier",         oPo.Supplier);
             push("Supplier Phone",   oPo.SupplierPhoneNumber);
             push("Currency",         oPo.DocumentCurrency);
-            push("PO Date",          oPo.PurchaseOrderDate);
+            push("PO Date",          that._formatSapDate(oPo.PurchaseOrderDate, false));
             push("Created By",       oPo.CreatedByUser);
-            push("Creation Date",    oPo.CreationDate);
-            push("Last Changed",     oPo.LastChangeDateTime);
+            push("Creation Date",    that._formatSapDate(oPo.CreationDate, false));
+            push("Last Changed",     that._formatSapDate(oPo.LastChangeDateTime, true));
             push("Net Amount",       oPo.PurchaseOrderNetAmount);
             push("Language",         oPo.Language);
             push("Payment Terms",    oPo.PaymentTerms);

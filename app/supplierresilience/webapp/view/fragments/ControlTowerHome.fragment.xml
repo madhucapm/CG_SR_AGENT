@@ -1,0 +1,25 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout">
+    <!--
+        Control Tower home landing page (new design).
+        Composes three sub-fragments:
+          1) HeroHeader        – dark greeting banner
+          2) GlobalRisksCard   – left column: Today's Global Supply Chain Risks
+          3) AiAssistantCard   – right column: AI Assistant panel
+    -->
+    <VBox class="ctHome" width="100%">
+        <core:Fragment fragmentName="supplierresilience.view.fragments.HeroHeader" type="XML" />
+
+        <l:Grid
+            defaultSpan="XL6 L6 M12 S12"
+            hSpacing="1"
+            vSpacing="1"
+            containerQuery="true"
+            class="ctBodyGrid">
+            <core:Fragment fragmentName="supplierresilience.view.fragments.GlobalRisksCard" type="XML" />
+            <core:Fragment fragmentName="supplierresilience.view.fragments.AiAssistantCard" type="XML" />
+        </l:Grid>
+    </VBox>
+</core:FragmentDefinition>

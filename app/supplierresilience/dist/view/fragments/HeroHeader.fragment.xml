@@ -1,0 +1,31 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        Hero header for the Control Tower home page.
+        Reads user info from the `user` JSON model (populated by the
+        View1 controller on init from mockdata.json or the CAP service).
+    -->
+    <VBox class="ctHero" width="100%">
+        <!-- Decorative globe / network backdrop (pure CSS) -->
+        <core:HTML content="&lt;div class=&quot;ctHeroGlobe&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;" />
+
+        <VBox class="ctHeroContent">
+            <FormattedText
+                class="ctGreeting"
+                htmlText="{= (${user>/greeting} || 'Good Morning') + ', &lt;span class=&quot;ctGreetingName&quot;&gt;' + (${user>/name} || 'there') + '&lt;/span&gt;' }" />
+
+            <HBox class="ctPersonaWrap">
+                <Button
+                    icon="sap-icon://employee"
+                    text="{user>/role}"
+                    type="Transparent"
+                    class="ctPersonaBadge"
+                    enabled="false" />
+            </HBox>
+
+            <Text text="{i18n>ctTagline1}" class="ctTagline" />
+            <Text text="{i18n>ctTagline2}" class="ctTagline" />
+        </VBox>
+    </VBox>
+</core:FragmentDefinition>

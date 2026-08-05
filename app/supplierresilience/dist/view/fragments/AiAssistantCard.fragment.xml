@@ -1,0 +1,58 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        AI Assistant panel (right column of the Control Tower home).
+        Static content driven by i18n keys; buttons trigger controller
+        handlers that (for now) toast a placeholder message and can later
+        route to the corresponding agent / upload flow.
+    -->
+    <VBox class="ctCard ctAiCard">
+        <!-- Card header -->
+        <HBox alignItems="Center" class="ctCardHeader">
+            <core:Icon src="sap-icon://SAP-icons-TNT/actor" class="ctCardHeaderIcon ctIcon-purple" />
+            <Title text="{i18n>ctAiTitle}" level="H3" class="ctCardTitle" />
+        </HBox>
+
+        <!-- Brain glyph -->
+        <VBox alignItems="Center" class="ctAiGlyphWrap">
+            <VBox alignItems="Center" justifyContent="Center" class="ctAiGlyphCircle">
+                <core:Icon src="sap-icon://learning-assistant" class="ctAiGlyphIcon" />
+            </VBox>
+        </VBox>
+
+        <!-- Headline + subline -->
+        <VBox alignItems="Center" class="ctAiHeadlineWrap">
+            <Title text="{i18n>ctAiHeadline}" level="H3" class="ctAiHeadline" />
+            <Text text="{i18n>ctAiSubline}" class="ctAiSubline" textAlign="Center" />
+        </VBox>
+
+        <!-- Action buttons -->
+        <VBox class="ctAiActions">
+            <Button
+                icon="sap-icon://search"
+                text="{i18n>ctAiActionInvestigate}"
+                press=".onInvestigateRisk"
+                class="ctAiAction ctAiActionPrimary"
+                width="100%" />
+            <Button
+                icon="sap-icon://discussion"
+                text="{i18n>ctAiActionAsk}"
+                press=".onAskQuestion"
+                class="ctAiAction"
+                width="100%" />
+            <Button
+                icon="sap-icon://lightning"
+                text="{i18n>ctAiActionRecommend}"
+                press=".onViewRecommendedActions"
+                class="ctAiAction"
+                width="100%" />
+            <Button
+                icon="sap-icon://upload"
+                text="{i18n>ctAiActionUpload}"
+                press=".onUploadInfo"
+                class="ctAiAction"
+                width="100%" />
+        </VBox>
+    </VBox>
+</core:FragmentDefinition>

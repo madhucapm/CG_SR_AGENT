@@ -648,10 +648,12 @@ module.exports = cds.service.impl(async function () {
         // OData v2 endpoint of API_MATERIAL_DOCUMENT_SRV — goods movements
         // (101 = GR against PO, 102 = reversal of GR, 122 = return delivery)
         // for the same PO. Reuses the same `S4R` destination.
+        // NOTE: PostingDate is NOT a valid property on A_MaterialDocumentItem in S/4HANA.
+        // It exists on A_MaterialDocumentHeader. Removed from $select to fix the API error.
         const MATERIAL_DOC_URL =
             `/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentItem?$select=` +
             `MaterialDocument,MaterialDocumentYear,MaterialDocumentItem,` +
-            `PurchaseOrder,PurchaseOrderItem,PostingDate,GoodsMovementType,` +
+            `PurchaseOrder,PurchaseOrderItem,GoodsMovementType,` +
             `Material,Plant,QuantityInEntryUnit,EntryUnit,Supplier` +
             `&$filter=` +
             encodeURIComponent(
@@ -754,7 +756,7 @@ module.exports = cds.service.impl(async function () {
                     MaterialDocument:     asStr(md.MaterialDocument),
                     MaterialDocumentYear: asStr(md.MaterialDocumentYear),
                     MaterialDocumentItem: asStr(md.MaterialDocumentItem),
-                    PostingDate:          asStr(md.PostingDate),
+                    PostingDate:          '', // Not available on A_MaterialDocumentItem entity
                     GoodsMovementType:    asStr(md.GoodsMovementType),
                     PurchaseOrder:        asStr(md.PurchaseOrder),
                     PurchaseOrderItem:    asStr(md.PurchaseOrderItem),

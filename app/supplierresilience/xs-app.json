@@ -6,6 +6,15 @@
   },
   "routes": [
     {
+      "source": "^/lm/(.*)$",
+      "destination": "AI_CORE_CGAI_COCKPIT",
+      "csrfProtection": false,
+      "authenticationType": "xsuaa",
+      "target": "/$1",
+      "httpMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      "cacheControl": "no-store, no-cache, must-revalidate"
+    },
+    {
       "source": "^/odata/(.*)$",
       "target": "/odata/$1",
       "destination": "SupplierResilience-srv-api",
@@ -23,6 +32,14 @@
       "target": "/test-resources/$1",
       "authenticationType": "none",
       "destination": "ui5"
+    },
+    {
+      "source": "^/user-api(.*)",
+      "target": "/$1",
+      "service": "sap-approuter-userapi",
+      "authenticationType": "xsuaa",
+      "httpMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      "cacheControl": "no-store, no-cache, must-revalidate"
     },
     {
       "source": "^(.*)$",

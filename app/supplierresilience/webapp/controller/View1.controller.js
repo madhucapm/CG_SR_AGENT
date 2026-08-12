@@ -84,7 +84,7 @@ sap.ui.define([
             // Load global supply chain risks from Anthropic Claude LLM
             // via the AI_CORE_CGAI_COCKPIT destination. Called once on init;
             // users can manually refresh via the card's refresh button.
-            //this._loadGlobalRisksFromAI();
+            this._loadGlobalRisksFromAI();
         },
 
 
@@ -1293,7 +1293,7 @@ sap.ui.define([
          * Re-fetches live risks from the Anthropic Claude 4.5 Opus LLM.
          */
         onRefreshGlobalRisks: function () {
-            //this._loadGlobalRisksFromAI();
+            this._loadGlobalRisksFromAI();
         },
 
         /**

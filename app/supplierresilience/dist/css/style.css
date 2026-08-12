@@ -734,6 +734,10 @@ html, body, #content {
     font-size: 0.82rem !important;
     line-height: 1.4;
 }
+.ctRiskText .sapMTitle,
+.ctRiskText .sapMTitleStyleH4 {
+    color: #ffffff !important;
+}
 
 .ctRiskRight { gap: 0.6rem; flex-shrink: 0; }
 .ctRiskMeta  { min-width: 190px; gap: 0.15rem; }

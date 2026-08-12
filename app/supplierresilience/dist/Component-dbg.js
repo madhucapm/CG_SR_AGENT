@@ -10,6 +10,11 @@ sap.ui.define([
         metadata: {
             manifest: "json"
         },
+         defaultHeaders: {
+            "AI-Resource-Group": "default",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
 
         init: function () {
             UIComponent.prototype.init.apply(this, arguments);
@@ -29,6 +34,7 @@ sap.ui.define([
             //models.getOrchestrationDeploymentId("");
 
             // Fetch the logged-in user's info from the App Router user API
+             this.getFoundationModels();
             this._fetchCurrentUser();
             const sComponentName = this.getManifestObject().getComponentName();
             const sInitBasePath = this.getManifestObject()._oBaseUri.pathname.replace(/\/$/, "");

@@ -645,12 +645,25 @@ module.exports = cds.service.impl(async function () {
             `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrderItem?$filter=` +
             encodeURIComponent(`PurchaseOrder eq '${po}'`) + `&$format=json`;
 
+        // OData v2 endpoint of API_PURCHASEORDER_PROCESS_SRV — schedule lines
+        // Contains delivery dates per PO item; one item can have multiple schedule lines
+        // (e.g., split deliveries). Key fields: ScheduleLineDeliveryDate, SchedLineStscDeliveryDate
+        const SCHEDULE_LINES_URL =
+            `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrderScheduleLine?$filter=` +
+            encodeURIComponent(`PurchasingDocument eq '${po}'`) +
+            `&$select=PurchasingDocument,PurchasingDocumentItem,ScheduleLine,` +
+            `ScheduleLineDeliveryDate,SchedLineStscDeliveryDate,ScheduleLineOrderQuantity,` +
+            `PurchaseOrderQuantityUnit,DelivDateCategory` +
+            `&$format=json`;
+
         // OData v2 endpoint of API_MATERIAL_DOCUMENT_SRV — goods movements
         // (101 = GR against PO, 102 = reversal of GR, 122 = return delivery)
         // for the same PO. Reuses the same `S4R` destination.
-        // NOTE: PostingDate is NOT a valid property on A_MaterialDocumentItem in S/4HANA.
-        // It exists on A_MaterialDocumentHeader. Removed from $select to fix the API error.
-        const MATERIAL_DOC_URL =
+        // NOTE: PostingDate, DocumentDate, CreatedByUser, etc. are NOT available on
+        // A_MaterialDocumentItem — they exist on A_MaterialDocumentHeader.
+        // We fetch items first, then fetch headers for matching documents in a
+        // second call to populate header-level fields (Option 3: Two-Step Targeted).
+        const MATERIAL_DOC_ITEM_URL =
             `/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentItem?$select=` +
             `MaterialDocument,MaterialDocumentYear,MaterialDocumentItem,` +
             `PurchaseOrder,PurchaseOrderItem,GoodsMovementType,` +
@@ -672,16 +685,21 @@ module.exports = cds.service.impl(async function () {
 
         try {
             logger.info(`getPurchaseOrderDetails calling S4R for PO ${po}`);
-            // Call all three endpoints in parallel. The material-document
-            // call is wrapped so its failure does NOT reject the whole
-            // Promise.all — header/items must remain available even if the
-            // goods-movement service is unavailable or the PO has no GRs.
-            const [headerResp, itemsResp, matDocRespOrErr] = await Promise.all([
+            // Call all four endpoints in parallel. The material-document and schedule-lines
+            // calls are wrapped so their failure does NOT reject the whole
+            // Promise.all — header/items must remain available even if optional
+            // services are unavailable or the PO has no GRs/schedule lines.
+            const [headerResp, itemsResp, schedLinesRespOrErr, matDocItemRespOrErr] = await Promise.all([
                 executeHttpRequest(destination, { ...commonOptions, url: HEADER_URL }),
                 executeHttpRequest(destination, { ...commonOptions, url: ITEMS_URL }),
-                executeHttpRequest(destination, { ...commonOptions, url: MATERIAL_DOC_URL })
+                executeHttpRequest(destination, { ...commonOptions, url: SCHEDULE_LINES_URL })
                     .catch((err) => {
-                        logger.warn(`getPurchaseOrderDetails material-document call failed: ${err && err.message ? err.message : err}`);
+                        logger.warn(`getPurchaseOrderDetails schedule-lines call failed: ${err && err.message ? err.message : err}`);
+                        return { __failed: true, error: err };
+                    }),
+                executeHttpRequest(destination, { ...commonOptions, url: MATERIAL_DOC_ITEM_URL })
+                    .catch((err) => {
+                        logger.warn(`getPurchaseOrderDetails material-document-item call failed: ${err && err.message ? err.message : err}`);
                         return { __failed: true, error: err };
                     })
             ]);
@@ -704,6 +722,21 @@ module.exports = cds.service.impl(async function () {
 
             // Normalize (stringify) known fields; keep only what the CDS type declares
             const asStr = (v) => (v === undefined || v === null) ? '' : String(v);
+
+            // Convert OData v2 date format "/Date(timestamp)/" to ISO 8601 format
+            // Example: "/Date(1786320000000)/" -> "2026-08-10"
+            const parseODataDate = (v) => {
+                if (!v || typeof v !== 'string') return '';
+                const match = v.match(/\/Date\((-?\d+)\)\//);
+                if (match) {
+                    const timestamp = parseInt(match[1], 10);
+                    const date = new Date(timestamp);
+                    // Return ISO date string (YYYY-MM-DD format for date-only fields)
+                    return date.toISOString().split('T')[0];
+                }
+                // If not OData format, return as string
+                return String(v);
+            };
 
             const purchaseOrder = rawHeader ? {
                 PurchaseOrder:               asStr(rawHeader.PurchaseOrder),
@@ -745,27 +778,130 @@ module.exports = cds.service.impl(async function () {
 
             // Normalize Material Document rows. If the parallel call failed
             // we return an empty array so header/items still render on the UI.
+            // 
+            // OPTION 3 IMPLEMENTATION: Two-Step Targeted Approach
+            // Step 1: Get items (already done above via MATERIAL_DOC_ITEM_URL)
+            // Step 2: Extract unique MaterialDocument + MaterialDocumentYear keys
+            // Step 3: Fetch only those specific headers from A_MaterialDocumentHeader
+            // Step 4: Create lookup map and merge header fields into items
             let materialDocuments = [];
-            if (matDocRespOrErr && !matDocRespOrErr.__failed) {
-                const mData = matDocRespOrErr.data ? matDocRespOrErr.data : {};
+            if (matDocItemRespOrErr && !matDocItemRespOrErr.__failed) {
+                const mData = matDocItemRespOrErr.data ? matDocItemRespOrErr.data : {};
                 const rawMatDocs = (mData.d && Array.isArray(mData.d.results)) ? mData.d.results
                     : (Array.isArray(mData.value)) ? mData.value
                     : (Array.isArray(mData)) ? mData
                     : [];
-                materialDocuments = rawMatDocs.map((md) => ({
-                    MaterialDocument:     asStr(md.MaterialDocument),
-                    MaterialDocumentYear: asStr(md.MaterialDocumentYear),
-                    MaterialDocumentItem: asStr(md.MaterialDocumentItem),
-                    PostingDate:          '', // Not available on A_MaterialDocumentItem entity
-                    GoodsMovementType:    asStr(md.GoodsMovementType),
-                    PurchaseOrder:        asStr(md.PurchaseOrder),
-                    PurchaseOrderItem:    asStr(md.PurchaseOrderItem),
-                    Material:             asStr(md.Material),
-                    Plant:                asStr(md.Plant),
-                    QuantityInEntryUnit:  asStr(md.QuantityInEntryUnit),
-                    EntryUnit:            asStr(md.EntryUnit),
-                    Supplier:             asStr(md.Supplier)
+
+                // Step 2: Extract unique document keys from items
+                const uniqueDocKeys = [...new Map(
+                    rawMatDocs.map(md => [
+                        `${md.MaterialDocument}-${md.MaterialDocumentYear}`,
+                        { doc: md.MaterialDocument, year: md.MaterialDocumentYear }
+                    ])
+                ).values()];
+
+                // Step 3: Fetch headers for those specific documents (if any items exist)
+                let matDocHeaderMap = new Map();
+                if (uniqueDocKeys.length > 0) {
+                    try {
+                        // Build $filter with OR conditions for each unique document
+                        const headerFilterParts = uniqueDocKeys.map(k =>
+                            `(MaterialDocument eq '${k.doc}' and MaterialDocumentYear eq '${k.year}')`
+                        );
+                        const headerFilter = headerFilterParts.join(' or ');
+
+                        // Note: BillOfLading and ReferenceDocument are not available on all
+                        // S/4HANA versions/configurations. They have been removed from $select
+                        // to avoid 404 "Resource not found for segment" errors.
+                        const MATERIAL_DOC_HEADER_URL =
+                            `/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentHeader?$select=` +
+                            `MaterialDocument,MaterialDocumentYear,PostingDate,DocumentDate,` +
+                            `CreatedByUser,CreationDate` +
+                            `&$filter=${encodeURIComponent(headerFilter)}` +
+                            `&$format=json`;
+
+                        logger.info(`getPurchaseOrderDetails fetching ${uniqueDocKeys.length} material document header(s)`);
+                        const matDocHeaderResp = await executeHttpRequest(destination, {
+                            ...commonOptions,
+                            url: MATERIAL_DOC_HEADER_URL
+                        });
+
+                        // Parse header response and build lookup map
+                        const hdrData = matDocHeaderResp && matDocHeaderResp.data ? matDocHeaderResp.data : {};
+                        const rawHeaders = (hdrData.d && Array.isArray(hdrData.d.results)) ? hdrData.d.results
+                            : (Array.isArray(hdrData.value)) ? hdrData.value
+                            : (Array.isArray(hdrData)) ? hdrData
+                            : [];
+
+                        // Step 4a: Create lookup map keyed by "MaterialDocument-Year"
+                        rawHeaders.forEach(hdr => {
+                            const key = `${hdr.MaterialDocument}-${hdr.MaterialDocumentYear}`;
+                            matDocHeaderMap.set(key, hdr);
+                        });
+                        logger.info(`getPurchaseOrderDetails loaded ${matDocHeaderMap.size} material document header(s)`);
+                    } catch (hdrErr) {
+                        // If header fetch fails, continue without header data (items still available)
+                        logger.warn(`getPurchaseOrderDetails material-document-header call failed: ${hdrErr && hdrErr.message ? hdrErr.message : hdrErr}`);
+                    }
+                }
+
+                // Step 4b: Merge header fields into each item row
+                materialDocuments = rawMatDocs.map((md) => {
+                    const headerKey = `${md.MaterialDocument}-${md.MaterialDocumentYear}`;
+                    const hdr = matDocHeaderMap.get(headerKey) || {};
+
+                    return {
+                        // Keys
+                        MaterialDocument:     asStr(md.MaterialDocument),
+                        MaterialDocumentYear: asStr(md.MaterialDocumentYear),
+                        MaterialDocumentItem: asStr(md.MaterialDocumentItem),
+                        // Header-level fields (from A_MaterialDocumentHeader)
+                        // Date fields converted from OData v2 format to ISO 8601 (YYYY-MM-DD)
+                        PostingDate:          parseODataDate(hdr.PostingDate),    // e.g. "2026-08-10"
+                        DocumentDate:         parseODataDate(hdr.DocumentDate),   // e.g. "2026-08-10"
+                        CreatedByUser:        asStr(hdr.CreatedByUser),           // User ID (string)
+                        CreationDate:         parseODataDate(hdr.CreationDate),   // e.g. "2026-08-10"
+                        ReferenceDocument:    asStr(hdr.ReferenceDocument),       // Delivery ref (not available)
+                        BillOfLading:         asStr(hdr.BillOfLading),            // Shipment ref (not available)
+                        // Item-level fields (from A_MaterialDocumentItem)
+                        GoodsMovementType:    asStr(md.GoodsMovementType),
+                        PurchaseOrder:        asStr(md.PurchaseOrder),
+                        PurchaseOrderItem:    asStr(md.PurchaseOrderItem),
+                        Material:             asStr(md.Material),
+                        Plant:                asStr(md.Plant),
+                        QuantityInEntryUnit:  asStr(md.QuantityInEntryUnit),
+                        EntryUnit:            asStr(md.EntryUnit),
+                        Supplier:             asStr(md.Supplier)
+                    };
+                });
+            }
+
+            // Parse and format Schedule Lines from A_PurchaseOrderScheduleLine
+            // Each PO item can have multiple schedule lines (e.g., split deliveries)
+            let scheduleLines = [];
+            if (schedLinesRespOrErr && !schedLinesRespOrErr.__failed) {
+                const slData = schedLinesRespOrErr.data ? schedLinesRespOrErr.data : {};
+                const rawScheduleLines = (slData.d && Array.isArray(slData.d.results)) ? slData.d.results
+                    : (Array.isArray(slData.value)) ? slData.value
+                    : (Array.isArray(slData)) ? slData
+                    : [];
+
+                scheduleLines = rawScheduleLines.map((sl) => ({
+                    // Keys - map from A_PurchaseOrderScheduleLine field names
+                    PurchaseOrder:              asStr(sl.PurchasingDocument),       // Note: API uses PurchasingDocument
+                    PurchaseOrderItem:          asStr(sl.PurchasingDocumentItem),   // Note: API uses PurchasingDocumentItem
+                    ScheduleLine:               asStr(sl.ScheduleLine),
+                    // Delivery dates converted from OData v2 format to ISO 8601 (YYYY-MM-DD)
+                    ScheduleLineDeliveryDate:   parseODataDate(sl.ScheduleLineDeliveryDate),    // Planned delivery date
+                    SchedLineStscDeliveryDate:  parseODataDate(sl.SchedLineStscDeliveryDate),   // Statistical/confirmed date
+                    // Quantity and unit
+                    ScheduleLineOrderQuantity:  asStr(sl.ScheduleLineOrderQuantity),
+                    PurchaseOrderQuantityUnit:  asStr(sl.PurchaseOrderQuantityUnit),
+                    // Delivery date category (1 = confirmed, etc.)
+                    DelivDateCategory:          asStr(sl.DelivDateCategory)
                 }));
+
+                logger.info(`getPurchaseOrderDetails loaded ${scheduleLines.length} schedule line(s)`);
             }
 
             return {
@@ -773,6 +909,7 @@ module.exports = cds.service.impl(async function () {
                 po: po,
                 purchaseOrder: purchaseOrder,
                 purchaseOrderItems: purchaseOrderItems,
+                scheduleLines: scheduleLines,
                 materialDocuments: materialDocuments,
                 error: null
             };
@@ -802,6 +939,7 @@ module.exports = cds.service.impl(async function () {
                 po: po,
                 purchaseOrder: null,
                 purchaseOrderItems: [],
+                scheduleLines: [],
                 materialDocuments: [],
                 error: detail
             };

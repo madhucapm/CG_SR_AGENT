@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Resilience - Project Documentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 40px 20px;
+            background: #fff;
+        }
+        h1 { color: #0a6ed1; border-bottom: 3px solid #0a6ed1; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { color: #0a6ed1; margin-top: 40px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+        h3 { color: #333; margin-top: 25px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #0a6ed1; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; margin: 15px 0; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .meta { color: #666; font-size: 14px; margin-top: 10px; }
+        .toc { background: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .toc ul { list-style: none; }
+        .toc li { padding: 5px 0; }
+        .box { background: #e8f4fc; border-left: 4px solid #0a6ed1; padding: 15px; margin: 15px 0; }
+        .warning { background: #fff3cd; border-left: 4px solid #ffc107; }
+        @media print { body { max-width: 100%; } h2 { page-break-before: always; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📚 SUPPLIER RESILIENCE</h1>
+    <p style="font-size: 20px; color: #666;">Complete Project Documentation & Architecture Guide</p>
+    <p class="meta">Version: 1.0.4 | Last Updated: August 10, 2026 | Technology: SAP CAP + SAPUI5</p>
+</div>
+
+<div class="toc">
+    <h3>📋 Table of Contents</h3>
+    <ul>
+        <li>1. Executive Summary</li>
+        <li>2. Technology Stack</li>
+        <li>3. Project Folder Structure</li>
+        <li>4. Database Schema</li>
+        <li>5. Agent Architecture</li>
+        <li>6. Risk Scoring Algorithm</li>
+        <li>7. Survival Calculation</li>
+        <li>8. API Reference</li>
+        <li>9. S/4HANA Integration</li>
+        <li>10. Deployment Configuration</li>
+    </ul>
+</div>
+
+<h2>1. Executive Summary</h2>
+<p><strong>Supplier Resilience</strong> is an enterprise-grade supply chain risk management solution built on SAP BTP. It uses a <strong>multi-agent architecture</strong> to detect, assess, and respond to supply chain disruptions.</p>
+
+<h3>Key Capabilities</h3>
+<table>
+    <tr><th>Capability</th><th>Description</th></tr>
+    <tr><td>Disruption Detection</td><td>Capture PO delays, quality issues, and supplier risks</td></tr>
+    <tr><td>Risk Assessment</td><td>100-point scoring algorithm with 5 weighted components</td></tr>
+    <tr><td>Inventory Survival Analysis</td><td>Calculate how long inventory lasts vs supplier recovery</td></tr>
+    <tr><td>Live S/4HANA Integration</td><td>Fetch real-time PO data from S/4HANA</td></tr>
+    <tr><td>Control Tower Dashboard</td><td>Centralized view of all supply chain risks</td></tr>
+</table>
+
+<h2>2. Technology Stack</h2>
+<table>
+    <tr><th>Layer</th><th>Technology</th><th>Version</th></tr>
+    <tr><td>Runtime</td><td>Node.js</td><td>18+</td></tr>
+    <tr><td>Backend</td><td>SAP CAP</td><td>@sap/cds ^9</td></tr>
+    <tr><td>Database</td><td>SAP HANA Cloud</td><td>HDI Container</td></tr>
+    <tr><td>Frontend</td><td>SAPUI5</td><td>1.120+</td></tr>
+    <tr><td>Integration</td><td>SAP Cloud SDK</td><td>^3</td></tr>
+    <tr><td>Platform</td><td>SAP BTP</td><td>Cloud Foundry</td></tr>
+</table>
+
+
+<h2>3. Project Folder Structure</h2>
+<pre>
+SupplierResilience/
+├── app/supplierresilience/webapp/    # SAPUI5 Frontend
+│   ├── controller/View1.controller.js  (1,294 lines)
+│   └── manifest.json
+├── db/schema.cds                     # Database Schema (262 lines)
+├── srv/
+│   ├── service.cds                   # API Definitions (737 lines)
+│   ├── service.js                    # Implementations (1,359 lines)
+│   └── agents/                       # Agent Modules
+├── mta.yaml                          # MTA Deployment
+└── package.json
+</pre>
+
+<h2>4. Agent Architecture</h2>
+<div class="box">
+<strong>COORDINATOR</strong> → <strong>EARLY WARNING</strong> (Risk Score) + <strong>SURVIVAL</strong> (Inventory)
+</div>
+
+<h3>Decision Logic</h3>
+<table>
+    <tr><th>Risk</th><th>Inventory</th><th>Status</th></tr>
+    <tr><td>HIGH</td><td>Shortfall</td><td style="color:red;">ACTION_REQUIRED</td></tr>
+    <tr><td>HIGH</td><td>OK</td><td style="color:orange;">MONITORING</td></tr>
+</table>
+
+<h2>5. Risk Scoring (100 Points)</h2>
+<table>
+    <tr><th>Component</th><th>Max</th></tr>
+    <tr><td>Supplier Performance</td><td>30</td></tr>
+    <tr><td>Delay Severity</td><td>25</td></tr>
+    <tr><td>Material Criticality</td><td>20</td></tr>
+    <tr><td>Affected Scope</td><td>15</td></tr>
+    <tr><td>Revenue Exposure</td><td>10</td></tr>
+</table>
+<p><strong>Levels:</strong> 0-39=LOW | 40-69=MEDIUM | 70-100=HIGH</p>
+
+<h2>6. APIs</h2>
+<table>
+    <tr><th>API</th><th>Purpose</th></tr>
+    <tr><td>runCoordinator</td><td>Full workflow</td></tr>
+    <tr><td>runEarlyWarning</td><td>Risk assessment</td></tr>
+    <tr><td>runSurvival</td><td>Inventory analysis</td></tr>
+    <tr><td>getPurchaseOrderDetails</td><td>S/4HANA PO data</td></tr>
+</table>
+
+<hr style="margin-top:40px;">
+<p style="text-align:center;color:#666;">
+    <strong>Supplier Resilience v1.0.4</strong> | August 2026<br>
+    <em>Press Ctrl+P → Save as PDF</em>
+</p>
+
+</body>
+</html>

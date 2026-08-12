@@ -226,11 +226,30 @@ service SupplierResilienceService {
             IsCompletelyDelivered           : Boolean;
             PurchaseOrderItemCategory       : String;
         };
+        // Schedule lines from A_PurchaseOrderScheduleLine
+        // Each PO item can have multiple schedule lines (e.g., split deliveries)
+        scheduleLines       : array of {
+            PurchaseOrder                   : String;  // Maps from PurchasingDocument
+            PurchaseOrderItem               : String;  // Maps from PurchasingDocumentItem
+            ScheduleLine                    : String;  // Schedule line number within item
+            ScheduleLineDeliveryDate        : String;  // Planned delivery date (ISO YYYY-MM-DD)
+            SchedLineStscDeliveryDate       : String;  // Statistical/confirmed date (ISO YYYY-MM-DD)
+            ScheduleLineOrderQuantity       : String;  // Ordered quantity on this schedule line
+            PurchaseOrderQuantityUnit       : String;  // Unit of measure
+            DelivDateCategory               : String;  // Delivery date category (1=confirmed, etc.)
+        };
         materialDocuments   : array of {
             MaterialDocument                : String;
             MaterialDocumentYear            : String;
             MaterialDocumentItem            : String;
-            PostingDate                     : String;
+            // Header-level fields (from A_MaterialDocumentHeader)
+            PostingDate                     : String;  // Posting date for accounting
+            DocumentDate                    : String;  // Date on physical document
+            CreatedByUser                   : String;  // User who created the GR
+            CreationDate                    : String;  // System creation date
+            ReferenceDocument               : String;  // Reference to delivery note/ASN
+            BillOfLading                    : String;  // Shipment tracking reference
+            // Item-level fields (from A_MaterialDocumentItem)
             GoodsMovementType               : String;
             PurchaseOrder                   : String;
             PurchaseOrderItem               : String;

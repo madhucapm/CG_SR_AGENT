@@ -513,8 +513,11 @@
                                                         <Column width="5rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="PO Item" /></Column>
                                                         <Column width="7rem"><Text text="Movement Type" /></Column>
                                                         <Column width="8rem"><Text text="Posting Date" /></Column>
+                                                        <Column width="8rem" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline"><Text text="Document Date" /></Column>
                                                         <Column width="5rem" hAlign="End"><Text text="Qty" /></Column>
                                                         <Column width="4rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Unit" /></Column>
+                                                        <Column width="8rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Created By" /></Column>
+                                                        <Column width="10rem" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline"><Text text="Reference Doc" /></Column>
                                                     </columns>
                                                     <items>
                                                         <ColumnListItem>
@@ -525,8 +528,11 @@
                                                                 <Text text="{poDetails>PurchaseOrderItem}" />
                                                                 <Text text="{poDetails>GoodsMovementType}" />
                                                                 <Text text="{poDetails>PostingDate}" />
+                                                                <Text text="{poDetails>DocumentDate}" />
                                                                 <Text text="{poDetails>QuantityInEntryUnit}" />
                                                                 <Text text="{poDetails>EntryUnit}" />
+                                                                <Text text="{poDetails>CreatedByUser}" />
+                                                                <Text text="{poDetails>ReferenceDocument}" />
                                                             </cells>
                                                         </ColumnListItem>
                                                     </items>

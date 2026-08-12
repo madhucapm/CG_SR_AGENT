@@ -796,7 +796,7 @@ sap.ui.define([
                 var aMatDocs = (oData && Array.isArray(oData.materialDocuments))
                     ? oData.materialDocuments.map(function (r) {
                         return that._formatRowDates(r,
-                            ["PostingDate", "DocumentDate"], []);
+                            ["PostingDate", "DocumentDate", "CreationDate"], []);
                     })
                     : [];
                 if (oPo) {

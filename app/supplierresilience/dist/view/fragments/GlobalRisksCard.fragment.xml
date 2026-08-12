@@ -1,6 +1,7 @@
 <core:FragmentDefinition
     xmlns="sap.m"
-    xmlns:core="sap.ui.core">
+    xmlns:core="sap.ui.core"
+    xmlns:app="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1">
     <!--
         "Today's Global Supply Chain Risks" panel.
         Rows are driven by dashboard>/globalRisks populated dynamically from
@@ -9,7 +10,7 @@
         plus a right-side risk-level / region / time block and a chevron
         to open the risk detail.
     -->
-    <VBox class="ctCard ctRisksCard">
+    <VBox class="ctCard ctRisksCard" busy="{dashboard>/globalRisksBusy}" busyIndicatorDelay="0">
         <!-- Card header with refresh button -->
         <HBox alignItems="Center" class="ctCardHeader" justifyContent="SpaceBetween">
             <HBox alignItems="Center">
@@ -33,12 +34,14 @@
             best practice.
         -->
         <List
+            id="globalRisksList"
             items="{dashboard>/globalRisks}"
             showSeparators="None"
             class="ctRiskList"
             noDataText="{i18n>ctNoRisks}"
             busy="{dashboard>/globalRisksBusy}"
             busyIndicatorDelay="0"
+            updateFinished=".onRiskListUpdateFinished"
             itemPress=".onRiskPress">
             <CustomListItem class="ctRiskItem" type="Active">
                 <HBox alignItems="Center" class="ctRiskRow" justifyContent="SpaceBetween">
@@ -58,7 +61,7 @@
                         <VBox class="ctRiskMeta">
                             <HBox alignItems="Center" class="ctRiskMetaRow">
                                 <Label text="{i18n>ctRiskLevel}" class="ctRiskMetaLabel" />
-                                <Text text="{dashboard>riskLevel}" class="{dashboard>badgeClass}" />
+                                <Text text="{dashboard>riskLevel}" class="riskBadgeText" app:riskLevel="{dashboard>riskLevel}" />
                             </HBox>
                             <HBox alignItems="Center" class="ctRiskMetaRow">
                                 <Label text="{i18n>ctRegion}" class="ctRiskMetaLabel" />

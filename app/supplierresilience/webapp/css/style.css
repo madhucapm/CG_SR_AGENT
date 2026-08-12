@@ -755,17 +755,7 @@ html, body, #content {
     font-weight: 500;
 }
 
-.ctRiskBadge {
-    display: inline-block;
-    padding: 0.05rem 0.55rem !important;
-    border-radius: 4px !important;
-    font-size: 0.78rem !important;
-    font-weight: 600 !important;
-    line-height: 1.35;
-}
-.ctBadge-critical { color: #ff6b6b !important; background: rgba(255, 80, 80, 0.15); border: 1px solid rgba(255, 80, 80, 0.4); }
-.ctBadge-high     { color: #ffb020 !important; background: rgba(255, 176, 32, 0.15); border: 1px solid rgba(255, 176, 32, 0.4); }
-.ctBadge-medium   { color: #ffd257 !important; background: rgba(255, 210, 87, 0.12); border: 1px solid rgba(255, 210, 87, 0.35); }
+/* Old badge classes removed – now using .riskCritical / .riskHigh / .riskMedium / .riskLow */
 
 .ctRiskChevron.sapUiIcon {
     color: #6b7aa8 !important;
@@ -919,5 +909,125 @@ html, body, #content {
     .ctHeroGlobe   { opacity: 0.25; }
     .ctRiskRight   { flex-direction: column; align-items: flex-end; }
     .ctRiskMeta    { min-width: 0; }
+}
+
+/* ─── Risk Level Badge Styling ───
+   Classes applied programmatically via addStyleClass() in onRiskListUpdateFinished.
+   Also targets data-risklevel attribute as fallback via customData. */
+
+/* Base badge text – reset any inherited color */
+.riskBadgeText.sapMText {
+    color: inherit;
+}
+
+/* Common shape & sizing for all risk badges */
+.riskCritical.sapMText,
+.riskHigh.sapMText,
+.riskMedium.sapMText,
+.riskLow.sapMText {
+    display: inline-block !important;
+    padding: 0.25rem 0.6rem !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    line-height: 1.35 !important;
+}
+
+/* Critical – red */
+.riskCritical.sapMText {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #ff6b6b !important;
+    border: 1px solid #ff6b6b !important;
+}
+.riskCritical.sapMText span {
+    color: #ff6b6b !important;
+}
+
+/* High – orange */
+.riskHigh.sapMText {
+    background: rgba(249, 115, 22, 0.18) !important;
+    color: #fb923c !important;
+    border: 1px solid #fb923c !important;
+}
+.riskHigh.sapMText span {
+    color: #fb923c !important;
+}
+
+/* Medium – yellow */
+.riskMedium.sapMText {
+    background: rgba(250, 204, 21, 0.18) !important;
+    color: #facc15 !important;
+    border: 1px solid #facc15 !important;
+}
+.riskMedium.sapMText span {
+    color: #facc15 !important;
+}
+
+/* Low – green */
+.riskLow.sapMText {
+    background: rgba(34, 197, 94, 0.18) !important;
+    color: #4ade80 !important;
+    border: 1px solid #4ade80 !important;
+}
+.riskLow.sapMText span {
+    color: #4ade80 !important;
+}
+
+/* ─── Fallback: data-attribute selectors via customData ─── */
+[data-risklevel="Critical"],
+[data-risklevel="Critical"] > span {
+    display: inline-block !important;
+    padding: 0.25rem 0.6rem !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    line-height: 1.35 !important;
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #ff6b6b !important;
+    border: 1px solid #ff6b6b !important;
+}
+
+[data-risklevel="High"],
+[data-risklevel="High"] > span {
+    display: inline-block !important;
+    padding: 0.25rem 0.6rem !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    line-height: 1.35 !important;
+    background: rgba(249, 115, 22, 0.18) !important;
+    color: #fb923c !important;
+    border: 1px solid #fb923c !important;
+}
+
+[data-risklevel="Medium"],
+[data-risklevel="Medium"] > span {
+    display: inline-block !important;
+    padding: 0.25rem 0.6rem !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    line-height: 1.35 !important;
+    background: rgba(250, 204, 21, 0.18) !important;
+    color: #facc15 !important;
+    border: 1px solid #facc15 !important;
+}
+
+[data-risklevel="Low"],
+[data-risklevel="Low"] > span {
+    display: inline-block !important;
+    padding: 0.25rem 0.6rem !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    line-height: 1.35 !important;
+    background: rgba(34, 197, 94, 0.18) !important;
+    color: #4ade80 !important;
+    border: 1px solid #4ade80 !important;
 }
 

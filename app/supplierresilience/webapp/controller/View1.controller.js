@@ -108,6 +108,61 @@ sap.ui.define([
         },
 
         /**
+         * Called when the Global Risks list finishes rendering / updating items.
+         * Programmatically applies the correct risk-level CSS class to each
+         * badge Text control, since dynamic class binding on sap.m.Text
+         * inside list templates is unreliable with the sap_horizon theme.
+         */
+        onRiskListUpdateFinished: function () {
+            var oList = this.byId("globalRisksList");
+            if (!oList) { return; }
+
+            var aItems = oList.getItems();
+            var mBadgeClass = {
+                "Critical": "riskCritical",
+                "High":     "riskHigh",
+                "Medium":   "riskMedium",
+                "Low":      "riskLow"
+            };
+
+            aItems.forEach(function (oItem) {
+                var oCtx = oItem.getBindingContext("dashboard");
+                if (!oCtx) { return; }
+                var sRiskLevel = oCtx.getProperty("riskLevel") || "Medium";
+                var sClass = mBadgeClass[sRiskLevel] || "riskMedium";
+
+                // Find the Text control with class "riskBadgeText" inside the item
+                var aContent = oItem.getContent();
+                if (!aContent || !aContent.length) { return; }
+
+                // Navigate: CustomListItem > HBox(ctRiskRow) > HBox(ctRiskRight) > VBox(ctRiskMeta) > HBox(ctRiskMetaRow[0]) > Text
+                var aBadgeTexts = [];
+                (function findBadgeTexts(aControls) {
+                    if (!aControls) { return; }
+                    for (var i = 0; i < aControls.length; i++) {
+                        var oCtrl = aControls[i];
+                        if (oCtrl.hasStyleClass && oCtrl.hasStyleClass("riskBadgeText")) {
+                            aBadgeTexts.push(oCtrl);
+                        }
+                        // Recurse into child aggregations
+                        if (oCtrl.getItems) { findBadgeTexts(oCtrl.getItems()); }
+                        if (oCtrl.getContent) { findBadgeTexts(oCtrl.getContent()); }
+                    }
+                })(aContent);
+
+                aBadgeTexts.forEach(function (oText) {
+                    // Remove any previously applied risk classes
+                    oText.removeStyleClass("riskCritical");
+                    oText.removeStyleClass("riskHigh");
+                    oText.removeStyleClass("riskMedium");
+                    oText.removeStyleClass("riskLow");
+                    // Apply the correct one
+                    oText.addStyleClass(sClass);
+                });
+            });
+        },
+
+        /**
          * Footer "View all disruptions →" link. Navigates the user to
          * the Cases sub-tab which shows the full case backlog.
          */
@@ -1376,13 +1431,14 @@ sap.ui.define([
 
             var sUserMessage = "Today's date is " + sToday + ". " +
                 "Provide exactly 5 of the most critical real-world global supply chain disruption events that are currently happening or have happened very recently. " +
+                "IMPORTANT: At least 1-2 of the 5 events MUST be related to India (e.g., port congestion, monsoon floods, labor strikes, policy changes, cyberattacks, factory incidents in India). " +
                 "These should be actual events like natural disasters (floods, earthquakes, typhoons), geopolitical conflicts, trade policy changes (tariffs, sanctions), " +
                 "port/shipping disruptions, factory fires, labor strikes, cyberattacks on logistics, or commodity price shocks that impact global manufacturing and supply chains.\n\n" +
                 "For each event, return a JSON object with these exact fields:\n" +
                 "- \"title\": A concise headline (maximum 60 characters)\n" +
                 "- \"description\": One sentence describing the supply chain impact (maximum 120 characters)\n" +
-                "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", or \"Medium\"\n" +
-                "- \"region\": The geographic region affected (e.g., \"North America\", \"Europe\", \"East Asia\", \"Southeast Asia\", \"Middle East\", \"South Asia\", \"Global\")\n" +
+                "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", \"Medium\", or \"Low\"\n" +
+                "- \"region\": A specific location in the format \"City, State, Country\" (e.g., \"Chennai, Tamil Nadu, India\", \"Mumbai, Maharashtra, India\", \"Shenzhen, Guangdong, China\", \"Long Beach, California, USA\", \"Rotterdam, South Holland, Netherlands\"). Always include city and country; include state/province where applicable.\n" +
                 "- \"time\": Approximate recency as a relative time string (e.g., \"2h ago\", \"6h ago\", \"1d ago\", \"2d ago\")\n" +
                 "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n\n" +
                 "IMPORTANT: Return ONLY a valid JSON array of exactly 5 objects. No markdown formatting, no code fences, no explanation text — just the raw JSON array.";
@@ -1606,9 +1662,10 @@ sap.ui.define([
 
             // Badge class mapping by risk level
             var mBadgeClass = {
-                "Critical": "ctRiskBadge ctBadge-critical",
-                "High":     "ctRiskBadge ctBadge-high",
-                "Medium":   "ctRiskBadge ctBadge-medium"
+                "Critical": "riskCritical",
+                "High":     "riskHigh",
+                "Medium":   "riskMedium",
+                "Low":      "riskLow"
             };
 
             return aRisks.map(function (oRisk, iIndex) {
@@ -1627,7 +1684,7 @@ sap.ui.define([
                     iconWrapClass: "ctRiskIconWrap ctRiskIconWrap-" + sColor,
                     iconClass: "ctRiskIcon ctRiskIcon-" + sColor,
                     titleClass: "ctRiskTitle ctRiskTitle-" + sColor,
-                    badgeClass: mBadgeClass[sRiskLevel] || "ctRiskBadge ctBadge-medium",
+                    badgeClass: mBadgeClass[sRiskLevel] || "riskMedium",
                     riskLevel: sRiskLevel,
                     severityClass: "ctBadge-" + sRiskLevel.toLowerCase(),
                     region: oRisk.region || "Global",

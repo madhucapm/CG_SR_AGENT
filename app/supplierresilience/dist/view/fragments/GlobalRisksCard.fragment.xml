@@ -3,33 +3,42 @@
     xmlns:core="sap.ui.core">
     <!--
         "Today's Global Supply Chain Risks" panel.
-        Rows are driven by dashboard>/globalRisks (see mockdata.json / controller
-        `_loadGlobalRisks`). Each row shows a colored circular icon, colored
-        title, description, plus a right-side risk-level / region / time block
-        and a chevron to open the risk detail.
+        Rows are driven by dashboard>/globalRisks populated dynamically from
+        Anthropic Claude LLM via AI_CORE_CGAI_COCKPIT destination.
+        Each row shows a colored circular icon, colored title, description,
+        plus a right-side risk-level / region / time block and a chevron
+        to open the risk detail.
     -->
     <VBox class="ctCard ctRisksCard">
-        <!-- Card header -->
-        <HBox alignItems="Center" class="ctCardHeader">
-            <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
-            <Title text="{i18n>ctGlobalRisksTitle}" level="H3" class="ctCardTitle" />
+        <!-- Card header with refresh button -->
+        <HBox alignItems="Center" class="ctCardHeader" justifyContent="SpaceBetween">
+            <HBox alignItems="Center">
+                <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
+                <Title text="{i18n>ctGlobalRisksTitle}" level="H3" class="ctCardTitle" />
+            </HBox>
+            <Button
+                icon="sap-icon://refresh"
+                type="Transparent"
+                tooltip="Refresh global risks from AI"
+                press=".onRefreshGlobalRisks"
+                class="ctRefreshBtn" />
         </HBox>
 
         <!--
             Risk list.
             The row-level classes (icon wrap color, icon color, title color,
-            severity badge) are pre-computed in the model (see mockdata.json
-            `iconWrapClass` / `iconClass` / `titleClass` / `badgeClass`) so
-            the view stays fully declarative — no expression bindings on
-            `class`, which UI5 does not evaluate against the row context.
-            The press handler lives on the List (`itemPress`) rather than
-            each CustomListItem, per UI5 best practice.
+            severity badge) are computed from the LLM response mapping in the
+            controller (_mapLLMResponseToRisks). The press handler lives on
+            the List (`itemPress`) rather than each CustomListItem, per UI5
+            best practice.
         -->
         <List
             items="{dashboard>/globalRisks}"
             showSeparators="None"
             class="ctRiskList"
             noDataText="{i18n>ctNoRisks}"
+            busy="{dashboard>/globalRisksBusy}"
+            busyIndicatorDelay="0"
             itemPress=".onRiskPress">
             <CustomListItem class="ctRiskItem" type="Active">
                 <HBox alignItems="Center" class="ctRiskRow" justifyContent="SpaceBetween">

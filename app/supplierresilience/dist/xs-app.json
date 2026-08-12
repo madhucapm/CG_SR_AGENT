@@ -5,6 +5,36 @@
     "logoutEndpoint": "/do/logout"
   },
   "routes": [
+ {
+      "source": "^/deployments/(.*)$",
+      "destination": "AI_CORE_CGAI_COCKPIT_SRA",
+      "csrfProtection": false,
+      "authenticationType": "xsuaa",
+      "target": "/inference/deployments/$1",
+      "httpMethods": [
+				"GET",
+				"POST",
+				"PUT",
+				"PATCH",
+				"DELETE"
+			],
+      "cacheControl": "no-store, no-cache, must-revalidate"
+    },
+    {
+      "source": "^/lm/(.*)$",
+      "destination": "AI_CORE_CGAI_COCKPIT_SRA",
+      "csrfProtection": false,
+      "authenticationType": "xsuaa",
+      "httpMethods": [
+				"GET",
+				"POST",
+				"PUT",
+				"PATCH",
+				"DELETE"
+			],
+      "cacheControl": "no-store, no-cache, must-revalidate",
+      "target": "/lm/$1"
+    },
     {
       "source": "^/odata/(.*)$",
       "target": "/odata/$1",
@@ -23,6 +53,14 @@
       "target": "/test-resources/$1",
       "authenticationType": "none",
       "destination": "ui5"
+    },
+    {
+      "source": "^/user-api(.*)",
+      "target": "/$1",
+      "service": "sap-approuter-userapi",
+      "authenticationType": "xsuaa",
+      "httpMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      "cacheControl": "no-store, no-cache, must-revalidate"
     },
     {
       "source": "^(.*)$",

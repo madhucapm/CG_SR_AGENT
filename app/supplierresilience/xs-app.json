@@ -5,14 +5,35 @@
     "logoutEndpoint": "/do/logout"
   },
   "routes": [
-    {
-      "source": "^/lm/(.*)$",
-      "destination": "AI_CORE_CGAI_COCKPIT",
+ {
+      "source": "^/deployments/(.*)$",
+      "destination": "AI_CORE_CGAI_COCKPIT_SRA",
       "csrfProtection": false,
       "authenticationType": "xsuaa",
-      "target": "/$1",
-      "httpMethods": ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      "target": "/inference/deployments/$1",
+      "httpMethods": [
+				"GET",
+				"POST",
+				"PUT",
+				"PATCH",
+				"DELETE"
+			],
       "cacheControl": "no-store, no-cache, must-revalidate"
+    },
+    {
+      "source": "^/lm/(.*)$",
+      "destination": "AI_CORE_CGAI_COCKPIT_SRA",
+      "csrfProtection": false,
+      "authenticationType": "xsuaa",
+      "httpMethods": [
+				"GET",
+				"POST",
+				"PUT",
+				"PATCH",
+				"DELETE"
+			],
+      "cacheControl": "no-store, no-cache, must-revalidate",
+      "target": "/lm/$1"
     },
     {
       "source": "^/odata/(.*)$",

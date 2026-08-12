@@ -70,34 +70,23 @@ sap.ui.define([
             this.getView().setModel(oPoDetailsModel, "poDetails");
 
             // User model powering the Control Tower hero header greeting.
-            // Currently seeded with a static persona; when real auth is
-            // available this can be populated from /user-api or a CAP
-            // getCurrentUser function without changing the view.
-            var oUserModel = new JSONModel({
-                greeting: this._computeGreeting(),
-                name: "Nikhil",
-                role: "Procurement Lead"
-            });
-            this.getView().setModel(oUserModel, "user");
+            // The "user" model is set at the Component level (Component.js)
+            // and populated dynamically from /user-api/currentUser.
+            // No need to create a local model here — the view inherits the
+            // component-level "user" model automatically.
 
             // Start loading cases immediately on app init. The retry logic
             // inside _loadCoordinatorData handles the case where the
             // dashboard JSONModel hasn't been fully wired to the view yet
             // when the fetch response arrives.
             this._loadCoordinatorData();
+
+            // Load global supply chain risks from Anthropic Claude LLM
+            // via the AI_CORE_CGAI_COCKPIT destination. Called once on init;
+            // users can manually refresh via the card's refresh button.
+            //this._loadGlobalRisksFromAI();
         },
 
-        /**
-         * Compute a time-of-day greeting for the Control Tower hero header.
-         * Kept intentionally simple; can be extended to honor the user's
-         * locale/timezone once we wire real user info.
-         */
-        _computeGreeting: function () {
-            var iHour = new Date().getHours();
-            if (iHour < 12) { return "Good Morning"; }
-            if (iHour < 17) { return "Good Afternoon"; }
-            return "Good Evening";
-        },
 
         // ─────────────────────────────────────────────────────────────
         //  Control Tower home – new-design event handlers
@@ -1290,6 +1279,362 @@ sap.ui.define([
             }
 
             MessageToast.show(item.getText() + " workspace selected");
+        },
+
+
+        // ─────────────────────────────────────────────────────────────
+        //  Global Risks – Anthropic Claude 4.5 Opus LLM Integration
+        //  via AI_CORE_CGAI_COCKPIT_SRA destination using Orchestration
+        //  Model: anthropic--claude-4.5-opus (via orchestration endpoint)
+        // ─────────────────────────────────────────────────────────────
+
+        /**
+         * Refresh button handler for the Global Risks card.
+         * Re-fetches live risks from the Anthropic Claude 4.5 Opus LLM.
+         */
+        onRefreshGlobalRisks: function () {
+            //this._loadGlobalRisksFromAI();
+        },
+
+        /**
+         * Main orchestrator: calls Anthropic Claude 4.5 Opus via AI Core
+         * Orchestration to get top 5 global supply chain risks.
+         * Populates dashboard>/globalRisks on success.
+         *
+         * Uses orchestration endpoint with model anthropic--claude-4.5-opus
+         * via the AI_CORE_CGAI_COCKPIT_SRA destination.
+         *
+         * Called once on onInit and on manual refresh.
+         */
+        _loadGlobalRisksFromAI: function () {
+            var oView = this.getView();
+            var that = this;
+
+            // Set busy state while loading
+            var setGlobalRisksBusy = function (bBusy) {
+                var oDash = oView.getModel("dashboard");
+                if (oDash) {
+                    oDash.setProperty("/globalRisksBusy", bBusy);
+                } else {
+                    // Dashboard model may not be ready yet; retry
+                    setTimeout(function () {
+                        var oDash2 = oView.getModel("dashboard");
+                        if (oDash2) { oDash2.setProperty("/globalRisksBusy", bBusy); }
+                    }, 500);
+                }
+            };
+
+            setGlobalRisksBusy(true);
+            console.log("[GlobalRisks] Starting AI-powered global risks fetch via Claude 4.5 Opus...");
+
+            // Call the Anthropic Claude 4.5 Opus deployment directly
+            this._callClaudeForRisks().then(function (aRisks) {
+                console.log("[GlobalRisks] LLM returned risks:", aRisks);
+
+                // Map LLM response to UI model format
+                var aMappedRisks = that._mapLLMResponseToRisks(aRisks);
+                console.log("[GlobalRisks] Mapped risks for UI:", aMappedRisks);
+
+                // Set the data on the dashboard model
+                var applyRisks = function () {
+                    var oDash = oView.getModel("dashboard");
+                    if (!oDash) {
+                        setTimeout(applyRisks, 200);
+                        return;
+                    }
+                    oDash.setProperty("/globalRisks", aMappedRisks);
+                    oDash.setProperty("/globalRisksBusy", false);
+                };
+                applyRisks();
+
+                MessageToast.show("Global risks updated from AI");
+            }).catch(function (oErr) {
+                console.error("[GlobalRisks] Failed to load AI risks:", oErr);
+                setGlobalRisksBusy(false);
+                MessageToast.show("AI risk fetch failed: " + (oErr.message || "Unknown error"));
+            });
+        },
+
+        /**
+         * Call Anthropic Claude 4.5 Opus via SAP AI Core Orchestration endpoint.
+         *
+         * Uses the orchestration pattern:
+         * 1. First fetches the orchestration deployment ID from /lm/deployments
+         * 2. Then calls /deployments/{orchestrationId}/completion with orchestration payload
+         *
+         * @returns {Promise<Array>} Array of risk objects from LLM
+         */
+        _callClaudeForRisks: function () {
+            var that = this;
+            var sModelName = "anthropic--claude-4.5-opus";
+            // Use empty basePath - xs-app.json routes are relative to app root
+            var sBasePath = "";
+
+            var sToday = new Date().toISOString().split("T")[0];
+
+            var sSystemMessage = "You are a global supply chain intelligence analyst with access to real-time news and event data.";
+
+            var sUserMessage = "Today's date is " + sToday + ". " +
+                "Provide exactly 5 of the most critical real-world global supply chain disruption events that are currently happening or have happened very recently. " +
+                "These should be actual events like natural disasters (floods, earthquakes, typhoons), geopolitical conflicts, trade policy changes (tariffs, sanctions), " +
+                "port/shipping disruptions, factory fires, labor strikes, cyberattacks on logistics, or commodity price shocks that impact global manufacturing and supply chains.\n\n" +
+                "For each event, return a JSON object with these exact fields:\n" +
+                "- \"title\": A concise headline (maximum 60 characters)\n" +
+                "- \"description\": One sentence describing the supply chain impact (maximum 120 characters)\n" +
+                "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", or \"Medium\"\n" +
+                "- \"region\": The geographic region affected (e.g., \"North America\", \"Europe\", \"East Asia\", \"Southeast Asia\", \"Middle East\", \"South Asia\", \"Global\")\n" +
+                "- \"time\": Approximate recency as a relative time string (e.g., \"2h ago\", \"6h ago\", \"1d ago\", \"2d ago\")\n" +
+                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n\n" +
+                "IMPORTANT: Return ONLY a valid JSON array of exactly 5 objects. No markdown formatting, no code fences, no explanation text — just the raw JSON array.";
+
+            console.log("[GlobalRisks] Starting orchestration call for model:", sModelName);
+
+            // Step 1: Get orchestration deployment ID
+            return this._getOrchestrationDeploymentId(sBasePath).then(function (sDeploymentId) {
+                if (!sDeploymentId) {
+                    throw new Error("Orchestration deployment not found or not running");
+                }
+
+                console.log("[GlobalRisks] Using orchestration deployment ID:", sDeploymentId);
+
+                // Step 2: Build orchestration payload
+                var oPayload = {
+                    orchestration_config: {
+                        stream: false,
+                        module_configurations: {
+                            llm_module_config: {
+                                model_name: sModelName,
+                                model_params: {
+                                    max_tokens: 2000,
+                                    temperature: 0.3
+                                }
+                            },
+                            templating_module_config: {
+                                template: [
+                                    { role: "system", content: "{{?system_message}}" },
+                                    { role: "user", content: "{{?user_message}}" }
+                                ]
+                            }
+                        }
+                    },
+                    input_params: {
+                        system_message: sSystemMessage,
+                        user_message: sUserMessage
+                    }
+                };
+
+                // Use relative URL (no leading slash) for managed approuter compatibility
+                var sUrl = "deployments/" + sDeploymentId + "/completion";
+                console.log("[GlobalRisks] Calling orchestration endpoint:", sUrl);
+
+                // Step 3: Make the orchestration call
+                return fetch(sUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "AI-Resource-Group": "default"
+                    },
+                    credentials: "same-origin",
+                    body: JSON.stringify(oPayload)
+                });
+            }).then(function (response) {
+                if (!response.ok) {
+                    return response.text().then(function (sBody) {
+                        console.error("[GlobalRisks] LLM call failed. Status:", response.status, "Body:", sBody.substring(0, 500));
+                        throw new Error("LLM API Error: " + response.status + " " + response.statusText);
+                    });
+                }
+                return response.json();
+            }).then(function (data) {
+                console.log("[GlobalRisks] Orchestration raw response:", data);
+
+                // Extract content from orchestration response (primary format)
+                var sContent = "";
+                if (data && data.orchestration_result && data.orchestration_result.choices) {
+                    var choices = data.orchestration_result.choices;
+                    if (choices.length > 0 && choices[0].message) {
+                        sContent = choices[0].message.content || "";
+                    }
+                } else if (data && data.choices && data.choices.length > 0) {
+                    // Fallback to standard chat completions format
+                    sContent = data.choices[0].message
+                        ? data.choices[0].message.content || ""
+                        : (data.choices[0].text || "");
+                } else if (data && data.content && typeof data.content === "string") {
+                    sContent = data.content;
+                }
+
+                if (!sContent) {
+                    console.error("[GlobalRisks] Could not extract content from response:", JSON.stringify(data).substring(0, 500));
+                    throw new Error("Empty response from LLM");
+                }
+
+                console.log("[GlobalRisks] Extracted LLM content:", sContent.substring(0, 300));
+
+                // Parse the JSON from the LLM response
+                // Strip any markdown code fences if present
+                sContent = sContent.trim();
+                if (sContent.startsWith("```")) {
+                    sContent = sContent.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+                }
+
+                var aRisks;
+                try {
+                    aRisks = JSON.parse(sContent);
+                } catch (e) {
+                    console.error("[GlobalRisks] Failed to parse LLM JSON:", e, "Content:", sContent.substring(0, 500));
+                    throw new Error("LLM returned invalid JSON");
+                }
+
+                if (!Array.isArray(aRisks)) {
+                    throw new Error("LLM response is not an array");
+                }
+
+                return aRisks;
+            });
+        },
+
+        /**
+         * Get the orchestration deployment ID from AI Core.
+         * Caches the deployment ID for subsequent calls.
+         *
+         * @param {string} sBasePath - Base path for API calls
+         * @returns {Promise<string|null>} Orchestration deployment ID or null
+         */
+        _getOrchestrationDeploymentId: function (sBasePath) {
+            var that = this;
+
+            // Return cached deployment ID if available
+            if (this._sOrchestrationDeploymentId) {
+                return Promise.resolve(this._sOrchestrationDeploymentId);
+            }
+
+            // Return existing promise if already fetching
+            if (this._oOrchestrationDeploymentIdPromise) {
+                return this._oOrchestrationDeploymentIdPromise;
+            }
+
+            // Use relative URL (no leading slash) for managed approuter compatibility
+            // Filter by scenarioId and status to avoid 500 errors from unfiltered bulk queries
+            var sUrl = "lm/deployments?scenarioId=orchestration&status=RUNNING&$top=1";
+            console.log("[GlobalRisks] Fetching orchestration deployments from:", sUrl);
+
+            this._oOrchestrationDeploymentIdPromise = fetch(sUrl, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "AI-Resource-Group": "default"
+                },
+                credentials: "same-origin"
+            })
+            .then(function (response) {
+                console.log("[GlobalRisks] Deployments response status:", response.status);
+                if (!response.ok) {
+                    return response.text().then(function (errorBody) {
+                        console.error("[GlobalRisks] Deployments fetch failed. Status:", response.status, "Body:", errorBody);
+                        throw new Error("Failed to fetch deployments: " + response.status + " - " + errorBody);
+                    });
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                console.log("[GlobalRisks] Deployments response:", data);
+
+                // Find a running orchestration deployment
+                var deployment = (data.resources || []).find(function (item) {
+                    return item.scenarioId === "orchestration" && item.status === "RUNNING";
+                });
+
+                // Fallback: look for configurationName containing "orchestration"
+                if (!deployment) {
+                    deployment = (data.resources || []).find(function (item) {
+                        return (item.configurationName || "").toLowerCase().includes("orchestration") &&
+                               item.status === "RUNNING";
+                    });
+                }
+
+                if (deployment && deployment.id) {
+                    that._sOrchestrationDeploymentId = deployment.id;
+                    console.log("[GlobalRisks] Found orchestration deployment:", deployment.id, deployment.configurationName);
+                } else {
+                    console.warn("[GlobalRisks] No running orchestration deployment found");
+                }
+
+                return that._sOrchestrationDeploymentId;
+            })
+            .catch(function (error) {
+                console.error("[GlobalRisks] Failed to fetch orchestration deployment ID:", error);
+                that._oOrchestrationDeploymentIdPromise = null;
+                return null;
+            });
+
+            return this._oOrchestrationDeploymentIdPromise;
+        },
+
+        /**
+         * Map raw LLM risk objects to the UI model format expected by
+         * GlobalRisksCard.fragment.xml. Adds icon, CSS class mappings
+         * based on category and riskLevel.
+         *
+         * @param {Array} aRisks - Raw risk objects from LLM
+         * @returns {Array} Mapped risk objects with UI properties
+         */
+        _mapLLMResponseToRisks: function (aRisks) {
+            if (!Array.isArray(aRisks)) { return []; }
+
+            // Icon mapping by category
+            var mCategoryIcon = {
+                "tariff":       "sap-icon://warning",
+                "fire":         "sap-icon://alert",
+                "flood":        "sap-icon://cloud",
+                "shipping":     "sap-icon://shipping-status",
+                "commodity":    "sap-icon://bar-chart",
+                "earthquake":   "sap-icon://alert",
+                "strike":       "sap-icon://employee",
+                "cyberattack":  "sap-icon://locked",
+                "geopolitical": "sap-icon://world"
+            };
+
+            // Color mapping by risk level
+            var mRiskLevelColor = {
+                "Critical": "red",
+                "High":     "amber",
+                "Medium":   "blue"
+            };
+
+            // Badge class mapping by risk level
+            var mBadgeClass = {
+                "Critical": "ctRiskBadge ctBadge-critical",
+                "High":     "ctRiskBadge ctBadge-high",
+                "Medium":   "ctRiskBadge ctBadge-medium"
+            };
+
+            return aRisks.map(function (oRisk, iIndex) {
+                var sCategory = (oRisk.category || "geopolitical").toLowerCase();
+                var sRiskLevel = oRisk.riskLevel || "Medium";
+                var sColor = mRiskLevelColor[sRiskLevel] || "blue";
+                var sIcon = mCategoryIcon[sCategory] || "sap-icon://warning";
+
+                return {
+                    id: "AI_R" + (iIndex + 1),
+                    title: oRisk.title || "Unknown Risk",
+                    description: oRisk.description || "",
+                    icon: sIcon,
+                    iconColor: sColor,
+                    titleColor: sColor,
+                    iconWrapClass: "ctRiskIconWrap ctRiskIconWrap-" + sColor,
+                    iconClass: "ctRiskIcon ctRiskIcon-" + sColor,
+                    titleClass: "ctRiskTitle ctRiskTitle-" + sColor,
+                    badgeClass: mBadgeClass[sRiskLevel] || "ctRiskBadge ctBadge-medium",
+                    riskLevel: sRiskLevel,
+                    severityClass: "ctBadge-" + sRiskLevel.toLowerCase(),
+                    region: oRisk.region || "Global",
+                    time: oRisk.time || "recently",
+                    category: sCategory
+                };
+            });
         }
     });
 });

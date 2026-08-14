@@ -88,6 +88,10 @@
             "dashboard": {
                 "type": "sap.ui.model.json.JSONModel",
                 "uri": "localService/mockdata.json"
+            },
+            "globalRisks": {
+                "type": "sap.ui.model.json.JSONModel",
+                "uri": "model/globalRisksConfig.json"
             }
         },
         "resources": {

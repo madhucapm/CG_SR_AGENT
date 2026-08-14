@@ -1,0 +1,177 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        Disruptions Analysis view.
+        Displays results from the supplier_resilience_agent /analyze endpoint.
+        Shows impact summary, affected suppliers, and affected POs.
+    -->
+    <VBox>
+        <!-- Back to Risk Feed header -->
+        <VBox class="disruptionsBackHeader sapUiSmallMarginBottom">
+            <Link text="← Back to Risk Feed"
+                  press=".onBackToRiskFeed"
+                  class="sapUiTinyMarginBottom" />
+            <!-- Display the selected risk in the same layout as the GlobalRisksCard row -->
+            <HBox alignItems="Center" class="ctRiskItem ctRiskRow" justifyContent="SpaceBetween"
+                  visible="{= !!${disruptions>/selectedRisk}}">
+                <!-- Left: icon + title + description -->
+                <HBox alignItems="Center" class="ctRiskLeft">
+                    <VBox class="{disruptions>/selectedRisk/iconWrapClass}" alignItems="Center" justifyContent="Center">
+                        <core:Icon src="{disruptions>/selectedRisk/icon}" class="{disruptions>/selectedRisk/iconClass}" />
+                    </VBox>
+                    <VBox class="ctRiskText">
+                        <Title text="{disruptions>/selectedRisk/title}" level="H4" class="{disruptions>/selectedRisk/titleClass}" wrapping="true" />
+                        <Text text="{disruptions>/selectedRisk/description}" class="ctRiskDescription" wrapping="true" />
+                    </VBox>
+                </HBox>
+                <!-- Right: meta grid -->
+                <HBox alignItems="Center" class="ctRiskRight">
+                    <VBox class="ctRiskMeta">
+                        <HBox alignItems="Center" class="ctRiskMetaRow">
+                            <Label text="Risk Level" class="ctRiskMetaLabel" />
+                            <ObjectStatus text="{disruptions>/selectedRisk/riskLevel}"
+                                         state="{= ${disruptions>/selectedRisk/riskLevel} === 'Critical' ? 'Error' : ${disruptions>/selectedRisk/riskLevel} === 'High' ? 'Warning' : ${disruptions>/selectedRisk/riskLevel} === 'Medium' ? 'Information' : 'Success'}" />
+                        </HBox>
+                        <HBox alignItems="Center" class="ctRiskMetaRow">
+                            <Label text="Region" class="ctRiskMetaLabel" />
+                            <Text text="{disruptions>/selectedRisk/region}" class="ctRiskMetaValue" />
+                        </HBox>
+                        <HBox alignItems="Center" class="ctRiskMetaRow">
+                            <Label text="Time" class="ctRiskMetaLabel" />
+                            <Text text="{disruptions>/selectedRisk/time}" class="ctRiskMetaValue" />
+                        </HBox>
+                    </VBox>
+                </HBox>
+            </HBox>
+        </VBox>
+
+        <!-- Page header -->
+        <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
+            <VBox>
+                <Text text="DISRUPTION ANALYSIS" class="eyebrow" />
+                <Title text="Coordinator Agent complete — case opened as CRITICAL priority." level="H2" />
+                <Text text="3 affected purchase orders found. Early Warning, Survival Planner and Substitution Checker are ready to run — in any order, on any PO. The Buyer Agent unlocks once Survival Planner has run for a given PO."  />
+            </VBox>
+            <!-- <ObjectStatus text="{= ${disruptions>/hasResult} ? 'Analysis Complete' : 'Ready'}"
+                          state="{= ${disruptions>/hasResult} ? 'Success' : 'Information'}"
+                          icon="sap-icon://warning2" /> -->
+        </HBox>
+
+        <!-- Selected Risk Info (shown when a risk has been selected for investigation) -->
+        <VBox visible="{= !!${disruptions>/selectedRisk}}" class="sapUiSmallMarginTop">
+            <MessageStrip
+                text="Analyzing: {disruptions>/selectedRisk/title} — Location: {disruptions>/selectedRisk/region} — Category: {disruptions>/selectedRisk/category}"
+                type="Information"
+                showIcon="true"
+                class="sapUiSmallMarginBottom" />
+        </VBox>
+
+        <!-- No risk selected placeholder -->
+        <!-- <VBox visible="{= !${disruptions>/selectedRisk} &amp;&amp; !${disruptions>/hasResult}}" class="sapUiMediumMarginTop">
+            <MessageStrip
+                text="Select a risk from the Global Risks list on the Control Tower, then click 'Investigate a Risk' in the AI Assistant to analyze its impact."
+                type="Warning"
+                showIcon="true" />
+        </VBox> -->
+
+        <!-- Impact scope section -->
+        <VBox class="sapUiSmallMarginTop">
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <core:Icon src="sap-icon://grid" class="sapUiTinyMarginEnd" />
+                <Title text="Impact scope" level="H4" class="sapUiTinyMarginBegin" />
+            </HBox>
+            <!-- Cards -->
+            <HBox justifyContent="SpaceBetween" wrap="Wrap">
+                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Text text="Purchase orders" class="impactLabel" />
+                    <Text text="affected" class="impactLabel" />
+                </VBox>
+                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Text text="Plants affected" class="impactLabel" />
+                </VBox>
+                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Text text="SKUs at risk" class="impactLabel" />
+                </VBox>
+                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Text text="Total volume at risk" class="impactLabel" />
+                </VBox>
+                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Text text="Case priority" class="impactLabel" />
+                </VBox>
+                <VBox class="impactCard sapUiSmallMarginBottom">
+                    <Text text="Avg. risk score" class="impactLabel" />
+                </VBox>
+            </HBox>
+        </VBox>
+
+        <!-- Run agent buttons section -->
+        <VBox class="sapUiSmallMarginTop sapUiSmallMarginBottom">
+            <Text text="Run an agent across every ready PO..." class="sapUiSmallMarginBottom runAgentPrompt" />
+            <HBox wrap="Wrap">
+                <Button text="● Run Early Warning · 3 POs" type="Emphasized" class="agentRunBtn sapUiSmallMarginEnd sapUiTinyMarginBottom" />
+                <Button text="● Run Survival Planner · 3 POs" type="Emphasized" class="agentRunBtn sapUiSmallMarginEnd sapUiTinyMarginBottom" />
+                <Button text="● Run Substitution Checker · 3 POs" type="Emphasized" class="agentRunBtn sapUiTinyMarginBottom" />
+            </HBox>
+        </VBox>
+
+        <!-- Purchase Orders + Consolidated Recovery Plan two-column layout -->
+        <HBox width="100%" class="sapUiSmallMarginTop">
+            <!-- Left: Purchase Orders table -->
+            <VBox width="68%" class="poTableCard sapUiSmallMarginEnd">
+                <Title text="PURCHASE ORDERS" level="H5" class="poTableTitle sapUiSmallMarginBottom" />
+                <!-- Column headers -->
+                <HBox class="poHeaderRow sapUiTinyMarginBottom" justifyContent="SpaceBetween" alignItems="Center">
+                    <Text text="PO" class="poColHeader poColPO" />
+                    <Text text="EARLY" class="poColHeader poColAgent" />
+                    <Text text="SURVIVAL" class="poColHeader poColAgent" />
+                    <Text text="SUB" class="poColHeader poColAgent" />
+                    <Text text="BUYER" class="poColHeader poColAgent" />
+                </HBox>
+                <!-- PO Row 1 -->
+                <VBox class="poRow">
+                    <HBox justifyContent="SpaceBetween" alignItems="Center">
+                        <Text text="4500012345" class="poNumber" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                    </HBox>
+                    <Text text="Aluminium Sheet" class="poMaterial" />
+                    <Text text="Mumbai Plant · Coke Can · 320t" class="poMeta" />
+                </VBox>
+                <!-- PO Row 2 -->
+                <VBox class="poRow">
+                    <HBox justifyContent="SpaceBetween" alignItems="Center">
+                        <Text text="4500012346" class="poNumber" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                    </HBox>
+                    <Text text="Aluminium Sheet" class="poMaterial" />
+                    <Text text="Pune Plant · Sprite Can · 180t" class="poMeta" />
+                </VBox>
+                <!-- PO Row 3 -->
+                <VBox class="poRow">
+                    <HBox justifyContent="SpaceBetween" alignItems="Center">
+                        <Text text="4500013100" class="poNumber" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
+                    </HBox>
+                    <Text text="Aluminium Sheet" class="poMaterial" />
+                    <Text text="Hyderabad Plant · Fanta Can · 210t" class="poMeta" />
+                </VBox>
+            </VBox>
+
+            <!-- Right: Consolidated Recovery Plan -->
+            <VBox width="32%" class="recoveryPlanCard">
+                <Title text="CONSOLIDATED RECOVERY PLAN" level="H5" class="recoveryPlanTitle sapUiSmallMarginBottom" />
+                <Text text="No PO has a Buyer-approved plan yet. Run Survival Planner on at least one PO to generate a recovery recommendation." class="recoveryPlanPlaceholder" />
+            </VBox>
+        </HBox>
+
+    </VBox>
+</core:FragmentDefinition>

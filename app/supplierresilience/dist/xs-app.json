@@ -5,6 +5,15 @@
     "logoutEndpoint": "/do/logout"
   },
   "routes": [
+    {
+      "source": "^/supplier-resilience-agent/(.*)$",
+      "destination": "supplier_resilience_agent",
+      "csrfProtection": false,
+      "authenticationType": "none",
+      "target": "/$1",
+      "httpMethods": ["GET", "POST"],
+      "cacheControl": "no-store, no-cache, must-revalidate"
+    },
  {
       "source": "^/deployments/(.*)$",
       "destination": "AI_CORE_CGAI_COCKPIT_SRA",

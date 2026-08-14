@@ -23,6 +23,20 @@ sap.ui.define([
             approvals:  "SR"    // Scenario & Recommendation Agent
         },
 
+        /**
+         * Available regions for the Global Risks dropdown.
+         * Each entry has a `key` (used as the model value and in prompts)
+         * and a `text` (display label in the Select control).
+         */
+        _GLOBAL_RISKS_REGIONS: [
+            { key: "India",         text: "India" },
+            { key: "America",       text: "America" },
+            { key: "Europe",        text: "Europe" },
+            { key: "North America", text: "North America" },
+            { key: "East Asia",     text: "East Asia" },
+            { key: "China",         text: "China" }
+        ],
+
         onInit: function () {
             var oCaseDetailsModel = new JSONModel({
                 visible: false,
@@ -69,6 +83,18 @@ sap.ui.define([
             });
             this.getView().setModel(oPoDetailsModel, "poDetails");
 
+            // Disruptions JSON model — populated by the supplier_resilience_agent
+            // POST /analyze call when the user investigates a risk from the
+            // Global Risks card. Drives the Disruptions view.
+            var oDisruptionsModel = new JSONModel({
+                busy: false,
+                hasResult: false,
+                selectedRisk: null,
+                result: null,
+                affectedPOs: []
+            });
+            this.getView().setModel(oDisruptionsModel, "disruptions");
+
             // User model powering the Control Tower hero header greeting.
             // The "user" model is set at the Component level (Component.js)
             // and populated dynamically from /user-api/currentUser.
@@ -104,7 +130,14 @@ sap.ui.define([
             var oCtx  = oItem && oItem.getBindingContext("dashboard");
             if (!oCtx) { return; }
             var oRisk = oCtx.getObject() || {};
-            MessageToast.show("Opening risk: " + (oRisk.title || oRisk.id || ""));
+
+            // Store the selected risk in the disruptions model so the
+            // "Investigate a Risk" button knows which risk to analyze.
+            var oDisruptions = this.getView().getModel("disruptions");
+            if (oDisruptions) {
+                oDisruptions.setProperty("/selectedRisk", oRisk);
+            }
+            MessageToast.show("Risk selected: " + (oRisk.title || oRisk.id || "") + " — Click 'Investigate a Risk' to analyze");
         },
 
         /**
@@ -171,13 +204,41 @@ sap.ui.define([
         },
 
         /**
+         * "← Back to Risk Feed" link on the Disruptions view header.
+         * Navigates the user back to the Control Tower home which
+         * displays the Global Supply Chain Risks card.
+         */
+        onBackToRiskFeed: function () {
+            this._selectSideNav("control");
+        },
+
+        /**
          * AI Assistant – "Investigate a Risk" primary action. Sends the
          * user to the Early Warning Agent sub-tab which is the entry
          * point for risk investigation.
          */
         onInvestigateRisk: function () {
-            this._selectSideNav("incidents");
-            MessageToast.show("Investigate a Risk");
+            var oDisruptions = this.getView().getModel("disruptions");
+            var oSelectedRisk = oDisruptions && oDisruptions.getProperty("/selectedRisk");
+
+            if (!oSelectedRisk) {
+                MessageToast.show("Please select a risk from the Global Risks list first");
+                return;
+            }
+
+            // Navigate to the Disruptions view
+            this._selectSideNav("disruptions");
+
+            // Extract location (city) from the risk's region field
+            // Format: "City, State, Country" → extract "City"
+            var sRegion = oSelectedRisk.region || "";
+            var sLocation = sRegion.split(",")[0].trim() || "Mumbai";
+
+            // Use the risk category as impact_description
+            var sImpactDescription = oSelectedRisk.category || "disruption";
+
+            // Trigger the API call
+            this._analyzeDisruption(sLocation, sImpactDescription);
         },
 
         /** AI Assistant – "Ask a Question" placeholder action. */
@@ -214,11 +275,13 @@ sap.ui.define([
             var oDashView   = this.byId("dashboardView");
             var oCasesView  = this.byId("casesView");
             var oCoordView  = this.byId("coordinatorView");
+            var oDisrView   = this.byId("disruptionsView");
             var oProcView   = this.byId("processView");
             if (oDashView)  { oDashView.setVisible(sKey === "control"); }
             if (oCasesView) { oCasesView.setVisible(sKey === "cases"); }
             if (oCoordView) { oCoordView.setVisible(sKey === "coordinator"); }
-            if (oProcView)  { oProcView.setVisible(sKey !== "control" && sKey !== "cases" && sKey !== "coordinator"); }
+            if (oDisrView)  { oDisrView.setVisible(sKey === "disruptions"); }
+            if (oProcView)  { oProcView.setVisible(sKey !== "control" && sKey !== "cases" && sKey !== "coordinator" && sKey !== "disruptions"); }
 
             this._updateActiveAgent();
 
@@ -1316,7 +1379,8 @@ sap.ui.define([
             this.byId("dashboardView").setVisible(key === "control");
             this.byId("casesView").setVisible(key === "cases");
             this.byId("coordinatorView").setVisible(key === "coordinator");
-            this.byId("processView").setVisible(key !== "control" && key !== "cases" && key !== "coordinator");
+            this.byId("disruptionsView").setVisible(key === "disruptions");
+            this.byId("processView").setVisible(key !== "control" && key !== "cases" && key !== "coordinator" && key !== "disruptions");
 
             // Refresh the agent sub-tab's active-agent card so it reflects
             // the correct agent for the newly selected tab.
@@ -1338,6 +1402,133 @@ sap.ui.define([
 
 
         // ─────────────────────────────────────────────────────────────
+        //  Disruptions – Supplier Resilience Agent Integration
+        //  via supplier_resilience_agent destination (/analyze endpoint)
+        // ─────────────────────────────────────────────────────────────
+
+        /**
+         * POST to the supplier_resilience_agent /analyze endpoint to assess
+         * the impact of a disruption at a given location. Populates the
+         * `disruptions` JSON model with affected suppliers and cross-references
+         * the coordinator model to find affected POs.
+         *
+         * @param {string} sLocation - City name (e.g. "Mumbai")
+         * @param {string} sImpactDescription - Category/type (e.g. "fire", "flood")
+         */
+        _analyzeDisruption: function (sLocation, sImpactDescription) {
+            var oView = this.getView();
+            var oDisruptions = oView.getModel("disruptions");
+            var oCoordinator = oView.getModel("coordinator");
+            var that = this;
+
+            if (!oDisruptions) { return; }
+
+            oDisruptions.setProperty("/busy", true);
+            oDisruptions.setProperty("/hasResult", false);
+
+            var oPayload = {
+                location: sLocation,
+                impact_description: sImpactDescription,
+                assessment_radius_km: 100
+            };
+
+            // Use relative URL — routed by xs-app.json to the supplier_resilience_agent destination
+            var sUrl = "supplier-resilience-agent/analyze";
+            console.log("[Disruptions] POST", sUrl, "payload:", oPayload);
+
+            fetch(sUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify(oPayload)
+            }).then(function (oResp) {
+                if (!oResp.ok) {
+                    return oResp.text().then(function (sBody) {
+                        throw new Error("HTTP " + oResp.status + " " + oResp.statusText +
+                            (sBody ? (": " + sBody.substring(0, 300)) : ""));
+                    });
+                }
+                return oResp.json();
+            }).then(function (oData) {
+                console.log("[Disruptions] /analyze response:", oData);
+
+                // Store the full response
+                oDisruptions.setProperty("/result", oData);
+                oDisruptions.setProperty("/hasResult", true);
+                oDisruptions.setProperty("/busy", false);
+
+                // Cross-reference affected suppliers with coordinator cases
+                // to find affected POs
+                var aAffectedSuppliers = (oData && Array.isArray(oData.affected_suppliers))
+                    ? oData.affected_suppliers : [];
+                var aAffectedPOs = that._findAffectedPOs(aAffectedSuppliers, oCoordinator);
+                oDisruptions.setProperty("/affectedPOs", aAffectedPOs);
+
+                MessageToast.show("Disruption analysis complete: " +
+                    (oData.affected_supplier_count || 0) + " supplier(s) affected");
+            }).catch(function (oErr) {
+                console.error("[Disruptions] /analyze failed:", oErr);
+                oDisruptions.setProperty("/result", null);
+                oDisruptions.setProperty("/hasResult", false);
+                oDisruptions.setProperty("/affectedPOs", []);
+                oDisruptions.setProperty("/busy", false);
+                MessageToast.show("Disruption analysis failed: " +
+                    (oErr && oErr.message ? oErr.message : "Unknown error"));
+            });
+        },
+
+        /**
+         * Cross-reference affected suppliers from the /analyze response with
+         * the coordinator model's case data to find POs linked to those suppliers.
+         *
+         * @param {Array} aAffectedSuppliers - Array of affected supplier objects from API
+         * @param {sap.ui.model.json.JSONModel} oCoordinator - The coordinator model
+         * @returns {Array} Array of PO objects { po, caseId, supplier, material, plant, status, priority }
+         */
+        _findAffectedPOs: function (aAffectedSuppliers, oCoordinator) {
+            if (!aAffectedSuppliers || !aAffectedSuppliers.length || !oCoordinator) {
+                return [];
+            }
+
+            var aResults = oCoordinator.getProperty("/results") || [];
+            if (!aResults.length) { return []; }
+
+            // Build a Set of affected supplier names/IDs for fast lookup
+            var mAffectedSupplierIds = {};
+            var mAffectedSupplierNames = {};
+            aAffectedSuppliers.forEach(function (oSup) {
+                if (oSup.supplier_id) { mAffectedSupplierIds[oSup.supplier_id.toUpperCase()] = true; }
+                if (oSup.name) { mAffectedSupplierNames[oSup.name.toUpperCase()] = true; }
+            });
+
+            // Find all cases/POs whose supplier matches an affected supplier
+            var aAffectedPOs = [];
+            aResults.forEach(function (oCase) {
+                if (!oCase.po) { return; }
+                var sSupplier = (oCase.supplier || "").toUpperCase();
+                if (mAffectedSupplierIds[sSupplier] || mAffectedSupplierNames[sSupplier]) {
+                    aAffectedPOs.push({
+                        po: oCase.po,
+                        caseId: oCase.caseId,
+                        supplier: oCase.supplier,
+                        material: oCase.material,
+                        plant: oCase.plant,
+                        status: oCase.status,
+                        priority: oCase.priority,
+                        eventType: oCase.eventType
+                    });
+                }
+            });
+
+            console.log("[Disruptions] Found", aAffectedPOs.length, "affected POs");
+            return aAffectedPOs;
+        },
+
+
+        // ─────────────────────────────────────────────────────────────
         //  Global Risks – Anthropic Claude 4.5 Opus LLM Integration
         //  via AI_CORE_CGAI_COCKPIT_SRA destination using Orchestration
         //  Model: anthropic--claude-4.5-opus (via orchestration endpoint)
@@ -1349,6 +1540,58 @@ sap.ui.define([
          */
         onRefreshGlobalRisks: function () {
             this._loadGlobalRisksFromAI();
+        },
+
+        /**
+         * Handler for the region Select dropdown change event on the
+         * Global Risks card. Updates the selected region in the dashboard
+         * model and re-fetches risks from the AI for the new region.
+         */
+        onRegionChange: function (oEvent) {
+            var oSelectedItem = oEvent.getParameter("selectedItem");
+            if (!oSelectedItem) { return; }
+            var sRegion = oSelectedItem.getKey();
+            var oGlobalRisks = this.getView().getModel("globalRisks");
+            if (oGlobalRisks) {
+                oGlobalRisks.setProperty("/selectedRegion", sRegion);
+            }
+            console.log("[GlobalRisks] Region changed to:", sRegion);
+            this._loadGlobalRisksFromAI();
+        },
+
+        /**
+         * Build the dynamic prompt (system + user messages) for the Global
+         * Risks AI call based on the selected region. Encapsulates all
+         * prompt engineering logic in one modular method.
+         *
+         * @param {string} sRegion - The selected region (e.g. "India", "China")
+         * @returns {Object} { system: string, user: string }
+         */
+        _buildGlobalRisksPrompt: function (sRegion) {
+            var sToday = new Date().toISOString().split("T")[0];
+
+            var sSystemMessage = "You are a global supply chain intelligence analyst with access to real-time news and event data.";
+
+            var sUserMessage = "Today's date is " + sToday + ". " +
+                "Provide exactly 5 of the most critical real-world global supply chain disruption events " +
+                "that are currently happening or have happened very recently in or significantly affecting the " + sRegion + " region. " +
+                "All 5 events MUST be directly related to or impacting " + sRegion + " " +
+                "(e.g., port congestion, natural disasters, labor strikes, policy changes, cyberattacks, factory incidents, trade disruptions in " + sRegion + "). " +
+                "These should be actual events like natural disasters (floods, earthquakes, typhoons), geopolitical conflicts, trade policy changes (tariffs, sanctions), " +
+                "port/shipping disruptions, factory fires, labor strikes, cyberattacks on logistics, or commodity price shocks that impact supply chains in " + sRegion + ".\n\n" +
+                "For each event, return a JSON object with these exact fields:\n" +
+                "- \"title\": A concise headline (maximum 60 characters)\n" +
+                "- \"description\": One sentence describing the supply chain impact (maximum 120 characters)\n" +
+                "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", \"Medium\", or \"Low\"\n" +
+                "- \"region\": A specific location in the format \"City, State, Country\" within " + sRegion + ". Always include city and country; include state/province where applicable.\n" +
+                "- \"time\": Approximate recency as a relative time string (e.g., \"2h ago\", \"6h ago\", \"1d ago\", \"2d ago\")\n" +
+                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n\n" +
+                "IMPORTANT: Return ONLY a valid JSON array of exactly 5 objects. No markdown formatting, no code fences, no explanation text — just the raw JSON array.";
+
+            return {
+                system: sSystemMessage,
+                user: sUserMessage
+            };
         },
 
         /**
@@ -1425,25 +1668,16 @@ sap.ui.define([
             // Use empty basePath - xs-app.json routes are relative to app root
             var sBasePath = "";
 
-            var sToday = new Date().toISOString().split("T")[0];
+            // Read the currently selected region from the globalRisks model
+            var oGlobalRisks = this.getView().getModel("globalRisks");
+            var sRegion = (oGlobalRisks && oGlobalRisks.getProperty("/selectedRegion")) || "India";
 
-            var sSystemMessage = "You are a global supply chain intelligence analyst with access to real-time news and event data.";
+            // Build dynamic prompt based on selected region (modular helper)
+            var oPrompt = this._buildGlobalRisksPrompt(sRegion);
+            var sSystemMessage = oPrompt.system;
+            var sUserMessage = oPrompt.user;
 
-            var sUserMessage = "Today's date is " + sToday + ". " +
-                "Provide exactly 5 of the most critical real-world global supply chain disruption events that are currently happening or have happened very recently. " +
-                "IMPORTANT: At least 1-2 of the 5 events MUST be related to India (e.g., port congestion, monsoon floods, labor strikes, policy changes, cyberattacks, factory incidents in India). " +
-                "These should be actual events like natural disasters (floods, earthquakes, typhoons), geopolitical conflicts, trade policy changes (tariffs, sanctions), " +
-                "port/shipping disruptions, factory fires, labor strikes, cyberattacks on logistics, or commodity price shocks that impact global manufacturing and supply chains.\n\n" +
-                "For each event, return a JSON object with these exact fields:\n" +
-                "- \"title\": A concise headline (maximum 60 characters)\n" +
-                "- \"description\": One sentence describing the supply chain impact (maximum 120 characters)\n" +
-                "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", \"Medium\", or \"Low\"\n" +
-                "- \"region\": A specific location in the format \"City, State, Country\" (e.g., \"Chennai, Tamil Nadu, India\", \"Mumbai, Maharashtra, India\", \"Shenzhen, Guangdong, China\", \"Long Beach, California, USA\", \"Rotterdam, South Holland, Netherlands\"). Always include city and country; include state/province where applicable.\n" +
-                "- \"time\": Approximate recency as a relative time string (e.g., \"2h ago\", \"6h ago\", \"1d ago\", \"2d ago\")\n" +
-                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n\n" +
-                "IMPORTANT: Return ONLY a valid JSON array of exactly 5 objects. No markdown formatting, no code fences, no explanation text — just the raw JSON array.";
-
-            console.log("[GlobalRisks] Starting orchestration call for model:", sModelName);
+            console.log("[GlobalRisks] Starting orchestration call for model:", sModelName, "| Region:", sRegion);
 
             // Step 1: Get orchestration deployment ID
             return this._getOrchestrationDeploymentId(sBasePath).then(function (sDeploymentId) {

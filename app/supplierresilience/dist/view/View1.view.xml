@@ -14,23 +14,22 @@
                 <tnt:SideNavigation expanded="true" itemSelect="onNavSelect" class="towerNav">
                     <tnt:NavigationList>
                                             <tnt:NavigationListItem key="control" text="Control tower" icon="sap-icon://home" />
-                        <tnt:NavigationListItem key="coordinator" text="Coordinator Agent" icon="sap-icon://workflow-tasks" />
+                        <tnt:NavigationListItem key="disruptions" text="Disruptions" icon="sap-icon://warning2" />
+                        <tnt:NavigationListItem key="coordinator" text="Coordinator Agent" icon="sap-icon://workflow-tasks" visible="false" />
 
-                        <tnt:NavigationListItem key="incidents" text="Early Warning Agent" icon="sap-icon://alert" />
-                        <tnt:NavigationListItem key="signals" text="Survival Planner Agent" icon="sap-icon://activity-items" />
-                        <tnt:NavigationListItem key="planning" text="Substitution Checker Agent" icon="sap-icon://process" />
-                        <tnt:NavigationListItem key="approvals" text="Scenario &amp; Recommendation Agent" icon="sap-icon://approvals" />
-                        <tnt:NavigationListItem key="cases" text="Cases" icon="sap-icon://alert" />
-                        <tnt:NavigationListItem key="audit" text="Audit trail" icon="sap-icon://history" />
+                        <tnt:NavigationListItem key="incidents" text="Early Warning Agent" icon="sap-icon://alert" visible="false" />
+                        <tnt:NavigationListItem key="signals" text="Survival Planner Agent" icon="sap-icon://activity-items" visible="false" />
+                        <tnt:NavigationListItem key="planning" text="Substitution Checker Agent" icon="sap-icon://process" visible="false" />
+                        <tnt:NavigationListItem key="approvals" text="Scenario &amp; Recommendation Agent" icon="sap-icon://approvals" visible="false" />
+                        <tnt:NavigationListItem key="cases" text="Cases" icon="sap-icon://alert" visible="false" />
+                        <tnt:NavigationListItem key="audit" text="Audit trail" icon="sap-icon://history" visible="false" />
                     </tnt:NavigationList>
                 </tnt:SideNavigation>
                 <VBox class="workspace" width="100%">
                     <Toolbar class="topbar">
                         <Title text="SUPPLIER RESILIENCE" level="H1" class="brandTitle" />
                         <ToolbarSpacer />
-                        <ObjectStatus text="LOCAL SIMULATION" state="Information" icon="sap-icon://laptop" />
-                        <Button icon="sap-icon://refresh" type="Transparent" tooltip="Refresh" press="onRefresh" />
-                        <Avatar initials="SR" displaySize="XS" backgroundColor="Accent6" class="userAvatar" />
+                      
                     </Toolbar>
                     <ScrollContainer vertical="true" height="100%" class="mainScroll">
                         <VBox class="contentPad">
@@ -44,6 +43,11 @@
                             -->
                             <VBox id="dashboardView" visible="true" class="dashboardViewWrap">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.ControlTowerHome" type="XML" />
+                            </VBox>
+
+                            <!-- Disruptions view: supplier resilience agent analysis results -->
+                            <VBox id="disruptionsView" visible="false" busy="{disruptions>/busy}" busyIndicatorDelay="0">
+                                <core:Fragment fragmentName="supplierresilience.view.fragments.DisruptionsView" type="XML" />
                             </VBox>
 
                             <!-- Cases view: sap.ui.table bound to OData Cases -->

@@ -12,14 +12,25 @@
     <VBox class="ctHome" width="100%">
         <core:Fragment fragmentName="supplierresilience.view.fragments.HeroHeader" type="XML" />
 
-        <l:Grid
-            defaultSpan="XL6 L6 M12 S12"
-            hSpacing="1"
-            vSpacing="1"
-            containerQuery="true"
-            class="ctBodyGrid">
-            <core:Fragment fragmentName="supplierresilience.view.fragments.GlobalRisksCard" type="XML" />
-            <core:Fragment fragmentName="supplierresilience.view.fragments.AiAssistantCard" type="XML" />
-        </l:Grid>
+       <HBox
+    width="100%"
+    alignItems="Start"
+    class="ctBodyLayout">
+
+    <!-- Left Side -->
+    <VBox width="65%" class="sapUiSmallMarginEnd">
+        <core:Fragment
+            fragmentName="supplierresilience.view.fragments.GlobalRisksCard"
+            type="XML"/>
+    </VBox>
+
+    <!-- Right Side -->
+    <VBox width="35%">
+        <core:Fragment
+            fragmentName="supplierresilience.view.fragments.AiAssistantCard"
+            type="XML"/>
+    </VBox>
+
+</HBox>
     </VBox>
 </core:FragmentDefinition>

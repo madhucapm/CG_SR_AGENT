@@ -11,18 +11,28 @@
         to open the risk detail.
     -->
     <VBox class="ctCard ctRisksCard" busy="{dashboard>/globalRisksBusy}" busyIndicatorDelay="0">
-        <!-- Card header with refresh button -->
+        <!-- Card header with region dropdown and refresh button -->
         <HBox alignItems="Center" class="ctCardHeader" justifyContent="SpaceBetween">
             <HBox alignItems="Center">
                 <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
                 <Title text="{i18n>ctGlobalRisksTitle}" level="H3" class="ctCardTitle" />
             </HBox>
-            <Button
-                icon="sap-icon://refresh"
-                type="Transparent"
-                tooltip="Refresh global risks from AI"
-                press=".onRefreshGlobalRisks"
-                class="ctRefreshBtn" />
+            <HBox alignItems="Center">
+                <Select
+                    id="globalRisksRegionSelect"
+                    selectedKey="{globalRisks>/selectedRegion}"
+                    change=".onRegionChange"
+                    tooltip="Select region to filter global risks"
+                    items="{globalRisks>/regions}">
+                    <core:Item key="{globalRisks>key}" text="{globalRisks>text}" />
+                </Select>
+                <Button
+                    icon="sap-icon://refresh"
+                    type="Transparent"
+                    tooltip="Refresh global risks from AI"
+                    press=".onRefreshGlobalRisks"
+                    class="ctRefreshBtn" />
+            </HBox>
         </HBox>
 
         <!--

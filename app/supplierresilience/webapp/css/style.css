@@ -555,6 +555,141 @@ html, body, #content {
     margin: -1.5rem -2rem -2rem -2rem; /* neutralize .contentPad padding */
 }
 
+/* Disruptions view – Back to Risk Feed header */
+.disruptionsBackHeader {
+    padding: 0;
+}
+
+.disruptionsBackHeader .sapMLnk {
+    color: #0854a0 !important;
+    font-weight: 500;
+}
+
+/* Impact scope cards */
+.impactCard {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    min-width: 140px;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.impactLabel {
+    color: #32363a;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* Disruptions selected risk card – light theme override */
+.disruptionsBackHeader .ctRiskItem {
+    background: #1e2a4a !important;
+    border: 1px solid rgba(80, 120, 220, 0.25) !important;
+    border-radius: 10px !important;
+    padding: 0.75rem 0.9rem !important;
+    margin-bottom: 0 !important;
+}
+
+/* Run agent prompt & buttons */
+.runAgentPrompt {
+    color: #32363a;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.agentRunBtn.sapMBtn {
+    border-radius: 20px;
+}
+
+/* Purchase Orders table card */
+.poTableCard {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.poTableTitle.sapMTitle {
+    font-size: 0.8rem !important;
+    letter-spacing: 0.08rem;
+    color: #6b7690 !important;
+    font-weight: 600 !important;
+}
+
+.poHeaderRow {
+    border-bottom: 1px solid #e0e4ec;
+    padding-bottom: 0.5rem;
+}
+
+.poColHeader {
+    font-size: 0.72rem !important;
+    color: #6b7690 !important;
+    letter-spacing: 0.06rem;
+    font-weight: 600;
+}
+
+.poColPO { min-width: 100px; }
+.poColAgent { min-width: 60px; text-align: center; }
+
+.poRow {
+    border-bottom: 1px solid #f0f2f5;
+    padding: 0.75rem 0;
+}
+
+.poNumber {
+    font-size: 0.9rem !important;
+    font-weight: 600;
+    color: #1a2233 !important;
+    min-width: 100px;
+}
+
+.poMaterial {
+    font-size: 0.85rem !important;
+    font-weight: 500;
+    color: #32363a !important;
+}
+
+.poMeta {
+    font-size: 0.8rem !important;
+    color: #6b7690 !important;
+}
+
+.agentCheckIcon.sapUiIcon {
+    color: #2b7c2b !important;
+    font-size: 0.9rem;
+    min-width: 60px;
+    text-align: center;
+}
+.agentCheckIcon.sapUiIcon::before {
+    color: #2b7c2b !important;
+}
+
+/* Consolidated Recovery Plan card */
+.recoveryPlanCard {
+    background: #ffffff;
+    border: 1px solid #e0e4ec;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.recoveryPlanTitle.sapMTitle {
+    font-size: 0.8rem !important;
+    letter-spacing: 0.08rem;
+    color: #6b7690 !important;
+    font-weight: 600 !important;
+}
+
+.recoveryPlanPlaceholder {
+    color: #8c939e !important;
+    font-size: 0.85rem !important;
+    font-style: italic;
+}
+
 .ctHome {
     padding: 1.25rem 1.5rem 2rem 1.5rem;
     gap: 1.25rem;
@@ -1030,4 +1165,6 @@ html, body, #content {
     color: #4ade80 !important;
     border: 1px solid #4ade80 !important;
 }
+/* start cards css */
+
 

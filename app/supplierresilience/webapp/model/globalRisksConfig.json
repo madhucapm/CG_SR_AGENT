@@ -1,0 +1,11 @@
+{
+    "regions": [
+        { "key": "India", "text": "India" },
+        { "key": "America", "text": "America" },
+        { "key": "Europe", "text": "Europe" },
+        { "key": "North America", "text": "North America" },
+        { "key": "East Asia", "text": "East Asia" },
+        { "key": "China", "text": "China" }
+    ],
+    "selectedRegion": "India"
+}

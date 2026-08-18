@@ -219,7 +219,7 @@ sap.ui.define([
                     const apiVersion = (data && data.sqlResponse && data.sqlResponse.APIVERSION) || data?.APIVERSION || "";
                     that.setModel(new sap.ui.model.json.JSONModel({ apiVersion: apiVersion }), "LMApiInfo");
  
-                    that.foundationModelTabs(tokenData,data);
+                    //that.foundationModelTabs(tokenData,data);
                    
                 })
                 .catch(function (error) {

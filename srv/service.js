@@ -1019,6 +1019,16 @@ module.exports = cds.service.impl(async function () {
     // ═══════════════════════════════════════════════════════════════════════════
     this.on('getSupplierHistoricalOtif', require('./lib/supplier-otif-handler').bind(this, executeHttpRequest, getCurrentTimestamp, logger));
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET SUPPLIER WITH ADDRESS - Fetch suppliers and their addresses from S4R
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('Get_supplier', require('./lib/get-supplier-handler').bind(this, executeHttpRequest, logger));
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET SUPPLIER DETAILS - Fetch POs and their items for a given supplier
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('GET_SupplierDetails', require('./lib/get-supplier-details-handler').bind(this, executeHttpRequest, logger));
+
     /**
      * Get Case History / Timeline
      * GET /odata/v4/supplier-resilience/getCaseHistory(caseId='...')

@@ -13,6 +13,7 @@ using { supplierresilience } from '../db/schema';
  */
 
  @path: '/odata/v4/supplier-resilience'
+ @mcp
 
 service SupplierResilienceService {
 
@@ -932,5 +933,65 @@ service SupplierResilienceService {
         calculatedAt        : String;
         processingTimeMs    : Integer;
         error               : String;
+    };
+    
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET SUPPLIER WITH ADDRESS
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Get Supplier List with Addresses
+     * 
+     * Fetches all suppliers from S/4HANA (API_BUSINESS_PARTNER) and their
+     * corresponding addresses. The address fields (AddressID, CityName,
+     * Country, Region) are concatenated into a single Address string.
+     * 
+     * Steps:
+     * 1. Fetch supplier list from A_Supplier
+     * 2. For each supplier, fetch addresses from A_BusinessPartnerAddress
+     * 3. Combine address fields into a single comma-separated string
+     * 
+     * @returns Array of supplier-address records
+     */
+    function Get_supplier() returns array of {
+        Supplier    : String;
+        Address     : String;
+    };
+    
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET SUPPLIER DETAILS (POs + Items)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Get Supplier Details
+     * 
+     * Fetches all Purchase Orders for a given supplier from S/4HANA
+     * (API_PURCHASEORDER_PROCESS_SRV) and then fetches the line items
+     * for each PO via the to_PurchaseOrderItem navigation property.
+     * 
+     * Steps:
+     * 1. Fetch POs filtered by Supplier from A_PurchaseOrder
+     * 2. For each PO, fetch items from A_PurchaseOrder('<PO>')/to_PurchaseOrderItem
+     * 3. Map PurchaseOrderItem → ItemNo, Material → Material & SKU, Plant → Plant
+     * 
+     * @param supplier - Supplier ID (e.g., '100075')
+     * 
+     * @returns Supplier with nested POs and their material items
+     */
+    function GET_SupplierDetails(
+        supplier    : String
+    ) returns {
+        Supplier    : String;
+        PO          : array of {
+            Number      : String;
+            Materials   : array of {
+                ItemNo      : String;
+                Material    : String;
+                Plant       : String;
+                SKU         : String;
+            };
+        };
     };
 }

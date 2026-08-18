@@ -638,5 +638,44 @@ GET {{baseUrl}}/Cases?$filter=recommendation ne null&$select=caseId,status,prior
 Content-Type: application/json
 
 ### ═══════════════════════════════════════════════════════════════════════════════
+### SUPPLIER HISTORICAL OTIF
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### ------------------------------------------
+### Get Historical OTIF for a Supplier (with defaults: last 6 months, max 50 POs)
+### Replace 'SUPPLIER_ID' with actual supplier ID from your S/4HANA system
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getSupplierHistoricalOtif(supplierId='0000001234')
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### Get Historical OTIF with Custom Date Range
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getSupplierHistoricalOtif(supplierId='0000001234',fromDate='2026-01-01',toDate='2026-08-13')
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### Get Historical OTIF - Example with 10-digit supplier ID
+### SAP suppliers are typically 10 digits with leading zeros
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getSupplierHistoricalOtif(supplierId='0000017300')
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### Get Historical OTIF - Last 3 months only
+### ------------------------------------------
+# Calculate 3 months ago from today for fromDate
+GET http://localhost:4004/odata/v4/supplier-resilience/getSupplierHistoricalOtif(supplierId='0000001234',fromDate='2026-05-13',toDate='2026-08-13')
+Content-Type: application/json
+
+###
+
+### ═══════════════════════════════════════════════════════════════════════════════
 ### END OF TEST SUITE
 ### ═══════════════════════════════════════════════════════════════════════════════

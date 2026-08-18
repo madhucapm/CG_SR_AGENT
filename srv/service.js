@@ -222,6 +222,74 @@ module.exports = cds.service.impl(async function () {
     });
 
     // ═════════════════════════════════════════════════════════════════════════
+    // ACTION: Run Early Warning Agent with S4R Data
+    // Uses real-time data from S/4HANA - no mock data
+    // ═════════════════════════════════════════════════════════════════════════
+    this.on('runEarlyWarningWithS4R', async (req) => {
+        logger.info('runEarlyWarningWithS4R action called');
+
+        const { po } = req.data;
+        let { caseId } = req.data;
+        let caseIdGenerated = false;
+
+        // Validate required input
+        if (!po) {
+            return {
+                success: false, agent: 'EARLY_WARNING', caseId: caseId || null,
+                caseIdGenerated: false, status: 'FAILED',
+                error: 'Purchase Order number (po) is required'
+            };
+        }
+
+        // Auto-generate caseId if not provided
+        if (!caseId) {
+            caseId = generateCaseId();
+            caseIdGenerated = true;
+            logger.info(`Auto-generated caseId: ${caseId}`);
+        }
+
+        try {
+            logger.info(`Fetching S4R data for PO: ${po}`);
+
+            if (!executeHttpRequest) {
+                return {
+                    success: false, agent: 'EARLY_WARNING', caseId: caseId,
+                    caseIdGenerated, status: 'FAILED', poNumber: po,
+                    error: '@sap-cloud-sdk/http-client is not available'
+                };
+            }
+
+            // Call internal S4R fetch
+            const s4rResponse = await fetchPurchaseOrderDetailsInternal(po, executeHttpRequest, logger);
+            if (!s4rResponse.success) {
+                return {
+                    success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                    status: 'FAILED', poNumber: po,
+                    error: `Failed to fetch S4R data: ${s4rResponse.error}`
+                };
+            }
+
+            // Extract metrics and compute risk
+            const { extractEarlyWarningData } = require('./lib/s4r-data-extractor');
+            const s4rData = extractEarlyWarningData(s4rResponse);
+            const scoreResult = calculateS4RRiskScore(s4rData);
+            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult);
+
+            // Build response
+            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers);
+            logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}, riskLevel=${output.riskLevel}`);
+            return output;
+
+        } catch (error) {
+            logger.error(`runEarlyWarningWithS4R error: ${error.message}`);
+            return {
+                success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                status: 'FAILED', poNumber: po, error: error.message
+            };
+        }
+    });
+
+    // ═════════════════════════════════════════════════════════════════════════
     // ACTION: Run Survival Agent
     // Equivalent to: POST /api/v1/agents/survival/run
     // ═════════════════════════════════════════════════════════════════════════
@@ -747,10 +815,10 @@ module.exports = cds.service.impl(async function () {
                 Supplier:                    asStr(rawHeader.Supplier),
                 SupplierPhoneNumber:         asStr(rawHeader.SupplierPhoneNumber),
                 DocumentCurrency:            asStr(rawHeader.DocumentCurrency),
-                PurchaseOrderDate:           asStr(rawHeader.PurchaseOrderDate),
+                PurchaseOrderDate:           parseODataDate(rawHeader.PurchaseOrderDate),
                 CreatedByUser:               asStr(rawHeader.CreatedByUser),
-                CreationDate:                asStr(rawHeader.CreationDate),
-                LastChangeDateTime:          asStr(rawHeader.LastChangeDateTime),
+                CreationDate:                parseODataDate(rawHeader.CreationDate),
+                LastChangeDateTime:          parseODataDate(rawHeader.LastChangeDateTime),
                 PurchaseOrderNetAmount:      asStr(rawHeader.PurchaseOrderNetAmount),
                 Language:                    asStr(rawHeader.Language),
                 PaymentTerms:                asStr(rawHeader.PaymentTerms),
@@ -945,6 +1013,11 @@ module.exports = cds.service.impl(async function () {
             };
         }
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SUPPLIER HISTORICAL OTIF - Get aggregate OTIF for a supplier's POs
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('getSupplierHistoricalOtif', require('./lib/supplier-otif-handler').bind(this, executeHttpRequest, getCurrentTimestamp, logger));
 
     /**
      * Get Case History / Timeline
@@ -1493,5 +1566,152 @@ module.exports = cds.service.impl(async function () {
                 req.data.eventTime = new Date().toISOString();
             }
         });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HELPER FUNCTIONS FOR runEarlyWarningWithS4R
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /** Fetch PO Details internally (reuses S4R destination logic) */
+    async function fetchPurchaseOrderDetailsInternal(po, httpClient, log) {
+        const dest = { destinationName: 'S4R' }, opts = { method: 'GET' }, encPo = encodeURIComponent(po);
+        const asStr = v => (v == null) ? '' : String(v);
+        const parseODataDate = v => {
+            if (!v || typeof v !== 'string') return '';
+            const m = v.match(/\/Date\((-?\d+)\)\//);
+            return m ? new Date(parseInt(m[1], 10)).toISOString().split('T')[0] : String(v);
+        };
+
+        const urls = {
+            header: `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrder('${encPo}')?$format=json`,
+            items: `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrderItem?$filter=${encodeURIComponent(`PurchaseOrder eq '${po}'`)}&$format=json`,
+            schedLines: `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrderScheduleLine?$filter=${encodeURIComponent(`PurchasingDocument eq '${po}'`)}&$select=PurchasingDocument,ScheduleLineDeliveryDate,SchedLineStscDeliveryDate&$format=json`,
+            matDocItems: `/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentItem?$select=MaterialDocument,MaterialDocumentYear,GoodsMovementType,QuantityInEntryUnit&$filter=${encodeURIComponent(`PurchaseOrder eq '${po}' and GoodsMovementType eq '101'`)}&$format=json`
+        };
+
+        try {
+            const [hdrR, itmR, slR, mdR] = await Promise.all([
+                httpClient(dest, { ...opts, url: urls.header }),
+                httpClient(dest, { ...opts, url: urls.items }),
+                httpClient(dest, { ...opts, url: urls.schedLines }).catch(() => ({ __failed: true })),
+                httpClient(dest, { ...opts, url: urls.matDocItems }).catch(() => ({ __failed: true }))
+            ]);
+
+            const hd = hdrR?.data?.d || hdrR?.data || {};
+            const rawH = hd.results ? hd.results[0] : hd;
+            const purchaseOrder = rawH?.PurchaseOrder ? {
+                PurchaseOrder: asStr(rawH.PurchaseOrder), Supplier: asStr(rawH.Supplier),
+                DocumentCurrency: asStr(rawH.DocumentCurrency), PurchaseOrderDate: parseODataDate(rawH.PurchaseOrderDate),
+                PurchaseOrderNetAmount: asStr(rawH.PurchaseOrderNetAmount), AddressName: asStr(rawH.AddressName)
+            } : null;
+
+            const id = itmR?.data?.d?.results || itmR?.data?.value || [];
+            const purchaseOrderItems = id.map(it => ({
+                Material: asStr(it.Material), Plant: asStr(it.Plant), OrderQuantity: asStr(it.OrderQuantity),
+                PurchaseOrderQuantityUnit: asStr(it.PurchaseOrderQuantityUnit), PurchaseOrderItemText: asStr(it.PurchaseOrderItemText),
+                IsCompletelyDelivered: it.IsCompletelyDelivered === true || it.IsCompletelyDelivered === 'true'
+            }));
+
+            let scheduleLines = [];
+            if (slR && !slR.__failed) {
+                const sld = slR?.data?.d?.results || slR?.data?.value || [];
+                scheduleLines = sld.map(sl => ({ ScheduleLineDeliveryDate: parseODataDate(sl.ScheduleLineDeliveryDate), SchedLineStscDeliveryDate: parseODataDate(sl.SchedLineStscDeliveryDate) }));
+            }
+
+            let materialDocuments = [];
+            if (mdR && !mdR.__failed) {
+                const mdd = mdR?.data?.d?.results || mdR?.data?.value || [];
+                const ukeys = [...new Map(mdd.map(m => [`${m.MaterialDocument}-${m.MaterialDocumentYear}`, m])).values()];
+                let hdrMap = new Map();
+                if (ukeys.length > 0) {
+                    try {
+                        const fc = ukeys.map(k => `(MaterialDocument eq '${k.MaterialDocument}' and MaterialDocumentYear eq '${k.MaterialDocumentYear}')`).join(' or ');
+                        const hr = await httpClient(dest, { ...opts, url: `/sap/opu/odata/sap/API_MATERIAL_DOCUMENT_SRV/A_MaterialDocumentHeader?$select=MaterialDocument,MaterialDocumentYear,PostingDate&$filter=${encodeURIComponent(fc)}&$format=json` });
+                        (hr?.data?.d?.results || hr?.data?.value || []).forEach(h => hdrMap.set(`${h.MaterialDocument}-${h.MaterialDocumentYear}`, h));
+                    } catch (e) { /* ignore */ }
+                }
+                materialDocuments = mdd.map(m => ({ GoodsMovementType: asStr(m.GoodsMovementType), QuantityInEntryUnit: asStr(m.QuantityInEntryUnit), PostingDate: parseODataDate((hdrMap.get(`${m.MaterialDocument}-${m.MaterialDocumentYear}`) || {}).PostingDate) }));
+            }
+
+            return { success: true, purchaseOrder, purchaseOrderItems, scheduleLines, materialDocuments, error: null };
+        } catch (error) { return { success: false, purchaseOrder: null, purchaseOrderItems: [], scheduleLines: [], materialDocuments: [], error: error?.message || String(error) }; }
+    }
+
+    /** Calculate risk score using only S4R available components */
+    function calculateS4RRiskScore(s4rData) {
+        const breakdown = { delaySeverity: 0, affectedScope: 0, revenueExposure: 0 };
+        const maxPossibleScore = 43; // Delay: 25, AffectedScope (plants): 8, Revenue: 10
+        const delayDays = s4rData.delayDays || 0;
+        if (delayDays > 21) breakdown.delaySeverity = 25;
+        else if (delayDays >= 15) breakdown.delaySeverity = 20;
+        else if (delayDays >= 8) breakdown.delaySeverity = 12;
+        else if (delayDays >= 1) breakdown.delaySeverity = 5;
+
+        const plantCount = (s4rData.affectedPlants || []).length;
+        if (plantCount >= 4) breakdown.affectedScope = 8;
+        else if (plantCount >= 2) breakdown.affectedScope = 5;
+        else if (plantCount === 1) breakdown.affectedScope = 2;
+
+        const revenue = s4rData.estimatedRevenueImpact || 0;
+        if (revenue >= 1000000) breakdown.revenueExposure = 10;
+        else if (revenue >= 500000) breakdown.revenueExposure = 7;
+        else if (revenue >= 100000) breakdown.revenueExposure = 4;
+        else if (revenue > 0) breakdown.revenueExposure = 2;
+
+        const totalScore = breakdown.delaySeverity + breakdown.affectedScope + breakdown.revenueExposure;
+        const riskPercentage = Math.round((totalScore / maxPossibleScore) * 100);
+        let riskLevel = riskPercentage >= 70 ? 'HIGH' : riskPercentage >= 40 ? 'MEDIUM' : 'LOW';
+        return { totalScore, maxPossibleScore, riskPercentage, riskLevel, breakdown };
+    }
+
+    /** Build risk drivers from S4R data */
+    function buildS4RRiskDrivers(s4rData, scoreResult) {
+        const drivers = [];
+        const delayDays = s4rData.delayDays || 0;
+        if (delayDays > 21) drivers.push(`Severe delay of ${delayDays} days (>3 weeks)`);
+        else if (delayDays >= 15) drivers.push(`Significant delay of ${delayDays} days (2-3 weeks)`);
+        else if (delayDays >= 8) drivers.push(`Moderate delay of ${delayDays} days (1-2 weeks)`);
+        else if (delayDays >= 1) drivers.push(`Minor delay of ${delayDays} days`);
+
+        const revenue = s4rData.estimatedRevenueImpact || 0;
+        if (revenue >= 1000000) drivers.push(`High revenue exposure: ${(revenue/100000).toFixed(1)}L at risk`);
+        else if (revenue >= 500000) drivers.push(`Significant revenue exposure: ${(revenue/100000).toFixed(1)}L at risk`);
+
+        const plantCount = (s4rData.affectedPlants || []).length;
+        if (plantCount >= 4) drivers.push(`Disruption affects ${plantCount} plants (widespread impact)`);
+        else if (plantCount >= 2) drivers.push(`Disruption affects ${plantCount} plants`);
+
+        if (s4rData.otifForThisPO === 0) drivers.push(`OTIF for this PO: 0% (${s4rData.otifReason})`);
+        if (s4rData.deliveryStatus === 'OVERDUE') drivers.push('Delivery is overdue - no goods receipt yet');
+        else if (s4rData.deliveryStatus === 'PARTIALLY_DELIVERED') drivers.push(`Partial delivery: ${s4rData.deliveryCompletion}% complete`);
+        return drivers;
+    }
+
+    /** Build the complete S4R output response */
+    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers) {
+        return {
+            success: true, agent: 'EARLY_WARNING', caseId, caseIdGenerated, status: 'COMPLETED',
+            riskScore: scoreResult.totalScore, maxPossibleScore: scoreResult.maxPossibleScore,
+            riskPercentage: scoreResult.riskPercentage, riskLevel: scoreResult.riskLevel,
+            scoreBreakdown: { supplierPerformance: null, delaySeverity: scoreResult.breakdown.delaySeverity,
+                materialCriticality: null, affectedScope: scoreResult.breakdown.affectedScope,
+                revenueExposure: scoreResult.breakdown.revenueExposure, total: scoreResult.totalScore },
+            scoringNote: 'Score based on available S4R data only. Supplier performance and material criticality not available from single PO.',
+            supplierId: s4rData.supplierId, supplierName: s4rData.supplierName,
+            supplierOtif: null, supplierTrend: null, previousDelays: null,
+            materialId: s4rData.materialId, materialDescription: s4rData.materialDescription, materialCriticality: null,
+            poNumber: s4rData.poNumber, orderDate: s4rData.orderDate, currency: s4rData.currency, poNetAmount: s4rData.poNetAmount,
+            expectedDeliveryDate: s4rData.expectedDeliveryDate, actualDeliveryDate: s4rData.actualDeliveryDate,
+            delayDays: s4rData.delayDays, deliveryStatus: s4rData.deliveryStatus,
+            isOnTime: s4rData.isOnTime, isInFull: s4rData.isInFull, otifForThisPO: s4rData.otifForThisPO, otifReason: s4rData.otifReason,
+            orderedQuantity: s4rData.orderedQuantity, deliveredQuantity: s4rData.deliveredQuantity,
+            quantityUnit: s4rData.quantityUnit, deliveryCompletion: s4rData.deliveryCompletion,
+            affectedPlants: s4rData.affectedPlants, affectedPlantsCount: s4rData.affectedPlants.length, affectedSkus: null,
+            estimatedRevenueImpact: s4rData.estimatedRevenueImpact, topRiskDrivers,
+            dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
+            availableData: s4rData.dataAvailability,
+            unavailableFields: ['supplierOtif', 'supplierTrend', 'previousDelays', 'materialCriticality', 'affectedSkus'],
+            error: null
+        };
     }
 });

@@ -584,6 +584,112 @@ service SupplierResilienceService {
         calculatedAt            : String;
         error                   : String;
     };
+
+    /**
+     * Run Early Warning Agent with S4R Data
+     * 
+     * Uses real-time data from S/4HANA via getPurchaseOrderDetails API.
+     * All metrics are computed from live S4R data - no mock/DB data used.
+     * 
+     * Input: Only PO number is required. caseId is optional (auto-generated if not provided).
+     * 
+     * Computed from S4R:
+     * - delayDays: actualDate - plannedDate (from GR PostingDate and ScheduleLine)
+     * - otifForThisPO: Binary (0 or 100%) based on isOnTime && isInFull
+     * - estimatedRevenueImpact: From PO net amount
+     * - affectedPlants: Derived from PO items
+     * 
+     * Not available (returned as null):
+     * - supplierOtif (historical), supplierTrend, previousDelays
+     * - materialCriticality, affectedSkus
+     * 
+     * @param caseId - Case identifier (optional - auto-generated if not provided)
+     * @param po - Purchase Order number (required)
+     * 
+     * @returns Risk assessment computed from real-time S4R data
+     */
+    action runEarlyWarningWithS4R(
+        caseId      : String,
+        po          : String
+    ) returns {
+        success                 : Boolean;
+        agent                   : String;
+        caseId                  : String;
+        caseIdGenerated         : Boolean;
+        status                  : String;
+        
+        // Risk Scoring (only available components)
+        riskScore               : Integer;
+        maxPossibleScore        : Integer;
+        riskPercentage          : Integer;
+        riskLevel               : String;
+        scoreBreakdown          : {
+            supplierPerformance     : Integer;
+            delaySeverity           : Integer;
+            materialCriticality     : Integer;
+            affectedScope           : Integer;
+            revenueExposure         : Integer;
+            total                   : Integer;
+        };
+        scoringNote             : String;
+        
+        // Supplier Data
+        supplierId              : String;
+        supplierName            : String;
+        supplierOtif            : Integer;
+        supplierTrend           : String;
+        previousDelays          : Integer;
+        
+        // Material Data
+        materialId              : String;
+        materialDescription     : String;
+        materialCriticality     : String;
+        
+        // PO Header Data
+        poNumber                : String;
+        orderDate               : String;
+        currency                : String;
+        poNetAmount             : Decimal;
+        
+        // Delivery Data (COMPUTED from S4R)
+        expectedDeliveryDate    : String;
+        actualDeliveryDate      : String;
+        delayDays               : Integer;
+        deliveryStatus          : String;
+        
+        // OTIF for this PO (COMPUTED)
+        isOnTime                : Boolean;
+        isInFull                : Boolean;
+        otifForThisPO           : Integer;
+        otifReason              : String;
+        
+        // Quantity Data
+        orderedQuantity         : Decimal;
+        deliveredQuantity       : Decimal;
+        quantityUnit            : String;
+        deliveryCompletion      : Integer;
+        
+        // Impact Data
+        affectedPlants          : array of String;
+        affectedPlantsCount     : Integer;
+        affectedSkus            : array of String;
+        estimatedRevenueImpact  : Decimal;
+        
+        // Risk Drivers
+        topRiskDrivers          : array of String;
+        
+        // Metadata
+        dataSource              : String;
+        calculatedAt            : String;
+        availableData           : {
+            poHeader            : Boolean;
+            poItems             : Boolean;
+            scheduleLines       : Boolean;
+            goodsReceipts       : Boolean;
+        };
+        unavailableFields       : array of String;
+        error                   : String;
+    };
     
     /**
      * Run Survival Agent
@@ -752,5 +858,79 @@ service SupplierResilienceService {
         eventId     : String;
         priority    : String;
         alertTime   : Timestamp;
+    };
+    
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SUPPLIER HISTORICAL OTIF
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Get Historical Supplier OTIF
+     * 
+     * Fetches all POs for a supplier within a date range from S/4HANA and
+     * calculates aggregate OTIF (On-Time In-Full) percentage.
+     * 
+     * Algorithm:
+     * 1. Fetch all POs for supplier (A_PurchaseOrder filtered by Supplier)
+     * 2. For each PO, fetch schedule lines (planned delivery dates)
+     * 3. For each PO, fetch material documents (actual goods receipts)
+     * 4. Compute isOnTime and isInFull for each delivered PO
+     * 5. Aggregate: OTIF% = (count of OTIF POs / delivered POs) × 100
+     * 
+     * @param supplierId - Supplier ID (SAP format with leading zeros, e.g., '0000001234')
+     * @param fromDate - Start date for PO filter (ISO format YYYY-MM-DD, defaults to 6 months ago)
+     * @param toDate - End date for PO filter (ISO format YYYY-MM-DD, defaults to today)
+     * 
+     * @returns Historical OTIF calculation with breakdown
+     */
+    function getSupplierHistoricalOtif(
+        supplierId  : String,
+        fromDate    : String,
+        toDate      : String
+    ) returns {
+        success             : Boolean;
+        supplierId          : String;
+        supplierName        : String;
+        
+        // Aggregate OTIF metrics
+        otifPercentage      : Integer;     // Main metric: (OTIF POs / Delivered POs) × 100
+        totalPOs            : Integer;     // Total POs fetched
+        deliveredPOs        : Integer;     // POs with goods receipt (used for OTIF calc)
+        otifPOs             : Integer;     // POs that are both on-time AND in-full
+        onTimePOs           : Integer;     // POs delivered on or before planned date
+        inFullPOs           : Integer;     // POs delivered with full quantity
+        pendingPOs          : Integer;     // POs not yet delivered
+        overduePOs          : Integer;     // POs past due date with no delivery
+        partiallyDeliveredPOs : Integer;   // POs with partial delivery
+        
+        // Breakdown percentages
+        onTimePercentage    : Integer;     // (On-time POs / Delivered POs) × 100
+        inFullPercentage    : Integer;     // (In-full POs / Delivered POs) × 100
+        
+        // Period info
+        fromDate            : String;
+        toDate              : String;
+        
+        // Individual PO details (for drill-down)
+        poDetails           : array of {
+            poNumber            : String;
+            orderDate           : String;
+            plannedDeliveryDate : String;
+            actualDeliveryDate  : String;
+            orderedQuantity     : Decimal;
+            deliveredQuantity   : Decimal;
+            isOnTime            : Boolean;
+            isInFull            : Boolean;
+            isOtif              : Boolean;
+            delayDays           : Integer;
+            status              : String;   // DELIVERED, PARTIALLY_DELIVERED, PENDING, OVERDUE
+            reason              : String;
+        };
+        
+        dataSource          : String;
+        calculatedAt        : String;
+        processingTimeMs    : Integer;
+        error               : String;
     };
 }

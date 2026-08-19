@@ -600,18 +600,23 @@ service SupplierResilienceService {
      * - estimatedRevenueImpact: From PO net amount
      * - affectedPlants: Derived from PO items
      * 
-     * Not available (returned as null):
+     * Now available (via getSupplierHistoricalOtif integration):
      * - supplierOtif (historical), supplierTrend, previousDelays
+     * - Full supplier OTIF breakdown in supplierOtifData
+     * 
+     * Not available (returned as null):
      * - materialCriticality, affectedSkus
      * 
      * @param caseId - Case identifier (optional - auto-generated if not provided)
      * @param po - Purchase Order number (required)
+     * @param supplierId - Supplier ID (optional - auto-detected from PO if not provided)
      * 
-     * @returns Risk assessment computed from real-time S4R data
+     * @returns Risk assessment computed from real-time S4R data including supplier historical OTIF
      */
     action runEarlyWarningWithS4R(
         caseId      : String,
-        po          : String
+        po          : String,
+        supplierId  : String
     ) returns {
         success                 : Boolean;
         agent                   : String;
@@ -640,6 +645,23 @@ service SupplierResilienceService {
         supplierOtif            : Integer;
         supplierTrend           : String;
         previousDelays          : Integer;
+        
+        // Supplier Historical OTIF Data (from getSupplierHistoricalOtif)
+        supplierOtifData        : {
+            otifPercentage          : Integer;
+            totalPOs                : Integer;
+            deliveredPOs            : Integer;
+            otifPOs                 : Integer;
+            onTimePOs               : Integer;
+            inFullPOs               : Integer;
+            pendingPOs              : Integer;
+            overduePOs              : Integer;
+            partiallyDeliveredPOs   : Integer;
+            onTimePercentage        : Integer;
+            inFullPercentage        : Integer;
+            fromDate                : String;
+            toDate                  : String;
+        };
         
         // Material Data
         materialId              : String;

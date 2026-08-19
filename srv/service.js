@@ -228,7 +228,7 @@ module.exports = cds.service.impl(async function () {
     this.on('runEarlyWarningWithS4R', async (req) => {
         logger.info('runEarlyWarningWithS4R action called');
 
-        const { po } = req.data;
+        const { po, supplierId: inputSupplierId } = req.data;
         let { caseId } = req.data;
         let caseIdGenerated = false;
 
@@ -272,12 +272,42 @@ module.exports = cds.service.impl(async function () {
             // Extract metrics and compute risk
             const { extractEarlyWarningData } = require('./lib/s4r-data-extractor');
             const s4rData = extractEarlyWarningData(s4rResponse);
-            const scoreResult = calculateS4RRiskScore(s4rData);
-            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult);
+            
+            // Determine supplier ID: use input OR extract from PO data
+            const supplierId = inputSupplierId || s4rData.supplierId;
+            
+            // Fetch Supplier Historical OTIF (NEW)
+            let supplierOtifData = null;
+            if (supplierId) {
+                try {
+                    logger.info(`Fetching historical OTIF for supplier: ${supplierId}`);
+                    const supplierOtifHandler = require('./lib/supplier-otif-handler');
+                    supplierOtifData = await supplierOtifHandler(
+                        executeHttpRequest,
+                        getCurrentTimestamp,
+                        logger,
+                        { data: { supplierId, fromDate: null, toDate: null } }
+                    );
+                    if (supplierOtifData.success) {
+                        logger.info(`Supplier OTIF fetched: ${supplierOtifData.otifPercentage}% (${supplierOtifData.totalPOs} POs)`);
+                    } else {
+                        logger.warn(`Supplier OTIF fetch returned error: ${supplierOtifData.error}`);
+                    }
+                } catch (otifError) {
+                    logger.warn(`Could not fetch supplier OTIF: ${otifError.message}`);
+                    supplierOtifData = null;
+                }
+            } else {
+                logger.info('No supplier ID available, skipping OTIF calculation');
+            }
+            
+            // Calculate risk score (now includes supplier OTIF)
+            const scoreResult = calculateS4RRiskScore(s4rData, supplierOtifData);
+            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData);
 
-            // Build response
-            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers);
-            logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}, riskLevel=${output.riskLevel}`);
+            // Build response (now includes supplier OTIF data)
+            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData);
+            logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}, riskLevel=${output.riskLevel}, supplierOtif=${output.supplierOtif}`);
             return output;
 
         } catch (error) {
@@ -1647,68 +1677,163 @@ module.exports = cds.service.impl(async function () {
         } catch (error) { return { success: false, purchaseOrder: null, purchaseOrderItems: [], scheduleLines: [], materialDocuments: [], error: error?.message || String(error) }; }
     }
 
-    /** Calculate risk score using only S4R available components */
-    function calculateS4RRiskScore(s4rData) {
-        const breakdown = { delaySeverity: 0, affectedScope: 0, revenueExposure: 0 };
-        const maxPossibleScore = 43; // Delay: 25, AffectedScope (plants): 8, Revenue: 10
+    /** Calculate risk score using S4R data and supplier OTIF (enhanced) */
+    function calculateS4RRiskScore(s4rData, supplierOtifData = null) {
+        const breakdown = { supplierPerformance: 0, delaySeverity: 0, affectedScope: 0, revenueExposure: 0 };
+        
+        // Max possible score now includes supplier performance
+        // Supplier: 15, Delay: 25, AffectedScope: 8, Revenue: 10 = 58
+        const maxPossibleScore = 58;
+        
+        // 1. SUPPLIER PERFORMANCE (NEW) - Max 15 points based on historical OTIF
+        if (supplierOtifData?.success && supplierOtifData.otifPercentage !== null) {
+            const otif = supplierOtifData.otifPercentage;
+            if (otif < 50) breakdown.supplierPerformance = 15;       // Critical
+            else if (otif < 70) breakdown.supplierPerformance = 12;  // Poor
+            else if (otif < 85) breakdown.supplierPerformance = 8;   // Below target
+            else if (otif < 90) breakdown.supplierPerformance = 3;   // Acceptable
+            else breakdown.supplierPerformance = 0;                  // Good (>= 90%)
+        }
+        
+        // 2. DELAY SEVERITY - Max 25 points
         const delayDays = s4rData.delayDays || 0;
         if (delayDays > 21) breakdown.delaySeverity = 25;
         else if (delayDays >= 15) breakdown.delaySeverity = 20;
         else if (delayDays >= 8) breakdown.delaySeverity = 12;
         else if (delayDays >= 1) breakdown.delaySeverity = 5;
 
+        // 3. AFFECTED SCOPE - Max 8 points
         const plantCount = (s4rData.affectedPlants || []).length;
         if (plantCount >= 4) breakdown.affectedScope = 8;
         else if (plantCount >= 2) breakdown.affectedScope = 5;
         else if (plantCount === 1) breakdown.affectedScope = 2;
 
+        // 4. REVENUE EXPOSURE - Max 10 points
         const revenue = s4rData.estimatedRevenueImpact || 0;
         if (revenue >= 1000000) breakdown.revenueExposure = 10;
         else if (revenue >= 500000) breakdown.revenueExposure = 7;
         else if (revenue >= 100000) breakdown.revenueExposure = 4;
         else if (revenue > 0) breakdown.revenueExposure = 2;
 
-        const totalScore = breakdown.delaySeverity + breakdown.affectedScope + breakdown.revenueExposure;
+        const totalScore = breakdown.supplierPerformance + breakdown.delaySeverity + breakdown.affectedScope + breakdown.revenueExposure;
         const riskPercentage = Math.round((totalScore / maxPossibleScore) * 100);
         let riskLevel = riskPercentage >= 70 ? 'HIGH' : riskPercentage >= 40 ? 'MEDIUM' : 'LOW';
         return { totalScore, maxPossibleScore, riskPercentage, riskLevel, breakdown };
     }
 
-    /** Build risk drivers from S4R data */
-    function buildS4RRiskDrivers(s4rData, scoreResult) {
+    /** Build risk drivers from S4R data and supplier OTIF (enhanced) */
+    function buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData = null) {
         const drivers = [];
+        
+        // 1. SUPPLIER OTIF DRIVERS (NEW)
+        if (supplierOtifData?.success && supplierOtifData.otifPercentage !== null) {
+            const otif = supplierOtifData.otifPercentage;
+            if (otif < 50) {
+                drivers.push(`Critical: Supplier OTIF at ${otif}% (below 50% threshold)`);
+            } else if (otif < 70) {
+                drivers.push(`Poor: Supplier OTIF at ${otif}% (below 70% threshold)`);
+            } else if (otif < 85) {
+                drivers.push(`Below target: Supplier OTIF at ${otif}% (target: 85%)`);
+            }
+            
+            // Add previous delays info
+            const previousDelays = (supplierOtifData.overduePOs || 0) + (supplierOtifData.partiallyDeliveredPOs || 0);
+            if (previousDelays > 5) {
+                drivers.push(`Supplier has ${previousDelays} problematic deliveries in last 6 months`);
+            } else if (previousDelays > 0) {
+                drivers.push(`Supplier has ${previousDelays} previous delivery issues`);
+            }
+        }
+        
+        // 2. DELAY SEVERITY DRIVERS
         const delayDays = s4rData.delayDays || 0;
         if (delayDays > 21) drivers.push(`Severe delay of ${delayDays} days (>3 weeks)`);
         else if (delayDays >= 15) drivers.push(`Significant delay of ${delayDays} days (2-3 weeks)`);
         else if (delayDays >= 8) drivers.push(`Moderate delay of ${delayDays} days (1-2 weeks)`);
         else if (delayDays >= 1) drivers.push(`Minor delay of ${delayDays} days`);
 
+        // 3. REVENUE EXPOSURE DRIVERS
         const revenue = s4rData.estimatedRevenueImpact || 0;
         if (revenue >= 1000000) drivers.push(`High revenue exposure: ${(revenue/100000).toFixed(1)}L at risk`);
         else if (revenue >= 500000) drivers.push(`Significant revenue exposure: ${(revenue/100000).toFixed(1)}L at risk`);
 
+        // 4. AFFECTED SCOPE DRIVERS
         const plantCount = (s4rData.affectedPlants || []).length;
         if (plantCount >= 4) drivers.push(`Disruption affects ${plantCount} plants (widespread impact)`);
         else if (plantCount >= 2) drivers.push(`Disruption affects ${plantCount} plants`);
 
+        // 5. PO-SPECIFIC DELIVERY DRIVERS
         if (s4rData.otifForThisPO === 0) drivers.push(`OTIF for this PO: 0% (${s4rData.otifReason})`);
         if (s4rData.deliveryStatus === 'OVERDUE') drivers.push('Delivery is overdue - no goods receipt yet');
         else if (s4rData.deliveryStatus === 'PARTIALLY_DELIVERED') drivers.push(`Partial delivery: ${s4rData.deliveryCompletion}% complete`);
+        
         return drivers;
     }
 
-    /** Build the complete S4R output response */
-    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers) {
+    /** Build the complete S4R output response (enhanced with supplier OTIF) */
+    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData = null) {
+        // Calculate derived supplier metrics from OTIF data
+        const hasOtifData = supplierOtifData?.success && supplierOtifData.otifPercentage !== null;
+        
+        // Calculate previousDelays from OTIF data
+        const previousDelays = hasOtifData
+            ? (supplierOtifData.overduePOs || 0) + (supplierOtifData.partiallyDeliveredPOs || 0)
+            : null;
+        
+        // Determine trend based on OTIF percentage
+        let supplierTrend = null;
+        if (hasOtifData) {
+            const otif = supplierOtifData.otifPercentage;
+            if (otif >= 90) supplierTrend = 'STABLE';
+            else if (otif >= 70) supplierTrend = 'DECLINING';
+            else supplierTrend = 'CRITICAL';
+        }
+        
+        // Build supplier OTIF data object
+        const supplierOtifDataOutput = hasOtifData ? {
+            otifPercentage: supplierOtifData.otifPercentage,
+            totalPOs: supplierOtifData.totalPOs,
+            deliveredPOs: supplierOtifData.deliveredPOs,
+            otifPOs: supplierOtifData.otifPOs,
+            onTimePOs: supplierOtifData.onTimePOs,
+            inFullPOs: supplierOtifData.inFullPOs,
+            pendingPOs: supplierOtifData.pendingPOs,
+            overduePOs: supplierOtifData.overduePOs,
+            partiallyDeliveredPOs: supplierOtifData.partiallyDeliveredPOs,
+            onTimePercentage: supplierOtifData.onTimePercentage,
+            inFullPercentage: supplierOtifData.inFullPercentage,
+            fromDate: supplierOtifData.fromDate,
+            toDate: supplierOtifData.toDate
+        } : null;
+        
+        // Determine unavailable fields based on what data we have
+        const unavailableFields = hasOtifData
+            ? ['materialCriticality', 'affectedSkus']
+            : ['supplierOtif', 'supplierTrend', 'previousDelays', 'materialCriticality', 'affectedSkus'];
+        
+        // Build scoring note
+        const scoringNote = hasOtifData
+            ? 'Score includes supplier historical OTIF performance from last 6 months. Material criticality not available.'
+            : 'Score based on available S4R data only. Supplier performance and material criticality not available.';
+        
         return {
             success: true, agent: 'EARLY_WARNING', caseId, caseIdGenerated, status: 'COMPLETED',
             riskScore: scoreResult.totalScore, maxPossibleScore: scoreResult.maxPossibleScore,
             riskPercentage: scoreResult.riskPercentage, riskLevel: scoreResult.riskLevel,
-            scoreBreakdown: { supplierPerformance: null, delaySeverity: scoreResult.breakdown.delaySeverity,
-                materialCriticality: null, affectedScope: scoreResult.breakdown.affectedScope,
-                revenueExposure: scoreResult.breakdown.revenueExposure, total: scoreResult.totalScore },
-            scoringNote: 'Score based on available S4R data only. Supplier performance and material criticality not available from single PO.',
+            scoreBreakdown: {
+                supplierPerformance: scoreResult.breakdown.supplierPerformance || null,
+                delaySeverity: scoreResult.breakdown.delaySeverity,
+                materialCriticality: null,
+                affectedScope: scoreResult.breakdown.affectedScope,
+                revenueExposure: scoreResult.breakdown.revenueExposure,
+                total: scoreResult.totalScore
+            },
+            scoringNote,
             supplierId: s4rData.supplierId, supplierName: s4rData.supplierName,
-            supplierOtif: null, supplierTrend: null, previousDelays: null,
+            supplierOtif: hasOtifData ? supplierOtifData.otifPercentage : null,
+            supplierTrend,
+            previousDelays,
+            supplierOtifData: supplierOtifDataOutput,
             materialId: s4rData.materialId, materialDescription: s4rData.materialDescription, materialCriticality: null,
             poNumber: s4rData.poNumber, orderDate: s4rData.orderDate, currency: s4rData.currency, poNetAmount: s4rData.poNetAmount,
             expectedDeliveryDate: s4rData.expectedDeliveryDate, actualDeliveryDate: s4rData.actualDeliveryDate,
@@ -1720,7 +1845,7 @@ module.exports = cds.service.impl(async function () {
             estimatedRevenueImpact: s4rData.estimatedRevenueImpact, topRiskDrivers,
             dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
             availableData: s4rData.dataAvailability,
-            unavailableFields: ['supplierOtif', 'supplierTrend', 'previousDelays', 'materialCriticality', 'affectedSkus'],
+            unavailableFields,
             error: null
         };
     }

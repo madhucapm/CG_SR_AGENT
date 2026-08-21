@@ -12,8 +12,7 @@ using { supplierresilience } from '../db/schema';
  * - Survival Agent: Calculates inventory survival
  */
 
- @path: '/odata/v4/supplier-resilience'
- @mcp
+ @protocol: [{ kind: 'odata-v4', path: 'supplier-resilience' }, { kind: 'mcp', path: 'supplier-resilience' }]
 
 service SupplierResilienceService {
 

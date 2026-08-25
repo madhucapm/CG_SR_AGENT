@@ -1425,25 +1425,28 @@ sap.ui.define([
 
             oDisruptions.setProperty("/busy", true);
             oDisruptions.setProperty("/hasResult", false);
+            oDisruptions.setProperty("/scope", {
+                poCount: 0, plantCount: 0, skuCount: 0, supplierCount: 0
+            });
 
-            var oPayload = {
-                location: sLocation,
-                impact_description: sImpactDescription,
-                assessment_radius_km: 100
-            };
+            // Call the CAP orchestrator analyzeImpact instead of hitting the
+            // Python agent directly. CAP fans out Get_supplier → Python
+            // /analyze → GET_SupplierDetails in a single round-trip.
+            var sServiceUrl = this._getServiceUrl();
+            var nRadius = 100;
+            var sUrl = sServiceUrl +
+                "analyzeImpact(" +
+                "location='"           + encodeURIComponent(sLocation)          + "'," +
+                "impact_description='" + encodeURIComponent(sImpactDescription) + "'," +
+                "assessment_radius_km=" + encodeURIComponent(nRadius) +
+                ")";
 
-            // Use relative URL — routed by xs-app.json to the supplier_resilience_agent destination
-            var sUrl = "supplier-resilience-agent/analyze";
-            console.log("[Disruptions] POST", sUrl, "payload:", oPayload);
+            console.log("[Disruptions] GET", sUrl);
 
             fetch(sUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                credentials: "same-origin",
-                body: JSON.stringify(oPayload)
+                method: "GET",
+                headers: { "Accept": "application/json" },
+                credentials: "include"
             }).then(function (oResp) {
                 if (!oResp.ok) {
                     return oResp.text().then(function (sBody) {
@@ -1453,31 +1456,82 @@ sap.ui.define([
                 }
                 return oResp.json();
             }).then(function (oData) {
-                console.log("[Disruptions] /analyze response:", oData);
+                console.log("[Disruptions] analyzeImpact response:", oData);
+
+                var oResult = oData || {};
 
                 // Store the full response
-                oDisruptions.setProperty("/result", oData);
-                oDisruptions.setProperty("/hasResult", true);
+                oDisruptions.setProperty("/result", oResult);
+                oDisruptions.setProperty("/hasResult", oResult.success !== false);
                 oDisruptions.setProperty("/busy", false);
 
-                // Cross-reference affected suppliers with coordinator cases
-                // to find affected POs
-                var aAffectedSuppliers = (oData && Array.isArray(oData.affected_suppliers))
-                    ? oData.affected_suppliers : [];
+                // Compute the impact-scope metrics (PO count, plants, SKUs)
+                // from the enriched response for the top-row cards.
+                var oScope = that._computeDisruptionScope(oResult);
+                oDisruptions.setProperty("/scope", oScope);
+
+                // Legacy /affectedPOs used by pre-existing UI paths — keep
+                // it populated by cross-referencing coordinator cases so we
+                // don't break anything downstream that reads it.
+                var aAffectedSuppliers = Array.isArray(oResult.affected_suppliers)
+                    ? oResult.affected_suppliers : [];
                 var aAffectedPOs = that._findAffectedPOs(aAffectedSuppliers, oCoordinator);
                 oDisruptions.setProperty("/affectedPOs", aAffectedPOs);
 
-                MessageToast.show("Disruption analysis complete: " +
-                    (oData.affected_supplier_count || 0) + " supplier(s) affected");
+                if (oResult.success === false) {
+                    MessageToast.show("Disruption analysis failed: " +
+                        (oResult.error || "Unknown error"));
+                } else {
+                    MessageToast.show("Disruption analysis complete: " +
+                        (oResult.affected_supplier_count || 0) + " supplier(s) affected, " +
+                        oScope.poCount + " PO(s) at risk");
+                }
             }).catch(function (oErr) {
-                console.error("[Disruptions] /analyze failed:", oErr);
+                console.error("[Disruptions] analyzeImpact failed:", oErr);
                 oDisruptions.setProperty("/result", null);
                 oDisruptions.setProperty("/hasResult", false);
                 oDisruptions.setProperty("/affectedPOs", []);
+                oDisruptions.setProperty("/scope", {
+                    poCount: 0, plantCount: 0, skuCount: 0, supplierCount: 0
+                });
                 oDisruptions.setProperty("/busy", false);
                 MessageToast.show("Disruption analysis failed: " +
                     (oErr && oErr.message ? oErr.message : "Unknown error"));
             });
+        },
+
+        /**
+         * Compute impact-scope metrics from the enriched analyzeImpact
+         * response so the top-row cards in the DisruptionsView can bind to
+         * concrete numbers instead of being cosmetically empty.
+         *
+         * @param {Object} oResult - analyzeImpact response payload
+         * @returns {Object} { poCount, plantCount, skuCount, supplierCount }
+         */
+        _computeDisruptionScope: function (oResult) {
+            var aSuppliers = (oResult && Array.isArray(oResult.affected_suppliers))
+                ? oResult.affected_suppliers : [];
+            var iSupplierCount = aSuppliers.length;
+            var iPoCount = 0;
+            var oPlantSet = {};
+            var oSkuSet = {};
+            aSuppliers.forEach(function (s) {
+                var aPOs = Array.isArray(s.purchase_orders) ? s.purchase_orders : [];
+                iPoCount += aPOs.length;
+                aPOs.forEach(function (po) {
+                    var aMats = Array.isArray(po.materials) ? po.materials : [];
+                    aMats.forEach(function (m) {
+                        if (m.plant) { oPlantSet[m.plant] = true; }
+                        if (m.sku)   { oSkuSet[m.sku]     = true; }
+                    });
+                });
+            });
+            return {
+                supplierCount: iSupplierCount,
+                poCount:       iPoCount,
+                plantCount:    Object.keys(oPlantSet).length,
+                skuCount:      Object.keys(oSkuSet).length
+            };
         },
 
         /**

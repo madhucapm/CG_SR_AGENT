@@ -81,25 +81,36 @@
                 <core:Icon src="sap-icon://grid" class="sapUiTinyMarginEnd" />
                 <Title text="Impact scope" level="H4" class="sapUiTinyMarginBegin" />
             </HBox>
-            <!-- Cards -->
+            <!--
+                Impact-scope cards. Populated by _computeDisruptionScope in the
+                controller from the analyzeImpact response. When no analysis has
+                been run yet the "scope" model defaults to zeros.
+            -->
             <HBox justifyContent="SpaceBetween" wrap="Wrap">
                 <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Text text="Purchase orders" class="impactLabel" />
-                    <Text text="affected" class="impactLabel" />
+                    <Title text="{disruptions>/scope/poCount}" level="H3" />
+                    <Text text="Purchase orders affected" class="impactLabel" />
                 </VBox>
                 <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Title text="{disruptions>/scope/plantCount}" level="H3" />
                     <Text text="Plants affected" class="impactLabel" />
                 </VBox>
                 <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Title text="{disruptions>/scope/skuCount}" level="H3" />
                     <Text text="SKUs at risk" class="impactLabel" />
                 </VBox>
                 <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Text text="Total volume at risk" class="impactLabel" />
+                    <Title text="{disruptions>/scope/supplierCount}" level="H3" />
+                    <Text text="Suppliers affected" class="impactLabel" />
                 </VBox>
                 <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
+                    <Title
+                        text="{= ${disruptions>/selectedRisk/riskLevel} || '—' }"
+                        level="H3" />
                     <Text text="Case priority" class="impactLabel" />
                 </VBox>
                 <VBox class="impactCard sapUiSmallMarginBottom">
+                    <Title text="—" level="H3" />
                     <Text text="Avg. risk score" class="impactLabel" />
                 </VBox>
             </HBox>
@@ -128,42 +139,63 @@
                     <Text text="SUB" class="poColHeader poColAgent" />
                     <Text text="BUYER" class="poColHeader poColAgent" />
                 </HBox>
-                <!-- PO Row 1 -->
-                <VBox class="poRow">
-                    <HBox justifyContent="SpaceBetween" alignItems="Center">
-                        <Text text="4500012345" class="poNumber" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                    </HBox>
-                    <Text text="Aluminium Sheet" class="poMaterial" />
-                    <Text text="Mumbai Plant · Coke Can · 320t" class="poMeta" />
-                </VBox>
-                <!-- PO Row 2 -->
-                <VBox class="poRow">
-                    <HBox justifyContent="SpaceBetween" alignItems="Center">
-                        <Text text="4500012346" class="poNumber" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                    </HBox>
-                    <Text text="Aluminium Sheet" class="poMaterial" />
-                    <Text text="Pune Plant · Sprite Can · 180t" class="poMeta" />
-                </VBox>
-                <!-- PO Row 3 -->
-                <VBox class="poRow">
-                    <HBox justifyContent="SpaceBetween" alignItems="Center">
-                        <Text text="4500013100" class="poNumber" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                        <core:Icon src="sap-icon://accept" class="agentCheckIcon" />
-                    </HBox>
-                    <Text text="Aluminium Sheet" class="poMaterial" />
-                    <Text text="Hyderabad Plant · Fanta Can · 210t" class="poMeta" />
-                </VBox>
+                <!--
+                    Real supplier + PO list, bound to the analyzeImpact
+                    response via disruptions>/result/affected_suppliers.
+                    Each supplier renders as a header row with their POs
+                    listed underneath. Materials/plants/SKUs are shown as
+                    a compact meta line for each PO.
+                -->
+                <List
+                    id="disruptionsSupplierList"
+                    items="{disruptions>/result/affected_suppliers}"
+                    noDataText="No affected suppliers. Select a risk from the Global Risks card and click Investigate to run an analysis."
+                    showSeparators="Inner">
+                    <CustomListItem>
+                        <VBox class="poRow">
+                            <!-- Supplier header -->
+                            <HBox justifyContent="SpaceBetween" alignItems="Center">
+                                <VBox>
+                                    <Text
+                                        text="{disruptions>name} ({disruptions>supplier_id})"
+                                        class="poNumber" />
+                                    <Text text="{disruptions>address}" class="poMaterial" />
+                                </VBox>
+                                <ObjectStatus
+                                    text="{= ${disruptions>distance_km} + ' km · ' + ${disruptions>po_count} + ' PO(s)' }"
+                                    state="{= ${disruptions>po_count} > 0 ? 'Warning' : 'None' }" />
+                            </HBox>
+                            <!-- Nested POs table -->
+                            <Table
+                                inset="true"
+                                items="{
+                                    path: 'disruptions>purchase_orders',
+                                    templateShareable: false
+                                }"
+                                noDataText="No POs found in S/4HANA for this supplier.">
+                                <columns>
+                                    <Column><Text text="PO Number" /></Column>
+                                    <Column><Text text="Item" /></Column>
+                                    <Column><Text text="Material" /></Column>
+                                    <Column><Text text="Plant" /></Column>
+                                    <Column><Text text="SKU" /></Column>
+                                </columns>
+                                <items>
+                                    <ColumnListItem>
+                                        <cells>
+                                            <ObjectIdentifier title="{disruptions>po_number}" />
+                                            <!-- Show first material inline; multi-line items expand naturally -->
+                                            <Text text="{= ${disruptions>materials/0/item_no}  || '—' }" />
+                                            <Text text="{= ${disruptions>materials/0/material} || '—' }" />
+                                            <Text text="{= ${disruptions>materials/0/plant}    || '—' }" />
+                                            <Text text="{= ${disruptions>materials/0/sku}      || '—' }" />
+                                        </cells>
+                                    </ColumnListItem>
+                                </items>
+                            </Table>
+                        </VBox>
+                    </CustomListItem>
+                </List>
             </VBox>
 
             <!-- Right: Consolidated Recovery Plan -->

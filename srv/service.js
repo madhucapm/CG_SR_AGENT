@@ -1059,6 +1059,22 @@ module.exports = cds.service.impl(async function () {
     // ═══════════════════════════════════════════════════════════════════════════
     this.on('GET_SupplierDetails', require('./lib/get-supplier-details-handler').bind(this, executeHttpRequest, logger));
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ANALYZE IMPACT - Enriched Disruption Analysis (Path B orchestrator)
+    //
+    // Orchestrates:
+    //   1. Get_supplier()          → real supplier universe from S/4HANA
+    //   2. POST /analyze on the    → Python geo-agent (via
+    //      supplier_resilience_agent  supplier_resilience_agent destination)
+    //   3. GET_SupplierDetails()   → for each affected supplier, fetch
+    //                                POs + items from S/4HANA in parallel
+    // Returns a single enriched payload — one round-trip from the UI.
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on(
+        'analyzeImpact',
+        require('./lib/analyze-impact-handler')(executeHttpRequest, logger)
+    );
+
     /**
      * Get Case History / Timeline
      * GET /odata/v4/supplier-resilience/getCaseHistory(caseId='...')

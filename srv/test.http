@@ -677,5 +677,96 @@ Content-Type: application/json
 ###
 
 ### ═══════════════════════════════════════════════════════════════════════════════
+### EARLY WARNING WITH S4R - SINGLE MODE (Backward Compatible)
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### ------------------------------------------
+### Run Early Warning with S4R - Single PO (auto-generate caseId)
+### ------------------------------------------
+POST http://localhost:4004/odata/v4/supplier-resilience/runEarlyWarningWithS4R
+Content-Type: application/json
+
+{
+    "po": "4500000123"
+}
+
+###
+
+### ------------------------------------------
+### Run Early Warning with S4R - Single PO with caseId
+### ------------------------------------------
+POST http://localhost:4004/odata/v4/supplier-resilience/runEarlyWarningWithS4R
+Content-Type: application/json
+
+{
+    "caseId": "EW-2026-001",
+    "po": "4500000123"
+}
+
+###
+
+### ------------------------------------------
+### Run Early Warning with S4R - Single PO with explicit supplier ID
+### ------------------------------------------
+POST http://localhost:4004/odata/v4/supplier-resilience/runEarlyWarningWithS4R
+Content-Type: application/json
+
+{
+    "caseId": "EW-2026-002",
+    "po": "4500000124",
+    "supplierId": "0000017300"
+}
+
+###
+
+### ═══════════════════════════════════════════════════════════════════════════════
+### EARLY WARNING WITH S4R - MULTI MODE (Multiple POs, Grouped by Supplier)
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### ------------------------------------------
+### Run Early Warning with S4R - Multiple POs (MULTI MODE)
+### POs will be grouped by supplier automatically
+### Each supplier will have:
+###   - Historical OTIF fetched via getSupplierHistoricalOtif
+###   - Risk score calculated based on aggregated PO data
+###   - All affected POs listed in poDetails array
+### ------------------------------------------
+POST http://localhost:4004/odata/v4/supplier-resilience/runEarlyWarningWithS4R
+Content-Type: application/json
+
+{
+    "caseId": "EW-2026-MULTI-001",
+    "poList": ["4500000123", "4500000124", "4500000125", "4500000126", "4500000127"]
+}
+
+###
+
+### ------------------------------------------
+### Run Early Warning with S4R - Multi Mode with 3 POs
+### ------------------------------------------
+POST http://localhost:4004/odata/v4/supplier-resilience/runEarlyWarningWithS4R
+Content-Type: application/json
+
+{
+    "poList": ["4500000100", "4500000101", "4500000102"]
+}
+
+###
+
+### ------------------------------------------
+### Run Early Warning with S4R - Multi Mode with 2 POs from same supplier
+### Expected: 1 supplier in results with 2 POs in poDetails
+### ------------------------------------------
+POST http://localhost:4004/odata/v4/supplier-resilience/runEarlyWarningWithS4R
+Content-Type: application/json
+
+{
+    "caseId": "EW-SAME-SUPPLIER",
+    "poList": ["4500000200", "4500000201"]
+}
+
+###
+
+### ═══════════════════════════════════════════════════════════════════════════════
 ### END OF TEST SUITE
 ### ═══════════════════════════════════════════════════════════════════════════════

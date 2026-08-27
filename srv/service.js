@@ -224,22 +224,14 @@ module.exports = cds.service.impl(async function () {
     // ═════════════════════════════════════════════════════════════════════════
     // ACTION: Run Early Warning Agent with S4R Data
     // Uses real-time data from S/4HANA - no mock data
+    // Supports SINGLE MODE (single po) and MULTI MODE (poList array)
     // ═════════════════════════════════════════════════════════════════════════
     this.on('runEarlyWarningWithS4R', async (req) => {
         logger.info('runEarlyWarningWithS4R action called');
 
-        const { po, supplierId: inputSupplierId } = req.data;
+        const { po, supplierId: inputSupplierId, poList } = req.data;
         let { caseId } = req.data;
         let caseIdGenerated = false;
-
-        // Validate required input
-        if (!po) {
-            return {
-                success: false, agent: 'EARLY_WARNING', caseId: caseId || null,
-                caseIdGenerated: false, status: 'FAILED',
-                error: 'Purchase Order number (po) is required'
-            };
-        }
 
         // Auto-generate caseId if not provided
         if (!caseId) {
@@ -248,76 +240,126 @@ module.exports = cds.service.impl(async function () {
             logger.info(`Auto-generated caseId: ${caseId}`);
         }
 
+        // Determine mode: MULTI if poList provided, otherwise SINGLE
+        const isMultiMode = poList && Array.isArray(poList) && poList.length > 0;
+
+        if (!isMultiMode) {
+            // SINGLE MODE (Backward Compatible)
+            return await runEarlyWarningSingleMode(caseId, caseIdGenerated, po, inputSupplierId);
+        }
+
+        // MULTI MODE - Process multiple POs and group by supplier
+        return await runEarlyWarningMultiMode(caseId, caseIdGenerated, poList);
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SINGLE MODE HANDLER (backward compatible)
+    // ─────────────────────────────────────────────────────────────────────────
+    async function runEarlyWarningSingleMode(caseId, caseIdGenerated, po, inputSupplierId) {
+        if (!po) {
+            return { success: false, agent: 'EARLY_WARNING', caseId: caseId || null,
+                caseIdGenerated: false, status: 'FAILED',
+                error: 'Purchase Order number (po) is required' };
+        }
         try {
-            logger.info(`Fetching S4R data for PO: ${po}`);
-
+            logger.info(`[SINGLE MODE] Fetching S4R data for PO: ${po}`);
             if (!executeHttpRequest) {
-                return {
-                    success: false, agent: 'EARLY_WARNING', caseId: caseId,
-                    caseIdGenerated, status: 'FAILED', poNumber: po,
-                    error: '@sap-cloud-sdk/http-client is not available'
-                };
+                return { success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                    status: 'FAILED', poNumber: po,
+                    error: '@sap-cloud-sdk/http-client is not available' };
             }
-
-            // Call internal S4R fetch
             const s4rResponse = await fetchPurchaseOrderDetailsInternal(po, executeHttpRequest, logger);
             if (!s4rResponse.success) {
-                return {
-                    success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                return { success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
                     status: 'FAILED', poNumber: po,
-                    error: `Failed to fetch S4R data: ${s4rResponse.error}`
-                };
+                    error: `Failed to fetch S4R data: ${s4rResponse.error}` };
             }
-
-            // Extract metrics and compute risk
             const { extractEarlyWarningData } = require('./lib/s4r-data-extractor');
             const s4rData = extractEarlyWarningData(s4rResponse);
-            
-            // Determine supplier ID: use input OR extract from PO data
             const supplierId = inputSupplierId || s4rData.supplierId;
-            
-            // Fetch Supplier Historical OTIF (NEW)
             let supplierOtifData = null;
             if (supplierId) {
                 try {
-                    logger.info(`Fetching historical OTIF for supplier: ${supplierId}`);
                     const supplierOtifHandler = require('./lib/supplier-otif-handler');
-                    supplierOtifData = await supplierOtifHandler(
-                        executeHttpRequest,
-                        getCurrentTimestamp,
-                        logger,
-                        { data: { supplierId, fromDate: null, toDate: null } }
-                    );
-                    if (supplierOtifData.success) {
-                        logger.info(`Supplier OTIF fetched: ${supplierOtifData.otifPercentage}% (${supplierOtifData.totalPOs} POs)`);
-                    } else {
-                        logger.warn(`Supplier OTIF fetch returned error: ${supplierOtifData.error}`);
-                    }
-                } catch (otifError) {
-                    logger.warn(`Could not fetch supplier OTIF: ${otifError.message}`);
-                    supplierOtifData = null;
-                }
-            } else {
-                logger.info('No supplier ID available, skipping OTIF calculation');
+                    supplierOtifData = await supplierOtifHandler(executeHttpRequest, getCurrentTimestamp, logger,
+                        { data: { supplierId, fromDate: null, toDate: null } });
+                    if (supplierOtifData.success) logger.info(`Supplier OTIF: ${supplierOtifData.otifPercentage}%`);
+                } catch (e) { logger.warn(`Could not fetch supplier OTIF: ${e.message}`); }
             }
-            
-            // Calculate risk score (now includes supplier OTIF)
             const scoreResult = calculateS4RRiskScore(s4rData, supplierOtifData);
             const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData);
-
-            // Build response (now includes supplier OTIF data)
             const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData);
-            logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}, riskLevel=${output.riskLevel}, supplierOtif=${output.supplierOtif}`);
+            logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}`);
             return output;
-
         } catch (error) {
-            logger.error(`runEarlyWarningWithS4R error: ${error.message}`);
-            return {
-                success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
-                status: 'FAILED', poNumber: po, error: error.message
-            };
+            logger.error(`runEarlyWarningWithS4R (single) error: ${error.message}`);
+            return { success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                status: 'FAILED', poNumber: po, error: error.message };
         }
-    });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MULTI MODE HANDLER - Process multiple POs grouped by supplier
+    // ─────────────────────────────────────────────────────────────────────────
+    async function runEarlyWarningMultiMode(caseId, caseIdGenerated, poList) {
+        logger.info(`[MULTI MODE] Processing ${poList.length} POs`);
+        if (!executeHttpRequest) {
+            return { success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                status: 'FAILED', error: '@sap-cloud-sdk/http-client is not available' };
+        }
+        try {
+            const { extractEarlyWarningData } = require('./lib/s4r-data-extractor');
+            const supplierOtifHandler = require('./lib/supplier-otif-handler');
+
+            // STEP 1: Fetch PO Details (Parallel)
+            logger.info(`[STEP 1] Fetching ${poList.length} POs`);
+            const poFetchResults = await Promise.all(poList.map(poNumber => 
+                fetchPurchaseOrderDetailsInternal(poNumber, executeHttpRequest, logger)
+                    .then(r => ({ poNumber, result: r, success: r.success }))
+                    .catch(e => ({ poNumber, result: null, success: false }))
+            ));
+            const poDataMap = {};
+            for (const { poNumber, result, success } of poFetchResults) {
+                if (success && result) poDataMap[poNumber] = { s4rData: extractEarlyWarningData(result) };
+            }
+            logger.info(`Fetched ${Object.keys(poDataMap).length}/${poList.length} POs`);
+
+            // STEP 2: Group POs by Supplier
+            const posBySupplier = {}, supplierNames = {};
+            for (const [poNumber, poData] of Object.entries(poDataMap)) {
+                const suppId = poData.s4rData.supplierId;
+                if (!suppId) continue;
+                if (!posBySupplier[suppId]) { posBySupplier[suppId] = []; supplierNames[suppId] = poData.s4rData.supplierName; }
+                posBySupplier[suppId].push({ poNumber, s4rData: poData.s4rData });
+            }
+            const supplierIds = Object.keys(posBySupplier);
+            logger.info(`[STEP 2] Found ${supplierIds.length} suppliers`);
+
+            // STEP 3: Fetch OTIF for Each Supplier (Parallel)
+            logger.info(`[STEP 3] Fetching OTIF for ${supplierIds.length} suppliers`);
+            const otifResults = await Promise.all(supplierIds.map(suppId =>
+                supplierOtifHandler(executeHttpRequest, getCurrentTimestamp, logger, { data: { supplierId: suppId } })
+                    .then(d => ({ supplierId: suppId, otifData: d, success: d?.success }))
+                    .catch(() => ({ supplierId: suppId, otifData: null, success: false }))
+            ));
+            const supplierOtifMap = {};
+            for (const { supplierId, otifData, success } of otifResults) {
+                supplierOtifMap[supplierId] = success ? otifData : null;
+            }
+
+            // STEP 4: Build Supplier Results
+            const suppliers = buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap);
+            logger.info(`[STEP 4] Built ${suppliers.length} supplier results`);
+
+            return { success: true, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                status: 'COMPLETED', totalSuppliers: suppliers.length, totalPOs: poList.length,
+                suppliers, dataSource: 'S4R', calculatedAt: getCurrentTimestamp(), error: null };
+        } catch (error) {
+            logger.error(`runEarlyWarningWithS4R (multi) error: ${error.message}`);
+            return { success: false, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
+                status: 'FAILED', totalSuppliers: 0, totalPOs: poList.length, suppliers: [], error: error.message };
+        }
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // ACTION: Run Survival Agent
@@ -1675,6 +1717,93 @@ module.exports = cds.service.impl(async function () {
 
             return { success: true, purchaseOrder, purchaseOrderItems, scheduleLines, materialDocuments, error: null };
         } catch (error) { return { success: false, purchaseOrder: null, purchaseOrderItems: [], scheduleLines: [], materialDocuments: [], error: error?.message || String(error) }; }
+    }
+
+    /** Derive supplier trend from OTIF data */
+    function deriveSupplierTrend(supplierOtifData) {
+        if (!supplierOtifData?.success || supplierOtifData.otifPercentage === null) return null;
+        const otif = supplierOtifData.otifPercentage;
+        if (otif >= 90) return 'STABLE';
+        if (otif >= 70) return 'DECLINING';
+        return 'CRITICAL';
+    }
+
+    /** Derive previous delays count from OTIF data */
+    function derivePreviousDelays(supplierOtifData) {
+        if (!supplierOtifData?.success) return null;
+        return (supplierOtifData.overduePOs || 0) + (supplierOtifData.partiallyDeliveredPOs || 0);
+    }
+
+    /** Build supplier results for multi mode */
+    function buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap) {
+        const results = [];
+        for (const suppId of supplierIds) {
+            const supplierPOs = posBySupplier[suppId];
+            const supplierOtifData = supplierOtifMap[suppId];
+            const supplierName = supplierNames[suppId];
+            
+            const poDetails = [];
+            let totalRevenueExposure = 0, maxDelayDays = 0;
+            const affectedPlantsSet = new Set();
+            
+            for (const { poNumber, s4rData } of supplierPOs) {
+                poDetails.push({
+                    poNumber: s4rData.poNumber, orderDate: s4rData.orderDate,
+                    currency: s4rData.currency, poNetAmount: s4rData.poNetAmount,
+                    materialId: s4rData.materialId, materialDescription: s4rData.materialDescription,
+                    plant: s4rData.plant, expectedDeliveryDate: s4rData.expectedDeliveryDate,
+                    actualDeliveryDate: s4rData.actualDeliveryDate, delayDays: s4rData.delayDays,
+                    deliveryStatus: s4rData.deliveryStatus, isOnTime: s4rData.isOnTime,
+                    isInFull: s4rData.isInFull, otifForThisPO: s4rData.otifForThisPO,
+                    otifReason: s4rData.otifReason, orderedQuantity: s4rData.orderedQuantity,
+                    deliveredQuantity: s4rData.deliveredQuantity, quantityUnit: s4rData.quantityUnit,
+                    deliveryCompletion: s4rData.deliveryCompletion,
+                    estimatedRevenueImpact: s4rData.estimatedRevenueImpact
+                });
+                totalRevenueExposure += s4rData.estimatedRevenueImpact || 0;
+                maxDelayDays = Math.max(maxDelayDays, s4rData.delayDays || 0);
+                if (s4rData.plant) affectedPlantsSet.add(s4rData.plant);
+                (s4rData.affectedPlants || []).forEach(p => affectedPlantsSet.add(p));
+            }
+            
+            const aggregatedS4RData = { supplierId: suppId, supplierName, delayDays: maxDelayDays,
+                estimatedRevenueImpact: totalRevenueExposure, affectedPlants: Array.from(affectedPlantsSet) };
+            const scoreResult = calculateS4RRiskScore(aggregatedS4RData, supplierOtifData);
+            const topRiskDrivers = buildS4RRiskDrivers(aggregatedS4RData, scoreResult, supplierOtifData);
+            const supplierTrend = deriveSupplierTrend(supplierOtifData);
+            const previousDelays = derivePreviousDelays(supplierOtifData);
+            const hasOtifData = supplierOtifData?.success && supplierOtifData.otifPercentage !== null;
+            
+            results.push({
+                supplierId: suppId, supplierName,
+                supplierOtif: hasOtifData ? supplierOtifData.otifPercentage : null,
+                supplierTrend, previousDelays,
+                riskScore: scoreResult.totalScore, maxPossibleScore: scoreResult.maxPossibleScore,
+                riskPercentage: scoreResult.riskPercentage, riskLevel: scoreResult.riskLevel,
+                scoreBreakdown: { supplierPerformance: scoreResult.breakdown.supplierPerformance || null,
+                    delaySeverity: scoreResult.breakdown.delaySeverity, materialCriticality: null,
+                    affectedScope: scoreResult.breakdown.affectedScope,
+                    revenueExposure: scoreResult.breakdown.revenueExposure, total: scoreResult.totalScore },
+                scoringNote: hasOtifData ? 'Score includes supplier historical OTIF from last 6 months.'
+                    : 'Score based on S4R data only. Supplier OTIF not available.',
+                supplierOtifData: hasOtifData ? {
+                    otifPercentage: supplierOtifData.otifPercentage, totalPOs: supplierOtifData.totalPOs,
+                    deliveredPOs: supplierOtifData.deliveredPOs, otifPOs: supplierOtifData.otifPOs,
+                    onTimePOs: supplierOtifData.onTimePOs, inFullPOs: supplierOtifData.inFullPOs,
+                    pendingPOs: supplierOtifData.pendingPOs, overduePOs: supplierOtifData.overduePOs,
+                    partiallyDeliveredPOs: supplierOtifData.partiallyDeliveredPOs,
+                    onTimePercentage: supplierOtifData.onTimePercentage,
+                    inFullPercentage: supplierOtifData.inFullPercentage,
+                    fromDate: supplierOtifData.fromDate, toDate: supplierOtifData.toDate
+                } : null,
+                affectedPlants: Array.from(affectedPlantsSet), affectedPlantsCount: affectedPlantsSet.size,
+                totalRevenueExposure, topRiskDrivers, poCount: poDetails.length, poDetails,
+                dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
+                unavailableFields: ['materialCriticality', 'affectedSkus'], error: null
+            });
+            logger.info(`Supplier ${suppId}: ${poDetails.length} POs, Risk=${scoreResult.totalScore} (${scoreResult.riskLevel})`);
+        }
+        return results;
     }
 
     /** Calculate risk score using S4R data and supplier OTIF (enhanced) */

@@ -945,6 +945,78 @@ service SupplierResilienceService {
     };
     
     /**
+     * Analyze Impact — Enriched Disruption Analysis (Path B orchestrator)
+     *
+     * Given an impact scenario, this function orchestrates the full
+     * end-to-end flow entirely on the backend so the UI needs only a
+     * single OData round-trip:
+     *
+     *   1. Get_supplier()              → fetch real supplier universe from
+     *                                    S/4HANA API_BUSINESS_PARTNER
+     *   2. POST /analyze on the        → send those real suppliers to the
+     *      supplier_resilience_agent     Python geo-agent (which geocodes
+     *      destination                   addresses and computes distances)
+     *   3. GET_SupplierDetails(id)     → for each affected supplier, fetch
+     *                                    POs + line items from S/4HANA
+     *                                    API_PURCHASEORDER_PROCESS_SRV
+     *                                    (parallel via Promise.all)
+     *   4. Merge and return one enriched payload.
+     *
+     * No fallback data is used anywhere — S/4HANA is the single source of
+     * truth. The Python agent will reject the request with 400 if the
+     * supplier list is empty, and this function surfaces that error
+     * cleanly. Per-supplier geocoding failures are silently skipped by
+     * the Python agent (already logged there); per-supplier PO fetch
+     * failures are captured and reported without sinking the whole batch.
+     *
+     * @param location             Location impacted by the event (free-form
+     *                             text such as "Mumbai, India"; geocoded
+     *                             internally by the Python agent).
+     * @param impact_description   Free-text description of the event
+     *                             (e.g. "Monsoon flooding").
+     * @param assessment_radius_km Impact radius in km. Optional; defaults
+     *                             to 100 on the Python side if omitted.
+     */
+    function analyzeImpact(
+        location             : String,
+        impact_description   : String,
+        assessment_radius_km : Decimal
+    ) returns {
+        success                 : Boolean;
+        location                : String;
+        impact_description      : String;
+        assessment_radius_km    : Decimal;
+        impact_coords           : {
+            location  : String;
+            latitude  : Decimal;
+            longitude : Decimal;
+        };
+        supplier_count          : Integer;    // total suppliers considered (from Get_supplier)
+        affected_supplier_count : Integer;    // how many fell inside the radius
+        message                 : String;
+        error                   : String;
+        affected_suppliers      : array of {
+            supplier_id     : String;
+            name            : String;
+            address         : String;
+            latitude        : Decimal;
+            longitude       : Decimal;
+            distance_km     : Decimal;
+            po_count        : Integer;
+            purchase_orders : array of {
+                po_number : String;
+                materials : array of {
+                    item_no  : String;
+                    material : String;
+                    plant    : String;
+                    sku      : String;
+                };
+            };
+        };
+    };
+
+
+    /**
      * Trigger Delay Alert (Legacy compatibility)
      * 
      * Original action from the existing CAP project.

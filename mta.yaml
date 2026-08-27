@@ -122,6 +122,25 @@ resources:
                 URL: https://ui5.sap.com
                 Authentication: NoAuthentication
                 ProxyType: Internet
+              # ─────────────────────────────────────────────────────────────
+              # supplier_resilience_agent
+              #
+              # Points at the Python/FastAPI geo-agent deployed from the
+              # Supplier_Resilience_EWA repo (feat/require-suppliers-from-cap
+              # branch). Consumed by CAP's analyzeImpact orchestrator via
+              # the @sap-cloud-sdk/http-client executeHttpRequest call.
+              #
+              # Replace the URL below with the actual CF route of the
+              # deployed Python agent (e.g.
+              # https://supplier-resilience-agent.cfapps.<region>.hana.ondemand.com)
+              # either here or in the BTP Destination cockpit after deploy.
+              # ─────────────────────────────────────────────────────────────
+              - Name: supplier_resilience_agent
+                Type: HTTP
+                URL: https://supplier-resilience-agent.cfapps.eu10.hana.ondemand.com
+                Authentication: NoAuthentication
+                ProxyType: Internet
+                HTML5.DynamicDestination: true
             existing_destinations_policy: update
         version: 1.0.0
       service: destination

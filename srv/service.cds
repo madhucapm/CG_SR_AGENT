@@ -591,7 +591,17 @@ service SupplierResilienceService {
      * Uses real-time data from S/4HANA via getPurchaseOrderDetails API.
      * All metrics are computed from live S4R data - no mock/DB data used.
      * 
-     * Input: Only PO number is required. caseId is optional (auto-generated if not provided).
+     * Supports TWO modes:
+     * 
+     * SINGLE MODE (backward compatible):
+     *   - Input: po (single PO number)
+     *   - Returns: Single supplier/PO result in flat structure
+     * 
+     * MULTI MODE (new):
+     *   - Input: poList (array of PO numbers)
+     *   - Returns: Array of supplier results in 'suppliers', each with nested poDetails
+     * 
+     * For each supplier, historical OTIF is fetched via getSupplierHistoricalOtif.
      * 
      * Computed from S4R:
      * - delayDays: actualDate - plannedDate (from GR PostingDate and ScheduleLine)
@@ -599,29 +609,102 @@ service SupplierResilienceService {
      * - estimatedRevenueImpact: From PO net amount
      * - affectedPlants: Derived from PO items
      * 
-     * Now available (via getSupplierHistoricalOtif integration):
-     * - supplierOtif (historical), supplierTrend, previousDelays
-     * - Full supplier OTIF breakdown in supplierOtifData
-     * 
-     * Not available (returned as null):
-     * - materialCriticality, affectedSkus
-     * 
      * @param caseId - Case identifier (optional - auto-generated if not provided)
-     * @param po - Purchase Order number (required)
-     * @param supplierId - Supplier ID (optional - auto-detected from PO if not provided)
+     * @param po - Purchase Order number (for single mode - backward compatible)
+     * @param supplierId - Supplier ID (optional - auto-detected from PO)
+     * @param poList - Array of Purchase Order numbers (for multi mode)
      * 
      * @returns Risk assessment computed from real-time S4R data including supplier historical OTIF
      */
     action runEarlyWarningWithS4R(
         caseId      : String,
         po          : String,
-        supplierId  : String
+        supplierId  : String,
+        poList      : array of String
     ) returns {
         success                 : Boolean;
         agent                   : String;
         caseId                  : String;
         caseIdGenerated         : Boolean;
         status                  : String;
+        
+        // ═══════════════════════════════════════════════════════════════════════
+        // MULTI MODE FIELDS (populated when using poList)
+        // ═══════════════════════════════════════════════════════════════════════
+        totalSuppliers          : Integer;
+        totalPOs                : Integer;
+        
+        // Suppliers array - each supplier contains full assessment + poDetails
+        suppliers               : array of {
+            supplierId              : String;
+            supplierName            : String;
+            supplierOtif            : Integer;
+            supplierTrend           : String;
+            previousDelays          : Integer;
+            riskScore               : Integer;
+            maxPossibleScore        : Integer;
+            riskPercentage          : Integer;
+            riskLevel               : String;
+            scoreBreakdown          : {
+                supplierPerformance     : Integer;
+                delaySeverity           : Integer;
+                materialCriticality     : Integer;
+                affectedScope           : Integer;
+                revenueExposure         : Integer;
+                total                   : Integer;
+            };
+            scoringNote             : String;
+            supplierOtifData        : {
+                otifPercentage          : Integer;
+                totalPOs                : Integer;
+                deliveredPOs            : Integer;
+                otifPOs                 : Integer;
+                onTimePOs               : Integer;
+                inFullPOs               : Integer;
+                pendingPOs              : Integer;
+                overduePOs              : Integer;
+                partiallyDeliveredPOs   : Integer;
+                onTimePercentage        : Integer;
+                inFullPercentage        : Integer;
+                fromDate                : String;
+                toDate                  : String;
+            };
+            affectedPlants          : array of String;
+            affectedPlantsCount     : Integer;
+            totalRevenueExposure    : Decimal;
+            topRiskDrivers          : array of String;
+            poCount                 : Integer;
+            poDetails               : array of {
+                poNumber                : String;
+                orderDate               : String;
+                currency                : String;
+                poNetAmount             : Decimal;
+                materialId              : String;
+                materialDescription     : String;
+                plant                   : String;
+                expectedDeliveryDate    : String;
+                actualDeliveryDate      : String;
+                delayDays               : Integer;
+                deliveryStatus          : String;
+                isOnTime                : Boolean;
+                isInFull                : Boolean;
+                otifForThisPO           : Integer;
+                otifReason              : String;
+                orderedQuantity         : Decimal;
+                deliveredQuantity       : Decimal;
+                quantityUnit            : String;
+                deliveryCompletion      : Integer;
+                estimatedRevenueImpact  : Decimal;
+            };
+            dataSource              : String;
+            calculatedAt            : String;
+            unavailableFields       : array of String;
+            error                   : String;
+        };
+        
+        // ═══════════════════════════════════════════════════════════════════════
+        // SINGLE MODE FIELDS (backward compatible - populated when using single po)
+        // ═══════════════════════════════════════════════════════════════════════
         
         // Risk Scoring (only available components)
         riskScore               : Integer;

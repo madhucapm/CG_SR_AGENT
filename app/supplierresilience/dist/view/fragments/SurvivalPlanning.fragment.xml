@@ -1,0 +1,97 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!--
+        Survival Planning Dashboard.
+        Consumes the survivalPlanning JSON model populated from Survival
+        Planner Agent output / case material-supply data.
+    -->
+    <VBox class="assessHome" width="100%">
+
+        <!-- Page title -->
+        <VBox class="assessTitleWrap">
+            <Title text="Survival Planning" level="H2" class="assessTitle" />
+            <Text text="Coverage analysis, time-to-survive, recovery gaps and shortfall quantification."
+                  class="assessSubtitle" />
+        </VBox>
+
+        <!-- Case context banner -->
+        <HBox class="caseBanner" alignItems="Center">
+            <HBox alignItems="Center" class="caseBannerLeft">
+                <Text text="CASE ID" class="caseBannerLabel" />
+                <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '— none active —' }"
+                      class="{= ${dashboard>/selectedCaseId} ? 'caseBannerValue caseBannerValue--active' : 'caseBannerValue' }" />
+            </HBox>
+            <Text text="Preview and confirm an event in News Feed to create a case."
+                  class="caseBannerHint"
+                  visible="{= !${dashboard>/selectedCaseId} }" />
+        </HBox>
+
+        <!-- KPI Cards Row -->
+        <HBox class="raKpiRow" width="100%">
+            <VBox class="raKpiCard raKpiCard--critical">
+                <Text text="CRITICAL ITEMS" class="raKpiLabel" />
+                <Title text="{survivalPlanning>/kpi/criticalItems/value}" level="H1"
+                       class="raKpiValue raKpiValue--critical" />
+                <Text text="{survivalPlanning>/kpi/criticalItems/sub}" class="raKpiSub" />
+            </VBox>
+            <VBox class="raKpiCard raKpiCard--warning">
+                <Text text="AVG COVERAGE" class="raKpiLabel" />
+                <Title text="{survivalPlanning>/kpi/avgCoverage/value}" level="H1"
+                       class="raKpiValue raKpiValue--warning" />
+                <Text text="{survivalPlanning>/kpi/avgCoverage/sub}" class="raKpiSub" />
+            </VBox>
+            <VBox class="raKpiCard raKpiCard--info">
+                <Text text="WORST GAP" class="raKpiLabel" />
+                <Title text="{survivalPlanning>/kpi/worstGap/value}" level="H1"
+                       class="raKpiValue raKpiValue--info" />
+                <Text text="{survivalPlanning>/kpi/worstGap/sub}" class="raKpiSub" />
+            </VBox>
+            <VBox class="raKpiCard raKpiCard--neutral">
+                <Text text="TOTAL SHORTFALL" class="raKpiLabel" />
+                <Title text="{survivalPlanning>/kpi/totalShortfall/value}" level="H1"
+                       class="raKpiValue" />
+                <Text text="{survivalPlanning>/kpi/totalShortfall/sub}" class="raKpiSub" />
+            </VBox>
+        </HBox>
+
+        <!-- Material Coverage Analysis panel (full width) -->
+        <VBox class="raTablePanel spFullPanel" width="100%">
+            <HBox alignItems="Center" class="raPanelHeader">
+                <Title text="MATERIAL COVERAGE ANALYSIS" level="H4" class="raPanelTitle" />
+                <Text text="OPEN: IMPACT CALCULATION INTEGRATION" class="spStatusBadge" />
+            </HBox>
+            <Table items="{survivalPlanning>/materials}"
+                   showSeparators="Inner" fixedLayout="false" class="raTable spTable"
+                   noDataText="No material coverage data. Select a case to populate.">
+                <columns>
+                    <Column width="16%"><Text text="MATERIAL" class="raColHeader" /></Column>
+                    <Column width="14%"><Text text="PLANT" class="raColHeader" /></Column>
+                    <Column width="12%" hAlign="Center"><Text text="COVERAGE" class="raColHeader" /></Column>
+                    <Column width="14%" hAlign="Center"><Text text="TIME-TO-SURVIVE" class="raColHeader" /></Column>
+                    <Column width="14%" hAlign="Center"><Text text="RECOVERY" class="raColHeader" /></Column>
+                    <Column width="12%" hAlign="Center"><Text text="GAP" class="raColHeader" /></Column>
+                    <Column width="12%" hAlign="Center"><Text text="SHORTFALL" class="raColHeader" /></Column>
+                </columns>
+                <items>
+                    <ColumnListItem class="raTableRow">
+                        <cells>
+                            <Text text="{survivalPlanning>material}" class="raCell raCellBold" />
+                            <Text text="{survivalPlanning>plant}" class="raCell" />
+                            <Text text="{survivalPlanning>coverage}"
+                                  class="{= parseInt(${survivalPlanning>coverage}) &lt; 10 ? 'spCovBadge spCovBadge--critical' : parseInt(${survivalPlanning>coverage}) &lt;= 20 ? 'spCovBadge spCovBadge--warning' : 'spCovBadge spCovBadge--safe' }" />
+                            <Text text="{survivalPlanning>timeToSurvive}" class="raCell" />
+                            <Text text="{survivalPlanning>recovery}" class="raCell" />
+                            <Text text="{survivalPlanning>gap}"
+                                  class="{= parseInt(${survivalPlanning>gap}) > 10 ? 'spGapText spGapText--critical' : parseInt(${survivalPlanning>gap}) > 0 ? 'spGapText spGapText--warning' : 'spGapText spGapText--safe' }" />
+                            <Text text="{survivalPlanning>shortfall}"
+                                  class="{= ${survivalPlanning>shortfall} === '-' || ${survivalPlanning>shortfall} === '—' ? 'raCell' : 'spShortfallText' }" />
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </VBox>
+
+    </VBox>
+</core:FragmentDefinition>
+

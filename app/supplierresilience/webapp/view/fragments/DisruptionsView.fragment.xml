@@ -70,7 +70,7 @@
         <!-- No risk selected placeholder -->
         <!-- <VBox visible="{= !${disruptions>/selectedRisk} &amp;&amp; !${disruptions>/hasResult}}" class="sapUiMediumMarginTop">
             <MessageStrip
-                text="Select a risk from the Global Risks list on the Control Tower, then click 'Investigate a Risk' in the AI Assistant to analyze its impact."
+                text="Select a risk from the Global Risks list on the News Feed, then click 'Investigate a Risk' in the AI Assistant to analyze its impact."
                 type="Warning"
                 showIcon="true" />
         </VBox> -->

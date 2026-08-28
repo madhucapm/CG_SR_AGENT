@@ -8,7 +8,7 @@
     "globalRisks": [],
     "globalRisksBusy": false,
     "selectedWorkspace": {
-        "eyebrow": "CONTROL TOWER",
+        "eyebrow": "NEWS FEED",
         "title": "Live resilience snapshot",
         "description": "Cross-agent view of active signals, incidents, and recovery plans.",
         "status": "Streams live"
@@ -27,10 +27,22 @@
                 "Detect Deterioration"
             ],
             "outputs": [
-                { "label": "OTIF", "value": "68%" },
-                { "label": "Delay Trend", "value": "Deteriorating" },
-                { "label": "Risk Score", "value": "85/100" },
-                { "label": "Severity", "value": "HIGH" }
+                {
+                    "label": "OTIF",
+                    "value": "68%"
+                },
+                {
+                    "label": "Delay Trend",
+                    "value": "Deteriorating"
+                },
+                {
+                    "label": "Risk Score",
+                    "value": "85/100"
+                },
+                {
+                    "label": "Severity",
+                    "value": "HIGH"
+                }
             ],
             "outputTitle": "Outputs"
         },
@@ -47,11 +59,26 @@
                 "Compare with Recovery Time"
             ],
             "outputs": [
-                { "label": "Available Inventory", "value": "500 Tons" },
-                { "label": "Demand", "value": "50 Tons/Week" },
-                { "label": "Survival Window", "value": "10 Weeks" },
-                { "label": "Supplier Recovery", "value": "14 Weeks" },
-                { "label": "Gap", "value": "4 Weeks" }
+                {
+                    "label": "Available Inventory",
+                    "value": "500 Tons"
+                },
+                {
+                    "label": "Demand",
+                    "value": "50 Tons/Week"
+                },
+                {
+                    "label": "Survival Window",
+                    "value": "10 Weeks"
+                },
+                {
+                    "label": "Supplier Recovery",
+                    "value": "14 Weeks"
+                },
+                {
+                    "label": "Gap",
+                    "value": "4 Weeks"
+                }
             ],
             "outputTitle": "Outputs"
         },
@@ -68,10 +95,22 @@
                 "Validate Compliance"
             ],
             "outputs": [
-                { "label": "Alt Grade A", "value": "Allowed" },
-                { "label": "Alt Grade B", "value": "Blocked" },
-                { "label": "Supplier X", "value": "Allowed" },
-                { "label": "Other Options", "value": "..." }
+                {
+                    "label": "Alt Grade A",
+                    "value": "Allowed"
+                },
+                {
+                    "label": "Alt Grade B",
+                    "value": "Blocked"
+                },
+                {
+                    "label": "Supplier X",
+                    "value": "Allowed"
+                },
+                {
+                    "label": "Other Options",
+                    "value": "..."
+                }
             ],
             "outputTitle": "Outputs"
         },
@@ -88,10 +127,22 @@
                 "Provide Recommendation"
             ],
             "outputs": [
-                { "label": "1. Transfer + Supplier X", "value": "(20 wks)" },
-                { "label": "2. Supplier X Only", "value": "(16 wks)" },
-                { "label": "3. Transfer Only", "value": "(13 wks)" },
-                { "label": "4. Wait", "value": "(10 wks)" }
+                {
+                    "label": "1. Transfer + Supplier X",
+                    "value": "(20 wks)"
+                },
+                {
+                    "label": "2. Supplier X Only",
+                    "value": "(16 wks)"
+                },
+                {
+                    "label": "3. Transfer Only",
+                    "value": "(13 wks)"
+                },
+                {
+                    "label": "4. Wait",
+                    "value": "(10 wks)"
+                }
             ],
             "outputTitle": "Outputs (Ranked Options)"
         },
@@ -108,23 +159,35 @@
                 "Manage Stakeholder Communication"
             ],
             "outputs": [
-                { "label": "Workflow Status", "value": "Active" },
-                { "label": "Pending Approvals", "value": "2" },
-                { "label": "Completed Steps", "value": "5/7" },
-                { "label": "Next Action", "value": "SCRM Review" }
+                {
+                    "label": "Workflow Status",
+                    "value": "Active"
+                },
+                {
+                    "label": "Pending Approvals",
+                    "value": "2"
+                },
+                {
+                    "label": "Completed Steps",
+                    "value": "5/7"
+                },
+                {
+                    "label": "Next Action",
+                    "value": "SCRM Review"
+                }
             ],
             "outputTitle": "Outputs"
         }
     ],
     "incident": {
         "id": "CASE-1004",
-        "title": "Semiconductor shortage — Tier-2 fab outage",
+        "title": "Semiconductor shortage \u2014 Tier-2 fab outage",
         "supplier": "Fab-East Ltd.",
         "material": "MPU-A55",
         "status": "Awaiting approval",
         "score": 87,
         "severity": "Critical",
-        "exposure": "€ 4.2M",
+        "exposure": "\u20ac 4.2M",
         "tts": "9 days",
         "ttr": "21 days",
         "gap": "-12 days"
@@ -180,210 +243,31 @@
     ],
     "workspaces": {
         "control": {
-            "eyebrow": "CONTROL TOWER",
+            "eyebrow": "NEWS FEED",
             "title": "Live resilience snapshot",
             "description": "Cross-agent view of active signals, incidents, and recovery plans.",
             "status": "Streams live",
             "steps": []
         },
-        "incidents": {
-            "eyebrow": "EARLY WARNING AGENT",
-            "title": "Risk detection & signal analysis",
-            "description": "Collect supplier data, calculate risk indicators, and detect deterioration.",
-            "status": "Live monitoring",
-            "steps": [
-                {
-                    "id": "1",
-                    "title": "Intake",
-                    "state": "Complete",
-                    "activity": "Correlate signals into a case",
-                    "trigger": "Signal score > 70",
-                    "output": "Case record",
-                    "sla": "< 5 min"
-                },
-                {
-                    "id": "2",
-                    "title": "Impact assessment",
-                    "state": "Running",
-                    "activity": "Compute TTS / TTR / exposure",
-                    "trigger": "Case created",
-                    "output": "Impact profile",
-                    "sla": "< 15 min"
-                },
-                {
-                    "id": "3",
-                    "title": "Response planning",
-                    "state": "Pending",
-                    "activity": "Rank recovery options",
-                    "trigger": "Impact profile ready",
-                    "output": "Ranked options",
-                    "sla": "< 30 min"
-                },
-                {
-                    "id": "4",
-                    "title": "Human approval",
-                    "state": "Pending",
-                    "activity": "Planner / SCRM decision",
-                    "trigger": "Options ranked",
-                    "output": "Approved plan",
-                    "sla": "< 2 h"
-                }
-            ]
+        "caseDashboard": {
+            "eyebrow": "IMPACT CASE",
+            "title": "Case Dashboard",
+            "description": "Full case hierarchy with KPIs, supplier/PO/material detail and agent execution.",
+            "status": "Active",
+            "steps": []
         },
-        "signals": {
-            "eyebrow": "SIGNAL MONITOR",
-            "title": "Early-warning stream",
-            "description": "Live external + internal signal ingestion.",
-            "status": "214 signals today",
-            "steps": [
-                {
-                    "id": "1",
-                    "title": "Ingest",
-                    "state": "Live",
-                    "activity": "Pull news, AIS, ERP, portal deltas",
-                    "trigger": "Continuous",
-                    "output": "Raw signal",
-                    "sla": "streaming"
-                },
-                {
-                    "id": "2",
-                    "title": "Normalize",
-                    "state": "Live",
-                    "activity": "Enrich with supplier/material graph",
-                    "trigger": "Signal received",
-                    "output": "Enriched signal",
-                    "sla": "< 30 s"
-                },
-                {
-                    "id": "3",
-                    "title": "Score",
-                    "state": "Live",
-                    "activity": "Assign RAISE score",
-                    "trigger": "Signal enriched",
-                    "output": "Scored signal",
-                    "sla": "< 1 min"
-                },
-                {
-                    "id": "4",
-                    "title": "Escalate",
-                    "state": "Live",
-                    "activity": "Open case if score > 70",
-                    "trigger": "Threshold breach",
-                    "output": "Case",
-                    "sla": "< 2 min"
-                }
-            ]
+        "riskAssessment": {
+            "eyebrow": "RISK ASSESSMENT",
+            "title": "Risk Assessment Dashboard",
+            "description": "Early Warning Agent output \u2014 risk scores, severity and impact analysis.",
+            "status": "Ready",
+            "steps": []
         },
-        "planning": {
-            "eyebrow": "PLANNING QUEUE",
-            "title": "Survival planner workbench",
-            "description": "Recovery scenarios awaiting simulation or approval.",
-            "status": "3 in queue",
-            "steps": [
-                {
-                    "id": "1",
-                    "title": "Scenario draft",
-                    "state": "Complete",
-                    "activity": "Define scope & levers",
-                    "trigger": "Case opened",
-                    "output": "Scenario shell",
-                    "sla": "< 10 min"
-                },
-                {
-                    "id": "2",
-                    "title": "Simulate",
-                    "state": "Running",
-                    "activity": "Run TTS/TTR simulation",
-                    "trigger": "Scenario ready",
-                    "output": "Outcome",
-                    "sla": "< 20 min"
-                },
-                {
-                    "id": "3",
-                    "title": "Rank",
-                    "state": "Pending",
-                    "activity": "Rank by risk / cost / speed",
-                    "trigger": "Simulation done",
-                    "output": "Ranked options",
-                    "sla": "< 5 min"
-                }
-            ]
-        },
-        "approvals": {
-            "eyebrow": "APPROVALS",
-            "title": "Human commit gate",
-            "description": "Awaiting planner, SCRM or finance sign-off.",
-            "status": "2 awaiting decision",
-            "steps": [
-                {
-                    "id": "1",
-                    "title": "Package",
-                    "state": "Complete",
-                    "activity": "Assemble evidence packet",
-                    "trigger": "Options ranked",
-                    "output": "Decision packet",
-                    "sla": "< 5 min"
-                },
-                {
-                    "id": "2",
-                    "title": "Route",
-                    "state": "Complete",
-                    "activity": "Route to approver",
-                    "trigger": "Packet ready",
-                    "output": "Approval task",
-                    "sla": "< 5 min"
-                },
-                {
-                    "id": "3",
-                    "title": "Decide",
-                    "state": "Pending",
-                    "activity": "Approve / reject / amend",
-                    "trigger": "Task received",
-                    "output": "Decision",
-                    "sla": "< 2 h"
-                }
-            ]
-        },
-        "audit": {
-            "eyebrow": "AUDIT TRAIL",
-            "title": "Decision provenance log",
-            "description": "Time-stamped record of every agent and human action.",
-            "status": "Immutable log",
-            "steps": [
-                {
-                    "id": "1",
-                    "title": "Capture",
-                    "state": "Live",
-                    "activity": "Record agent/human event",
-                    "trigger": "Any action",
-                    "output": "Event record",
-                    "sla": "real-time"
-                },
-                {
-                    "id": "2",
-                    "title": "Attest",
-                    "state": "Live",
-                    "activity": "Sign with tenant key",
-                    "trigger": "Event captured",
-                    "output": "Signed event",
-                    "sla": "< 1 s"
-                },
-                {
-                    "id": "3",
-                    "title": "Publish",
-                    "state": "Live",
-                    "activity": "Expose to audit view",
-                    "trigger": "Event signed",
-                    "output": "Audit entry",
-                    "sla": "< 1 s"
-                }
-            ]
-        },
-        "cases": {
-            "eyebrow": "CASES",
-            "title": "All cases",
-            "description": "Complete case backlog across all workspaces.",
-            "status": "Live from CAP service",
+        "survivalPlanning": {
+            "eyebrow": "SURVIVAL PLANNING",
+            "title": "Survival Planning",
+            "description": "Coverage analysis, time-to-survive, recovery gaps and shortfall quantification.",
+            "status": "Ready",
             "steps": []
         }
     }

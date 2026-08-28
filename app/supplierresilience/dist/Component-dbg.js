@@ -42,7 +42,7 @@ sap.ui.define([
         },
 
         /**
-         * Compute a time-of-day greeting for the Control Tower hero header.
+         * Compute a time-of-day greeting for the News Feed hero header.
          */
         _computeGreeting: function () {
             var iHour = new Date().getHours();

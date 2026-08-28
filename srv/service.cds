@@ -49,8 +49,140 @@ service SupplierResilienceService {
     entity SurvivalResults as projection on supplierresilience.SurvivalResult;
     
     entity CaseHistories as projection on supplierresilience.CaseHistory;
-    
-    
+
+    entity CaseSuppliers as projection on supplierresilience.CaseSupplier;
+    entity CasePurchaseOrders as projection on supplierresilience.CasePurchaseOrder;
+    entity CaseMaterials as projection on supplierresilience.CaseMaterial;
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // IMPACT CASE CREATION & HIERARCHY
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Create Impact Case
+     *
+     * Creates a new case from the analyzeImpact result together with all
+     * supplier / PO / material hierarchy rows in a single transaction.
+     * The backend generates the unique SC-YYYY-NNN case ID.
+     *
+     * @param eventTitle        - Title of the disruption event
+     * @param eventDescription  - Description / impact_description
+     * @param severity          - CRITICAL, HIGH, MEDIUM, LOW
+     * @param classification    - e.g. COMPLETE INTERRUPTION
+     * @param riskScore         - 0-100
+     * @param impactType        - Free-text impact type
+     * @param estimatedImpact   - e.g. "$4.8M"
+     * @param region            - e.g. "Mumbai, India"
+     * @param affectedSuppliers - JSON string of affected_suppliers array from analyzeImpact
+     */
+    action createImpactCase(
+        eventTitle          : String,
+        eventDescription    : String,
+        severity            : String,
+        classification      : String,
+        riskScore           : Integer,
+        impactType          : String,
+        estimatedImpact     : String,
+        region              : String,
+        affectedSuppliers   : LargeString
+    ) returns {
+        success         : Boolean;
+        caseId          : String;
+        message         : String;
+        error           : String;
+        caseData        : {
+            caseId          : String;
+            eventTitle      : String;
+            severity        : String;
+            classification  : String;
+            riskScore       : Integer;
+            impactType      : String;
+            estimatedImpact : String;
+            region          : String;
+            supplierCount   : Integer;
+            poCount         : Integer;
+            materialCount   : Integer;
+            plantCount      : Integer;
+            skuCount        : Integer;
+            status          : String;
+            createdAt       : String;
+        };
+        suppliers       : array of {
+            supplierId  : String;
+            name        : String;
+            address     : String;
+            distanceKm  : Decimal;
+            poCount     : Integer;
+        };
+        purchaseOrders  : array of {
+            supplierId  : String;
+            poNumber    : String;
+        };
+        materials       : array of {
+            supplierId  : String;
+            poNumber    : String;
+            itemNo      : String;
+            material    : String;
+            plant       : String;
+            sku         : String;
+        };
+    };
+
+    /**
+     * Get Case Hierarchy
+     *
+     * Retrieves a single case with all supplier / PO / material children.
+     * Used by the Case Dashboard to display the full hierarchy for one
+     * specific case.
+     *
+     * @param caseId - The SC-YYYY-NNN case identifier
+     */
+    function getCaseHierarchy(caseId : String) returns {
+        success         : Boolean;
+        error           : String;
+        caseData        : {
+            caseId          : String;
+            eventTitle      : String;
+            eventDescription: String;
+            severity        : String;
+            classification  : String;
+            riskScore       : Integer;
+            impactType      : String;
+            estimatedImpact : String;
+            region          : String;
+            status          : String;
+            priority        : String;
+            supplierCount   : Integer;
+            poCount         : Integer;
+            materialCount   : Integer;
+            plantCount      : Integer;
+            skuCount        : Integer;
+            createdAt       : String;
+            createdBy       : String;
+        };
+        suppliers       : array of {
+            supplierId  : String;
+            name        : String;
+            address     : String;
+            distanceKm  : Decimal;
+            poCount     : Integer;
+        };
+        purchaseOrders  : array of {
+            supplierId  : String;
+            poNumber    : String;
+        };
+        materials       : array of {
+            supplierId  : String;
+            poNumber    : String;
+            itemNo      : String;
+            material    : String;
+            plant       : String;
+            sku         : String;
+        };
+    };
+
+
     // ═══════════════════════════════════════════════════════════════════════════
     // DASHBOARD APIs
     // These functions provide aggregated data for UI dashboard visualization

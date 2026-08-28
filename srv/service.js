@@ -53,7 +53,9 @@ const {
     getCurrentTimestamp,
     getDataMode,
     generateCaseId,
+    generateImpactCaseId,
     generateEventId,
+    generateUUID,
     createLogger
 } = require('./lib/utils');
 
@@ -1116,6 +1118,18 @@ module.exports = cds.service.impl(async function () {
         'analyzeImpact',
         require('./lib/analyze-impact-handler')(executeHttpRequest, logger)
     );
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CREATE IMPACT CASE — transactional case creation from analyzeImpact result
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('createImpactCase', require('./lib/create-impact-case-handler')(logger));
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET CASE HIERARCHY — retrieve full case + children for Case Dashboard
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('getCaseHierarchy', require('./lib/get-case-hierarchy-handler')(logger));
+
 
     /**
      * Get Case History / Timeline

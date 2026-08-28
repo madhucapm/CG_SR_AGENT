@@ -33,6 +33,20 @@ function generateCaseId() {
 }
 
 /**
+ * Generate a unique Impact Case ID
+ * Format: SC-YYYY-NNN (Supply Chain case from impact analysis)
+ * Example: SC-2026-613
+ * 
+ * @returns {string} Unique impact case identifier
+ */
+function generateImpactCaseId() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const randomPart = Math.floor(Math.random() * 900) + 100; // 3 digits (100-999)
+    return `SC-${year}-${randomPart}`;
+}
+
+/**
  * Generate a unique Run ID
  * Format: RUN-YYYYMMDD-HHMMSS-NNNN
  * Example: RUN-20250515-083045-1234
@@ -317,6 +331,7 @@ function isNonNegativeNumber(value) {
 module.exports = {
     // ID Generators
     generateCaseId,
+    generateImpactCaseId,
     generateRunId,
     generateEventId,
     generateUUID,

@@ -137,7 +137,7 @@ resources:
               # ─────────────────────────────────────────────────────────────
               - Name: supplier_resilience_agent
                 Type: HTTP
-                URL: https://supplier-resilience-agent.cfapps.eu10.hana.ondemand.com
+                URL: https://supplier-resilience-agent.cfapps.eu10-004.hana.ondemand.com
                 Authentication: NoAuthentication
                 ProxyType: Internet
                 HTML5.DynamicDestination: true

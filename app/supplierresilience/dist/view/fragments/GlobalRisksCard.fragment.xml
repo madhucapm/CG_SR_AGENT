@@ -17,7 +17,8 @@
                 <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
                 <Title text="{i18n>ctGlobalRisksTitle}" level="H3" class="ctCardTitle" />
             </HBox>
-            <HBox alignItems="Center">
+            <HBox alignItems="Center" class="ctRegionSelectWrap">
+                <Label text="Region" class="ctRegionLabel" />
                 <Select
                     id="globalRisksRegionSelect"
                     selectedKey="{globalRisks>/selectedRegion}"
@@ -26,12 +27,14 @@
                     items="{globalRisks>/regions}">
                     <core:Item key="{globalRisks>key}" text="{globalRisks>text}" />
                 </Select>
+                <!-- Refresh button hidden for now
                 <Button
                     icon="sap-icon://refresh"
                     type="Transparent"
                     tooltip="Refresh global risks from AI"
                     press=".onRefreshGlobalRisks"
                     class="ctRefreshBtn" />
+                -->
             </HBox>
         </HBox>
 
@@ -54,37 +57,45 @@
             updateFinished=".onRiskListUpdateFinished"
             itemPress=".onRiskPress">
             <CustomListItem class="ctRiskItem" type="Active">
-                <HBox alignItems="Center" class="ctRiskRow" justifyContent="SpaceBetween">
-                    <!-- Left: icon + title + description -->
-                    <HBox alignItems="Center" class="ctRiskLeft">
-                        <VBox class="{dashboard>iconWrapClass}" alignItems="Center" justifyContent="Center">
-                            <core:Icon src="{dashboard>icon}" class="{dashboard>iconClass}" />
-                        </VBox>
-                        <VBox class="ctRiskText">
-                            <Title text="{dashboard>title}" level="H4" class="{dashboard>titleClass}" wrapping="true" />
-                            <Text text="{dashboard>description}" class="ctRiskDescription" wrapping="true" />
-                        </VBox>
-                    </HBox>
+                <VBox width="100%">
+                    <HBox alignItems="Center" class="ctRiskRow" justifyContent="SpaceBetween">
+                        <!-- Left: icon + title + description -->
+                        <HBox alignItems="Center" class="ctRiskLeft">
+                            <VBox class="{dashboard>iconWrapClass}" alignItems="Center" justifyContent="Center">
+                                <core:Icon src="{dashboard>icon}" class="{dashboard>iconClass}" />
+                            </VBox>
+                            <VBox class="ctRiskText">
+                                <Title text="{dashboard>title}" level="H4" class="{dashboard>titleClass}" wrapping="true" />
+                                <Text text="{dashboard>description}" class="ctRiskDescription" wrapping="true" />
+                            </VBox>
+                        </HBox>
 
-                    <!-- Right: meta grid + chevron -->
-                    <HBox alignItems="Center" class="ctRiskRight">
-                        <VBox class="ctRiskMeta">
-                            <HBox alignItems="Center" class="ctRiskMetaRow">
-                                <Label text="{i18n>ctRiskLevel}" class="ctRiskMetaLabel" />
-                                <Text text="{dashboard>riskLevel}" class="riskBadgeText" app:riskLevel="{dashboard>riskLevel}" />
-                            </HBox>
-                            <HBox alignItems="Center" class="ctRiskMetaRow">
-                                <Label text="{i18n>ctRegion}" class="ctRiskMetaLabel" />
-                                <Text text="{dashboard>region}" class="ctRiskMetaValue" />
-                            </HBox>
-                            <HBox alignItems="Center" class="ctRiskMetaRow">
-                                <Label text="{i18n>ctTime}" class="ctRiskMetaLabel" />
-                                <Text text="{dashboard>time}" class="ctRiskMetaValue" />
-                            </HBox>
-                        </VBox>
-                        <core:Icon src="sap-icon://slim-arrow-right" class="ctRiskChevron" />
+                        <!-- Right: meta grid + chevron -->
+                        <HBox alignItems="Center" class="ctRiskRight">
+                            <VBox class="ctRiskMeta">
+                                <HBox alignItems="Center" class="ctRiskMetaRow">
+                                    <Label text="{i18n>ctRiskLevel}" class="ctRiskMetaLabel" />
+                                    <Text text="{dashboard>riskLevel}" class="riskBadgeText" app:riskLevel="{dashboard>riskLevel}" />
+                                </HBox>
+                                <HBox alignItems="Center" class="ctRiskMetaRow">
+                                    <Label text="{i18n>ctRegion}" class="ctRiskMetaLabel" />
+                                    <Text text="{dashboard>region}" class="ctRiskMetaValue" />
+                                </HBox>
+                                <HBox alignItems="Center" class="ctRiskMetaRow">
+                                    <Label text="{i18n>ctTime}" class="ctRiskMetaLabel" />
+                                    <Text text="{dashboard>time}" class="ctRiskMetaValue" />
+                                </HBox>
+                            </VBox>
+                            <core:Icon src="sap-icon://slim-arrow-right" class="ctRiskChevron" />
+                        </HBox>
                     </HBox>
-                </HBox>
+                    <!-- Investigate button per risk item -->
+                    <Button
+                        text="Investigate"
+                        press=".onInvestigateRisk"
+                        class="ctRiskInvestigateBtn"
+                        width="100%" />
+                </VBox>
             </CustomListItem>
         </List>
 

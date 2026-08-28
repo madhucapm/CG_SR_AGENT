@@ -1,31 +1,28 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
+
     <!--
-        Hero header for the Control Tower home page.
-        Reads user info from the `user` JSON model (populated by the
-        View1 controller on init from mockdata.json or the CAP service).
+        News Feed Home Header
+        Title is displayed in bold.
+        Subtitle is displayed in normal/regular text.
     -->
-    <VBox class="ctHero" width="100%">
-        <!-- Decorative globe / network backdrop (pure CSS) -->
-        <core:HTML content="&lt;div class=&quot;ctHeroGlobe&quot; aria-hidden=&quot;true&quot;&gt;&lt;/div&gt;" />
 
-        <VBox class="ctHeroContent">
-            <FormattedText
-                class="ctGreeting"
-                htmlText="{= (${user>/greeting} || 'Good Morning') + ', &lt;span class=&quot;ctGreetingName&quot;&gt;' + (${user>/name} || 'there') + '&lt;/span&gt;' }" />
+    <VBox
+        class="newsFeedHero"
+        width="100%">
 
-            <HBox class="ctPersonaWrap">
-                <Button
-                    icon="sap-icon://employee"
-                    text="{user>/role}"
-                    type="Transparent"
-                    class="ctPersonaBadge"
-                    enabled="false" />
-            </HBox>
+        <!-- Bold heading -->
+        <Title
+            text="News Feed — Home"
+            level="H1"
+            class="newsFeedTitle" />
 
-            <Text text="{i18n>ctTagline1}" class="ctTagline" />
-            <Text text="{i18n>ctTagline2}" class="ctTagline" />
-        </VBox>
+        <!-- Normal subtitle -->
+        <Text
+            text="Real-time supply chain disruption monitoring. Select an event to preview supplier impact; confirm to create a case."
+            class="newsFeedSubtitle" />
+
     </VBox>
+
 </core:FragmentDefinition>

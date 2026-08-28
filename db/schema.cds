@@ -143,6 +143,22 @@ entity ![Case] : cuid, managed {
     recommendation  : String(1000);             // AI-generated or rule-based recommendation
     dataSource      : String(20);               // MOCK, S4
     error           : String(500);
+
+    // ── Impact-based case fields (populated by createImpactCase) ──
+    eventTitle      : String(500);              // e.g. "Fire at ABC Metals Plant"
+    eventDescription: String(2000);
+    severity        : String(30);               // CRITICAL, HIGH, MEDIUM, LOW
+    classification  : String(100);              // COMPLETE INTERRUPTION, TARIFF, DELAYED SUPPLY, etc.
+    riskScore       : Integer;                  // 0-100
+    impactType      : String(200);
+    estimatedImpact : String(50);               // e.g. "$4.8M"
+    region          : String(100);
+    supplierCount   : Integer;
+    poCount         : Integer;
+    materialCount   : Integer;
+    plantCount      : Integer;
+    skuCount        : Integer;
+    createdBy       : String(100);
 }
 
 /**
@@ -217,6 +233,45 @@ entity SurvivalResult : cuid, managed {
     dataSource              : String(20);
     calculatedAt            : Timestamp;
     error                   : String(500);
+}
+
+/**
+ * Case Supplier — child of Case for impact-based case creation.
+ * Stores each affected supplier found by the analyzeImpact API.
+ */
+entity CaseSupplier : cuid, managed {
+    caseId      : String(30) @mandatory;
+    supplierId  : String(30);
+    name        : String(200);
+    address     : String(500);
+    distanceKm  : Decimal(10,2);
+    poCount     : Integer;
+}
+
+/**
+ * Case Purchase Order — child of Case for impact-based case creation.
+ * Stores each affected PO found by the analyzeImpact API.
+ */
+entity CasePurchaseOrder : cuid, managed {
+    caseId      : String(30) @mandatory;
+    supplierId  : String(30);
+    poNumber    : String(20);
+}
+
+/**
+ * Case Material — child of Case for impact-based case creation.
+ * Stores each material line item from affected POs (with plant + SKU).
+ * Represents the leaf level of the hierarchy:
+ * Case → Supplier → PO → Material (plant, sku).
+ */
+entity CaseMaterial : cuid, managed {
+    caseId      : String(30) @mandatory;
+    supplierId  : String(30);
+    poNumber    : String(20);
+    itemNo      : String(10);
+    material    : String(60);
+    plant       : String(40);
+    sku         : String(100);
 }
 
 /**

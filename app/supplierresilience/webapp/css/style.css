@@ -10,23 +10,268 @@ html, body, #content {
     background: #f4f6fa;
 }
 
-.towerNav {
-    min-width: 48px;
+/* ═══════════════════════════════════════════════════════════════════
+   Sidebar wrapper — holds branding block + SideNavigation
+   ═══════════════════════════════════════════════════════════════════ */
+.sidebarWrap {
     background: #1a2233;
     color: #fff;
     flex-shrink: 0;
+    width: 240px;
+    min-width: 240px;
+    height: 100%;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+}
+/* ── Sidebar branding block ── */
+.sidebarBrand {
+    padding: 1.1rem 1rem 0.9rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    gap: 0.7rem;
+    align-items: center;
+    pointer-events: none;
+    cursor: default;
+    flex-shrink: 0;
 }
 
-/* When expanded */
-.towerNav.sapTntSideNavigationExpanded {
-    width: 200px;
-    min-width: 200px;
+.brandAvatar {
+    width: 2.15rem;
+    height: 2.15rem;
+    min-width: 2.15rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, #5b8def 0%, #3a6fdb 100%);
+    flex-shrink: 0;
+}
+.brandAvatarText.sapMText {
+    color: #ffffff !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.04rem;
+    line-height: 1 !important;
+    text-align: center !important;
+    cursor: default !important;
 }
 
-.towerNav .sapTntNavLI,
+.brandTextWrap {
+    gap: 0.1rem;
+}
+.brandPrimaryTitle.sapMText {
+    color: #f0f4ff !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01rem;
+    line-height: 1.25 !important;
+    cursor: default !important;
+}
+.brandSubtitle.sapMText {
+    color: #6b7ea8 !important;
+    font-size: 0.68rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.03rem;
+    line-height: 1.3 !important;
+    cursor: default !important;
+}
+
+/* ── SideNavigation inside the wrapper ── */
+.towerNav {
+    min-width: unset !important;
+    width: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    color: #fff;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Navigation Section Labels — MONITOR · ASSESS · ACT · TRACK
+   ═══════════════════════════════════════════════════════════════════
+   Dual-targets:
+     v1.120  → .sapTntNavLIItem  (inner div) / .sapTntNavLIText
+     v1.151+ → .sapTntNLI        (inner div) / .sapTntNLIText
+   ─────────────────────────────────────────────────────────────── */
+
+/* 1 – Outer <li> */
+.navSectionLabel {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding: 0 !important;
+    margin: 1rem 0 0 0 !important;
+    pointer-events: none !important;
+    cursor: default !important;
+}
+.navSectionLabel:first-child { margin-top: 0.25rem !important; }
+
+/* 2 – Inner box (the white rectangle) */
+.navSectionLabel .sapTntNavLIItem,
+.navSectionLabel .sapTntNLI {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    height: auto !important;
+    min-height: unset !important;
+    cursor: default !important;
+    pointer-events: none !important;
+    opacity: 1 !important;
+    padding: 0.3rem 1rem 0.1rem 1rem !important;
+}
+.navSectionLabel .sapTntNavLIItem::before,
+.navSectionLabel .sapTntNLI::before {
+    display: none !important;
+    content: none !important;
+}
+
+/* 3 – Inner <a> wrapper (v1.151+) */
+.navSectionLabel .sapTntNLI a {
+    background: transparent !important;
+    border: none !important; outline: none !important;
+    box-shadow: none !important; border-radius: 0 !important;
+    padding: 0.3rem 1rem 0.1rem 1rem !important;
+    min-height: unset !important; height: auto !important;
+    cursor: default !important; pointer-events: none !important;
+}
+
+/* 4 – Kill interactive states */
+.navSectionLabel .sapTntNavLIItem:hover,
+.navSectionLabel .sapTntNavLIItem:focus,
+.navSectionLabel .sapTntNavLIItem:active,
+.navSectionLabel .sapTntNLI:hover,
+.navSectionLabel .sapTntNLI:focus,
+.navSectionLabel .sapTntNLI:active,
+.navSectionLabel .sapTntNLI a:hover,
+.navSectionLabel .sapTntNLI a:focus {
+    background: transparent !important;
+    background-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 5 – Label text */
+.navSectionLabel .sapTntNavLIText,
+.navSectionLabel .sapTntNLIText,
+.navSectionLabel .sapMText {
+    color: #5c6b94 !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1rem !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+    line-height: 1.4 !important;
+    cursor: default !important;
+}
+
+/* 6 – Override disabled opacity */
+.navSectionLabel .sapTntNavLIItemDisabled,
+.navSectionLabel .sapTntNavLIItemDisabled span,
+.navSectionLabel .sapTntNLIDisabled,
+.navSectionLabel .sapTntNLIDisabled span,
+.navSectionLabel .sapTntNLIDisabled a {
+    opacity: 1 !important;
+    color: #5c6b94 !important;
+}
+
+/* 7 – Hide icons */
+.navSectionLabel .sapTntNavLIGroupIcon,
+.navSectionLabel .sapTntNavLIExpandIcon,
+.navSectionLabel .sapTntNLIIcon,
+.navSectionLabel .sapTntNLIExpandIcon,
+.navSectionLabel .sapUiIcon {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Sidebar – Regular Menu Items
+   Dual-targets v1.120 (.sapTntNavLIItem) + v1.151+ (.sapTntNLI)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Strip Horizon white background & rounded corners on all items */
 .towerNav .sapTntNavLIItem,
-.towerNav .sapTntNavLIItemText {
+.towerNav .sapTntNLI {
+    background-color: transparent !important;
+    border-radius: 0 !important;
+    transition: background-color 0.15s ease !important;
+}
+/* Remove Horizon separator pseudo-element */
+.towerNav .sapTntNavLIItem::before,
+.towerNav .sapTntNLI::before {
+    display: none !important;
+}
+
+/* v1.120: add left-border accent placeholder directly on inner div */
+.towerNav .sapTntNavLIItem {
+    border-left: 3px solid transparent !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+/* v1.151+: left-border on inner <a> */
+.towerNav .sapTntNLI a {
+    border-left: 3px solid transparent !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+/* ── Selected / Active ── */
+/* v1.120 */
+.towerNav .sapTntNavLIItemSelected {
+    background-color: rgba(91, 141, 239, 0.12) !important;
+    border-left-color: #5b8def !important;
+    outline: none !important; box-shadow: none !important;
+}
+/* v1.151+ */
+.towerNav .sapTntNLI.sapTntNLISelected a {
+    background-color: rgba(91, 141, 239, 0.12) !important;
+    border-left-color: #5b8def !important;
+    outline: none !important; box-shadow: none !important;
+}
+.towerNav .sapTntNavLIItemSelected .sapTntNavLIText,
+.towerNav .sapTntNavLIItemSelected .sapMText,
+.towerNav .sapTntNLI.sapTntNLISelected .sapTntNLIText,
+.towerNav .sapTntNLI.sapTntNLISelected .sapMText {
+    color: #ffffff !important;
+}
+.towerNav .sapTntNavLIItemSelected .sapUiIcon,
+.towerNav .sapTntNLI.sapTntNLISelected .sapUiIcon {
+    color: #5b8def !important;
+}
+.towerNav .sapTntNavLIItemSelected::before,
+.towerNav .sapTntNLI.sapTntNLISelected::before {
+    display: none !important;
+}
+
+/* ── Hover (non-header, non-selected) ── */
+.towerNav li:not(.navSectionLabel) .sapTntNavLIItem:not(.sapTntNavLIItemSelected):not(.sapTntNavLIItemDisabled):hover,
+.towerNav li:not(.navSectionLabel) .sapTntNLI:not(.sapTntNLISelected):not(.sapTntNLIDisabled) a:hover {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* ── Focus – thin accent outline ── */
+.towerNav li:not(.navSectionLabel) .sapTntNavLIItem:not(.sapTntNavLIItemDisabled):focus,
+.towerNav li:not(.navSectionLabel) .sapTntNLI:not(.sapTntNLIDisabled) a:focus {
+    outline: 1px solid rgba(91, 141, 239, 0.4) !important;
+    outline-offset: -1px !important;
+    box-shadow: none !important;
+}
+
+/* ── Default text colour in dark sidebar ── */
+.towerNav .sapTntNavLIItem .sapTntNavLIText,
+.towerNav .sapTntNavLIItem .sapMText,
+.towerNav .sapTntNLI .sapTntNLIText,
+.towerNav .sapTntNLI .sapMText {
     color: #dfe6f2 !important;
+}
+/* ── Default icon colour ── */
+.towerNav .sapTntNavLIItem .sapUiIcon,
+.towerNav .sapTntNLI .sapUiIcon {
+    color: #8b9dc7 !important;
 }
 
 .workspace {
@@ -59,23 +304,6 @@ html, body, #content {
 .contentPad {
     padding: 1.5rem 2rem 2rem 2rem;
     gap: 1.25rem;
-}
-
-.pageIntro {
-    margin-bottom: 0.5rem;
-}
-
-.eyebrow {
-    font-size: 0.72rem;
-    letter-spacing: 0.12rem;
-    color: #6b7690;
-    text-transform: uppercase;
-    font-weight: 600;
-}
-
-.subhead {
-    color: #6b7690;
-    margin-top: 0.25rem;
 }
 
 .metricStrip {
@@ -192,25 +420,6 @@ html, body, #content {
     font-size: 0.8rem;
 }
 
-.approvalBar {
-    margin-top: 1rem;
-    padding: 0.75rem 1rem;
-    background: #eef2fb;
-    border-radius: 8px;
-}
-
-.processView {
-    gap: 1rem;
-}
-
-.processMeta {
-    gap: 2rem;
-    background: #ffffff;
-    border: 1px solid #e0e4ec;
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-}
-
 .processHeader {
     margin-top: 0.5rem;
 }
@@ -259,291 +468,13 @@ html, body, #content {
     font-weight: 600;
 }
 
-.casesPanel {
-    background: #ffffff;
-    border: 1px solid #e0e4ec;
-    border-radius: 12px;
-    padding: 0.75rem;
-    overflow-x: auto;
-    max-width: 100%;
-}
-
-/* Table responsive styling */
-.casesPanel .sapUiTable {
-    min-width: 100%;
-}
-
-.casesPanel .sapUiTableCtrlScr {
-    overflow-x: auto;
-}
-
-/* Reduce table column widths for better fit */
-.casesPanel .sapUiTableColHdrCnt {
-    min-width: auto !important;
-}
-
-/* Case details panel styling */
-.caseDetailsPanel {
-    margin-top: 0.75rem;
-    background: #ffffff;
-    border: 1px solid #e0e4ec;
-    border-radius: 12px;
-}
-
-.caseDetailsPanel .sapMPanelContent {
-    padding: 0.5rem 1rem;
-}
-
-/* ===== Agent Card Redesign ===== */
-
-.agentCard {
-    background: #ffffff;
-    border: 1px solid #e0e4ec;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    min-width: 280px;
-    max-width: 320px;
-    flex: 1;
-    gap: 0.75rem;
-}
-
-.agentHeader {
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-}
-
-/* Agent Icon Box - styled icon with colored background */
-.agentIconBox {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px;
-    border-radius: 6px;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 1.25rem !important;
-    color: #ffffff !important;
-    background: #2e7d32;
-    padding: 6px;
-    box-sizing: border-box;
-}
-
-.agentIconBox-green {
-    background: #2e7d32 !important;
-}
-
-.agentIconBox-blue {
-    background: #1565c0 !important;
-}
-
-.agentIconBox-teal {
-    background: #00838f !important;
-}
-
-.agentIconBox-orange {
-    background: #ef6c00 !important;
-}
-
-.agentIconBox-purple {
-    background: #7b1fa2 !important;
-}
-
-/* Override SAP icon default styles */
-.agentIconBox.sapUiIcon {
-    color: #ffffff !important;
-}
-
-.agentIconBox::before {
-    color: #ffffff !important;
-}
-
-.agentBadge {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-    color: #ffffff;
-    flex-shrink: 0;
-}
-
-.agentBadge-green {
-    background: #43a047;
-}
-
-.agentBadge-blue {
-    background: #1e88e5;
-}
-
-.agentBadge-teal {
-    background: #00acc1;
-}
-
-.agentBadge-orange {
-    background: #fb8c00;
-}
-
-.agentBadge-purple {
-    background: #8e24aa;
-}
-
-.agentTitle {
-    margin: 0 !important;
-    font-size: 1rem !important;
-    font-weight: 600 !important;
-}
-
-.agentTitle-green {
-    color: #2e7d32 !important;
-}
-
-.agentTitle-blue {
-    color: #1565c0 !important;
-}
-
-.agentTitle-teal {
-    color: #00838f !important;
-}
-
-.agentTitle-orange {
-    color: #ef6c00 !important;
-}
-
-.agentTitle-purple {
-    color: #7b1fa2 !important;
-}
-
-/* Activities Section */
-.agentActivities {
-    padding: 0.25rem 0;
-}
-
-.activityList {
-    background: transparent !important;
-}
-
-.activityList .sapMListItems {
-    background: transparent !important;
-}
-
-.activityItem {
-    background: transparent !important;
-    padding: 0.15rem 0 !important;
-    min-height: auto !important;
-}
-
-.activityItem .sapMLIBContent {
-    padding: 0 !important;
-}
-
-.bulletPoint {
-    color: #1a2233;
-    font-weight: 700;
-    margin-right: 0.5rem;
-    font-size: 1rem;
-}
-
 .activityText {
     color: #1a2233;
     font-size: 0.875rem;
 }
 
-/* Outputs Section - Dashed Border Box */
-.agentOutputs {
-    border: 2px dashed #e0e4ec;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    margin-top: 0.5rem;
-}
-
-.agentOutputs-green {
-    border-color: #81c784;
-}
-
-.agentOutputs-blue {
-    border-color: #64b5f6;
-}
-
-.agentOutputs-teal {
-    border-color: #4dd0e1;
-}
-
-.agentOutputs-orange {
-    border-color: #ffb74d;
-}
-
-.agentOutputs-purple {
-    border-color: #ce93d8;
-}
-
-.outputTitle {
-    font-weight: 600;
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-}
-
-.outputTitle-green {
-    color: #2e7d32;
-}
-
-.outputTitle-blue {
-    color: #1565c0;
-}
-
-.outputTitle-teal {
-    color: #00838f;
-}
-
-.outputTitle-orange {
-    color: #ef6c00;
-}
-
-.outputTitle-purple {
-    color: #7b1fa2;
-}
-
-.outputList {
-    background: transparent !important;
-}
-
-.outputList .sapMListItems {
-    background: transparent !important;
-}
-
-.outputItem {
-    background: transparent !important;
-    padding: 0.1rem 0 !important;
-    min-height: auto !important;
-}
-
-.outputItem .sapMLIBContent {
-    padding: 0 !important;
-}
-
-.outputLabel {
-    color: #1a2233;
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-.outputValue {
-    color: #1a2233;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-/* Agent Row Layout */
-.agentRow {
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
 /* =========================================================================
-   Control Tower – redesigned home page (dark theme).
+   News Feed – redesigned home page (dark theme).
    Scoped under `.ctHome` so other tabs (Cases, Coordinator, Agent sub-tabs)
    keep the existing light theme untouched.
    ========================================================================= */
@@ -555,7 +486,7 @@ html, body, #content {
     margin: -1.5rem -2rem -2rem -2rem; /* neutralize .contentPad padding */
 }
 
-/* Disruptions view – Back to Risk Feed header */
+/* Case Dashboard view – Back to Risk Feed header */
 .disruptionsBackHeader {
     padding: 0;
 }
@@ -584,7 +515,7 @@ html, body, #content {
     text-align: center;
 }
 
-/* Disruptions selected risk card – light theme override */
+/* Case Dashboard selected risk card – light theme override */
 .disruptionsBackHeader .ctRiskItem {
     background: #1e2a4a !important;
     border: 1px solid rgba(80, 120, 220, 0.25) !important;
@@ -913,8 +844,177 @@ html, body, #content {
 }
 .ctViewAllLinkIcon.sapUiIcon::before { color: #4ea3ff !important; }
 
+/* ─── Region label next to the Select dropdown ─── */
+.ctRegionSelectWrap { gap: 0.5rem; align-items: center; }
+.ctRegionLabel.sapMLabel {
+    color: #8895c2 !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04rem;
+}
 
-/* ---------- AI Assistant card ---------- */
+/* ─── Investigate button inside each risk list item ─── */
+.ctRiskInvestigateBtn.sapMBtn {
+    margin-top: 0.5rem !important;
+    height: 1.75rem !important;
+    min-height: 1.75rem !important;
+    border-radius: 6px !important;
+    background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%) !important;
+    border: 1px solid rgba(180, 130, 255, 0.4) !important;
+}
+.ctRiskInvestigateBtn.sapMBtn .sapMBtnInner {
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    min-height: 1.75rem !important;
+    height: 1.75rem !important;
+    padding: 0 0.75rem !important;
+}
+.ctRiskInvestigateBtn.sapMBtn .sapMBtnContent {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    letter-spacing: 0.03rem;
+}
+.ctRiskInvestigateBtn.sapMBtn:hover,
+.ctRiskInvestigateBtn.sapMBtn:hover .sapMBtnInner {
+    background: linear-gradient(90deg, #4338ca 0%, #6d28d9 100%) !important;
+}
+
+/* ---------- Case Creation card (replaces AI Assistant) ---------- */
+.ctCaseCreationCard { align-items: stretch; }
+
+.caseCreationHeader {
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+    align-items: center;
+}
+
+.humanLoopBadge .sapMObjStatusText {
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06rem;
+}
+
+.caseCreationDescription {
+    color: #a9b6dd !important;
+    font-size: 0.85rem !important;
+    line-height: 1.55;
+}
+
+.caseCreationSeparator {
+    height: 1px;
+    background: rgba(80, 120, 220, 0.15);
+    margin: 0.6rem 0;
+    width: 100%;
+}
+
+.agentPipelineTitle.sapMTitle {
+    color: #6b7aa8 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.1rem;
+    font-weight: 700 !important;
+    margin-bottom: 0.35rem !important;
+}
+
+.agentPipeline { gap: 0.4rem; }
+
+.agentPipelineItem { gap: 0.6rem; padding: 0.2rem 0; }
+
+.agentPipelineDot.sapUiIcon { font-size: 0.65rem !important; }
+.agentPipelineDot.sapUiIcon::before { font-size: 0.65rem !important; }
+
+.agentPipelineDotWarning.sapUiIcon,
+.agentPipelineDotWarning.sapUiIcon::before { color: #f97316 !important; }
+.agentPipelineDotBlue.sapUiIcon,
+.agentPipelineDotBlue.sapUiIcon::before { color: #3b82f6 !important; }
+.agentPipelineDotLightBlue.sapUiIcon,
+.agentPipelineDotLightBlue.sapUiIcon::before { color: #60a5fa !important; }
+.agentPipelineDotPurple.sapUiIcon,
+.agentPipelineDotPurple.sapUiIcon::before { color: #a855f7 !important; }
+.agentPipelineDotTeal.sapUiIcon,
+.agentPipelineDotTeal.sapUiIcon::before { color: #2dd4bf !important; }
+
+.agentPipelineText {
+    color: #dfe8ff !important;
+    font-size: 0.85rem !important;
+}
+
+.humanDecisionBadge .sapMObjStatusText {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04rem;
+}
+
+/* ─── Impact Preview (State 2 of the right-side card) ─── */
+.ipSummaryCard {
+    background: #0a1428;
+    border: 1px solid rgba(80, 120, 220, 0.2);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+}
+.ipLabel {
+    color: #6b7aa8 !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1rem;
+}
+.ipTypeValue {
+    color: #dfe8ff !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    margin-bottom: 0.35rem;
+}
+.ipMetricRow { gap: 1.5rem; margin-top: 0.25rem; }
+.ipMetricBlock { flex: 1; gap: 0.1rem; }
+.ipMetricValue.sapMTitle {
+    color: #ffffff !important;
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+}
+.ipMetricValue--critical.sapMTitle { color: #ff6b6b !important; }
+.ipMetricValue--warning.sapMTitle  { color: #fb923c !important; }
+
+.ipSectionTitle {
+    color: #6b7aa8 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.1rem;
+    font-weight: 700 !important;
+    margin-top: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+.ipEwOutput { gap: 0.35rem; }
+.ipEwRow { gap: 0.6rem; padding: 0.15rem 0; }
+.ipEwLabel {
+    color: #8895c2 !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    min-width: 65px;
+}
+.ipEwValue {
+    color: #dfe8ff !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+}
+.ipHumanDecision { gap: 0.25rem; margin-top: 0.25rem; }
+.ipHumanBold {
+    color: #fb923c !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+}
+.ipHumanDescription {
+    color: #a9b6dd !important;
+    font-size: 0.82rem !important;
+    line-height: 1.5;
+}
+.ipActions { gap: 0.5rem; margin-top: 0.6rem; }
+.ipConfirmBtn.sapMBtn { border-radius: 8px !important; }
+.ipDismissBtn.sapMBtn { border-radius: 8px !important; }
+
+/* ---------- AI Assistant card (legacy, kept for compat) ---------- */
 .ctAiCard { align-items: stretch; }
 
 .ctAiGlyphWrap {
@@ -1012,32 +1112,6 @@ html, body, #content {
 .ctAiActionPrimary.sapMBtn:hover .sapMBtnInner {
     background: linear-gradient(90deg, #4338ca 0%, #6d28d9 100%) !important;
 }
-
-/* -------------------------------------------------------------------------
-   Early Warning sub-tab — "Live Early Warning Analysis" card + PO tables.
-   Ensures the card can actually flex-grow inside .agentRow now that its
-   sibling (the static agent-overview card) is hidden on this tab, and that
-   the sap.m.Table rows have room to breathe so column headers don't wrap
-   letter-by-letter.
-   ------------------------------------------------------------------------- */
-.processView .agentRow > .agentCard {
-    min-width: 0;
-    flex: 1 1 auto;
-}
-
-.poItemsTable,
-.poMatDocsTable {
-    margin-top: 0.5rem;
-}
-.poItemsTable .sapMListTblCell,
-.poMatDocsTable .sapMListTblCell {
-    padding: 0.4rem 0.6rem;
-}
-.poItemsTable .sapMListTblHeaderCell,
-.poMatDocsTable .sapMListTblHeaderCell {
-    white-space: nowrap;
-}
-
 
 @media (max-width: 900px) {
     .ctHeroContent { max-width: 100%; }
@@ -1165,6 +1239,563 @@ html, body, #content {
     color: #4ade80 !important;
     border: 1px solid #4ade80 !important;
 }
-/* start cards css */
+/* =========================================================================
+   ASSESS screens — Risk Assessment & Survival Planning (dark theme).
+   Scoped under `.assessHome` to stay consistent with the dark ctHome theme.
+   ========================================================================= */
 
+/* Container */
+.assessHome {
+    padding: 1.5rem 2rem 2rem 2rem;
+    gap: 1.25rem;
+    background: #0b1226;
+    color: #e6ecff;
+    min-height: 100%;
+}
+
+/* Page title */
+.assessTitleWrap { gap: 0.15rem; }
+.assessTitle.sapMTitle {
+    color: #ffffff !important;
+    font-size: 1.65rem !important;
+    font-weight: 700 !important;
+}
+.assessSubtitle {
+    color: #8895c2 !important;
+    font-size: 0.9rem !important;
+}
+
+/* ─── Case Context Banner ─── */
+.caseBanner {
+    background: #111d3a;
+    border: 1px solid rgba(80, 120, 220, 0.18);
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    gap: 1.5rem;
+}
+.caseBannerLeft { gap: 0.75rem; align-items: center; }
+.caseBannerLabel {
+    color: #6b7aa8 !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.1rem;
+}
+.caseBannerValue {
+    color: #8895c2 !important;
+    font-size: 0.9rem !important;
+    font-style: italic;
+}
+.caseBannerValue--active {
+    color: #4ea3ff !important;
+    font-weight: 600 !important;
+    font-style: normal !important;
+}
+.caseBannerHint {
+    color: #6b7aa8 !important;
+    font-size: 0.82rem !important;
+}
+
+/* ─── KPI Cards Row ─── */
+.raKpiRow {
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.raKpiCard {
+    background: #111d3a;
+    border: 1px solid rgba(80, 120, 220, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    flex: 1;
+    min-width: 160px;
+    gap: 0.25rem;
+}
+.raKpiLabel {
+    color: #6b7aa8 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.1rem;
+    font-weight: 700 !important;
+}
+.raKpiValue.sapMTitle {
+    color: #ffffff !important;
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+}
+.raKpiSub {
+    color: #8895c2 !important;
+    font-size: 0.8rem !important;
+    margin-top: 0.15rem;
+}
+
+/* KPI semantic accents — left border color */
+.raKpiCard--critical { border-left: 3px solid #ef4444; }
+.raKpiCard--warning  { border-left: 3px solid #f97316; }
+.raKpiCard--info     { border-left: 3px solid #3b82f6; }
+.raKpiCard--neutral  { border-left: 3px solid #64748b; }
+
+.raKpiValue--critical.sapMTitle { color: #ff6b6b !important; }
+.raKpiValue--warning.sapMTitle  { color: #fb923c !important; }
+.raKpiValue--info.sapMTitle     { color: #60a5fa !important; }
+
+
+/* ─── Supplier Risk Table & Panel ─── */
+.raBodyRow {
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+.raTablePanel {
+    background: #111d3a;
+    border: 1px solid rgba(80, 120, 220, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    flex: 2;
+    min-width: 0;
+}
+.raPanelHeader { gap: 0.75rem; margin-bottom: 0.75rem; }
+.raPanelTitle.sapMTitle {
+    color: #8895c2 !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0.1rem;
+    font-weight: 700 !important;
+}
+.raColHeader {
+    color: #6b7aa8 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.08rem;
+    font-weight: 700 !important;
+}
+
+/* Table dark-theme overrides */
+.raTable.sapMList { background: transparent !important; }
+.raTable .sapMListTblHeader { background: rgba(255,255,255,0.03) !important; }
+.raTable .sapMListTblHeaderCell {
+    border-bottom: 1px solid rgba(80, 120, 220, 0.15) !important;
+}
+.raTable .sapMLIB { background: transparent !important; }
+.raTable .sapMListTblCell {
+    border-bottom: 1px solid rgba(80, 120, 220, 0.08) !important;
+    padding: 0.6rem 0.5rem !important;
+}
+.raTable .sapMListTblNoData {
+    color: #6b7aa8 !important;
+    background: transparent !important;
+}
+.raCell { color: #dfe8ff !important; font-size: 0.85rem !important; }
+.raCellBold { color: #ffffff !important; font-weight: 600 !important; }
+.raCellSmall { font-size: 0.8rem !important; color: #a9b6dd !important; }
+
+/* Classification badge */
+.raClassBadge {
+    display: inline-block !important;
+    padding: 0.2rem 0.6rem !important;
+    border-radius: 10px !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04rem;
+}
+.raClassBadge--critical {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ff6b6b !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+.raClassBadge--warning {
+    background: rgba(249, 115, 22, 0.15) !important;
+    color: #fb923c !important;
+    border: 1px solid rgba(249, 115, 22, 0.35) !important;
+}
+
+/* Score text semantic colors */
+.raScoreText { font-weight: 700 !important; }
+.raScoreText--critical { color: #ff6b6b !important; }
+.raScoreText--high     { color: #fb923c !important; }
+.raScoreText--medium   { color: #facc15 !important; }
+.raScoreText--low      { color: #4ade80 !important; }
+
+/* ObjectStatus inside dark table */
+.raTable .sapMObjStatusText {
+    font-weight: 700 !important;
+    font-size: 0.8rem !important;
+}
+
+
+/* ─── Risk Model Panel (right side) ─── */
+.raRiskModelPanel {
+    background: #111d3a;
+    border: 1px solid rgba(80, 120, 220, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    flex: 0 0 260px;
+    min-width: 220px;
+    gap: 0.25rem;
+}
+.raRiskModelSection { gap: 0.5rem; margin-top: 0.5rem; }
+.raRiskModelItem, .raRmSeverityRow {
+    gap: 0.6rem;
+    align-items: center;
+    padding: 0.2rem 0;
+}
+.raRmDot.sapUiIcon { font-size: 0.7rem !important; }
+.raRmDot.sapUiIcon::before { font-size: 0.7rem !important; }
+.raRmDot--red.sapUiIcon,
+.raRmDot--red.sapUiIcon::before { color: #ef4444 !important; }
+.raRmDot--orange.sapUiIcon,
+.raRmDot--orange.sapUiIcon::before { color: #f97316 !important; }
+.raRmDot--blue.sapUiIcon,
+.raRmDot--blue.sapUiIcon::before { color: #3b82f6 !important; }
+.raRmDot--purple.sapUiIcon,
+.raRmDot--purple.sapUiIcon::before { color: #a855f7 !important; }
+.raRmDot--yellow.sapUiIcon,
+.raRmDot--yellow.sapUiIcon::before { color: #facc15 !important; }
+.raRmDot--green.sapUiIcon,
+.raRmDot--green.sapUiIcon::before { color: #4ade80 !important; }
+
+.raRmLabel { color: #dfe8ff !important; font-size: 0.85rem !important; flex: 1; }
+.raRmValue {
+    color: #8895c2 !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    min-width: 35px;
+    text-align: right;
+}
+.raRmDivider {
+    height: 1px;
+    background: rgba(80, 120, 220, 0.15);
+    margin: 0.6rem 0;
+}
+.raRmSectionTitle {
+    color: #6b7aa8 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.1rem;
+    font-weight: 700 !important;
+    margin-bottom: 0.25rem;
+}
+.raRmSevLabel { color: #dfe8ff !important; font-size: 0.82rem !important; flex: 1; }
+.raRmSevRange { color: #6b7aa8 !important; font-size: 0.8rem !important; }
+
+/* ─── Survival Planning – Material Coverage Table ─── */
+.spFullPanel { flex: 1; }
+.spStatusBadge {
+    display: inline-block !important;
+    background: rgba(249, 115, 22, 0.15) !important;
+    color: #fb923c !important;
+    border: 1px solid rgba(249, 115, 22, 0.3) !important;
+    border-radius: 10px !important;
+    padding: 0.15rem 0.7rem !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04rem;
+    margin-left: 0.75rem;
+}
+
+/* Coverage badge semantic colors */
+.spCovBadge {
+    display: inline-block !important;
+    padding: 0.15rem 0.55rem !important;
+    border-radius: 8px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+}
+.spCovBadge--critical {
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #ff6b6b !important;
+}
+.spCovBadge--warning {
+    background: rgba(249, 115, 22, 0.15) !important;
+    color: #fb923c !important;
+}
+.spCovBadge--safe {
+    background: rgba(34, 197, 94, 0.12) !important;
+    color: #4ade80 !important;
+}
+
+/* Gap semantic text */
+.spGapText { font-weight: 600 !important; }
+.spGapText--critical { color: #ff6b6b !important; }
+.spGapText--warning  { color: #fb923c !important; }
+.spGapText--safe     { color: #6b7aa8 !important; }
+
+/* Shortfall text */
+.spShortfallText {
+    color: #fb923c !important;
+    font-weight: 600 !important;
+}
+
+/* ─── Responsive: Risk Model collapses below table ─── */
+@media (max-width: 1100px) {
+    .raBodyRow { flex-direction: column; }
+    .raRiskModelPanel {
+        flex: 1 1 auto;
+        min-width: 100%;
+    }
+}
+.newsFeedHero {
+    padding: 1.5rem 2rem 1rem 2rem;
+}
+
+.newsFeedTitle {
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    color: #f5f7fb !important;
+    margin: 0;
+}
+
+.newsFeedSubtitle {
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    color: #9aa7bd !important;
+    margin-top: 0.4rem;
+}
+
+
+
+/* =========================================================================
+   Case Created card (State 3 of AiAssistantCard)
+   ========================================================================= */
+.ccCaseIdWrap { gap: 0.25rem; margin-top: 0.25rem; }
+.ccCaseIdRow { gap: 0.6rem; align-items: center; }
+.ccCheckIcon.sapUiIcon,
+.ccCheckIcon.sapUiIcon::before { color: #4ade80 !important; font-size: 1.1rem !important; }
+.ccCaseIdText {
+    color: #ffffff !important;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+}
+.ccEventTitle {
+    color: #a9b6dd !important;
+    font-size: 0.88rem !important;
+    margin-top: 0.15rem;
+}
+
+/* =========================================================================
+   Case Dashboard — header, hierarchy, agent panel, summary
+   ========================================================================= */
+
+/* Case Header card */
+.cdHeaderCard {
+    background: #111d3a;
+    border: 1px solid rgba(80, 120, 220, 0.18);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    gap: 1.5rem;
+}
+.cdHeaderTop { gap: 2.5rem; }
+.cdHeaderCaseId.sapMTitle {
+    color: #60a5fa !important;
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+}
+.cdHeaderEventWrap { gap: 0.15rem; }
+.cdHeaderEvent {
+    color: #dfe8ff !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+}
+.cdHeaderBadges { gap: 0.6rem; margin-top: 0.5rem; }
+
+/* Empty state */
+.cdEmptyState {
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    gap: 0.75rem;
+}
+.cdEmptyIcon.sapUiIcon,
+.cdEmptyIcon.sapUiIcon::before {
+    color: #3b4d7a !important;
+    font-size: 3rem !important;
+}
+.cdEmptyText {
+    color: #8895c2 !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+.cdEmptyHint {
+    color: #6b7aa8 !important;
+    font-size: 0.88rem !important;
+    max-width: 28rem;
+    text-align: center;
+}
+
+/* Case Hierarchy list */
+.cdHierList.sapMList { background: transparent !important; }
+.cdHierSupplierItem.sapMLIB { background: transparent !important; }
+.cdHierSupplier { padding: 0.5rem 0; }
+.cdHierSupplierLeft { gap: 0.6rem; align-items: center; }
+.cdHierIcon.sapUiIcon,
+.cdHierIcon.sapUiIcon::before { color: #60a5fa !important; font-size: 1rem !important; }
+.cdHierBadges { gap: 0.5rem; }
+
+/* Expand / Collapse toggle button */
+.cdHierToggleBtn.sapMBtn {
+    min-width: 1.5rem !important;
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    padding: 0 !important;
+    margin: 0 0.1rem 0 0 !important;
+    border: none !important;
+    background: transparent !important;
+    flex-shrink: 0;
+}
+.cdHierToggleBtn .sapMBtnInner {
+    min-width: 1.5rem !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+.cdHierToggleBtn .sapMBtnIcon,
+.cdHierToggleBtn .sapUiIcon,
+.cdHierToggleBtn .sapUiIcon::before {
+    color: #60a5fa !important;
+    font-size: 0.7rem !important;
+}
+.cdHierToggleBtn:hover .sapMBtnInner {
+    background: rgba(96, 165, 250, 0.12) !important;
+    border-radius: 0.25rem !important;
+}
+.cdHierToggleBtn:focus .sapMBtnInner {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Materials section */
+.cdMaterialsSection { margin-top: 1rem; }
+
+/* Agent Panel (right side) */
+.cdAgentPanel { min-width: 280px !important; }
+.cdWireframeBadge {
+    display: inline-block !important;
+    background: rgba(100, 116, 139, 0.15) !important;
+    color: #94a3b8 !important;
+    border: 1px solid rgba(100, 116, 139, 0.3) !important;
+    border-radius: 8px !important;
+    padding: 0.1rem 0.5rem !important;
+    font-size: 0.62rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08rem;
+    margin-bottom: 0.5rem;
+}
+.cdAgentList { gap: 0.35rem; margin-bottom: 0.75rem; }
+.cdAgentItem {
+    gap: 0.6rem;
+    padding: 0.3rem 0;
+    justify-content: flex-start;
+    align-items: center;
+}
+.cdAgentItem .agentPipelineText { flex: 1; }
+.cdAgentRunBtn.sapMBtn {
+    height: 1.8rem !important;
+    min-width: 3rem !important;
+    border: 1px solid rgba(80, 120, 220, 0.25) !important;
+    border-radius: 6px !important;
+}
+.cdAgentRunBtn .sapMBtnInner {
+    background: transparent !important;
+    color: #8895c2 !important;
+    font-size: 0.75rem !important;
+}
+
+/* Case Summary */
+.cdSummaryList { gap: 0.3rem; margin-top: 0.5rem; }
+.cdSummaryRow { gap: 0.5rem; padding: 0.15rem 0; align-items: flex-start; }
+.cdSumLabel {
+    color: #6b7aa8 !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    min-width: 75px;
+}
+.cdSumValue {
+    color: #dfe8ff !important;
+    font-size: 0.8rem !important;
+}
+
+/* =========================================================================
+   Case Dashboard — Hierarchy Tree (nested PO → Plant → SKU)
+   ========================================================================= */
+
+/* Case-level block */
+.cdHierCaseBlock {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(80, 120, 220, 0.12);
+}
+.cdHierCaseHeader {
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+    align-items: center;
+}
+.cdHierCaseIdText {
+    color: #60a5fa !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+}
+.cdHierCaseEvent {
+    color: #8895c2 !important;
+    font-size: 0.85rem !important;
+    margin-left: 0.3rem;
+}
+
+/* Indentation for the nested tree levels */
+.cdHierIndent1 { padding-left: 1.5rem; }
+.cdHierIndent2 { padding-left: 1.5rem; }
+.cdHierIndent3 { padding-left: 1.5rem; }
+.cdHierIndent4 { padding-left: 1.5rem; }
+
+/* Inner list and item resets */
+.cdHierInnerList.sapMList {
+    background: transparent !important;
+}
+.cdHierInnerItem.sapMLIB {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    min-height: auto !important;
+}
+.cdHierInnerItem .sapMLIBContent {
+    padding: 0 !important;
+    min-height: auto !important;
+}
+
+/* Supplier row in tree */
+.cdHierSupplierRow {
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    align-items: center;
+}
+
+/* PO row in tree */
+.cdHierPORow {
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    align-items: center;
+}
+.cdHierPOIcon.sapUiIcon,
+.cdHierPOIcon.sapUiIcon::before {
+    color: #a78bfa !important;
+    font-size: 0.9rem !important;
+}
+
+/* Plant row in tree */
+.cdHierPlantRow {
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+    align-items: center;
+}
+.cdHierPlantIcon.sapUiIcon,
+.cdHierPlantIcon.sapUiIcon::before {
+    color: #34d399 !important;
+    font-size: 0.85rem !important;
+}
+
+/* Material/SKU row in tree */
+.cdHierMatRow {
+    gap: 0.5rem;
+    padding: 0.15rem 0;
+    align-items: center;
+}
+.cdHierMatIcon.sapUiIcon,
+.cdHierMatIcon.sapUiIcon::before {
+    color: #fbbf24 !important;
+    font-size: 0.8rem !important;
+}
+/* (nav section header styles moved to .navSectionLabel block near top of file) */
 

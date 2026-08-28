@@ -1,0 +1,95 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!-- Monitoring — Case Timeline (Static MVP).
+         Data bound from monitoringModel JSONModel. Future: replace with CAP/HANA. -->
+    <VBox class="monitoringPage" width="100%">
+
+        <!-- PAGE HEADER -->
+        <VBox class="monitoringHeader">
+            <Title text="Monitoring — Case Timeline" level="H2" class="monitoringPageTitle" />
+            <Text text="Agent actions and completion statuses for the active case." class="monitoringPageSubtitle" />
+            <Text text="Reporting view (multi-case, geographic, multi-supplier) deferred to MVP2." class="monitoringPageDeferred" />
+        </VBox>
+
+        <!-- CASE HEADER CARD -->
+        <HBox class="monitoringCaseHeader" alignItems="Center" justifyContent="SpaceBetween">
+            <HBox alignItems="Center" class="monitoringCaseHeaderLeft">
+                <VBox class="monitoringCaseHeaderField">
+                    <Text text="CASE ID" class="raKpiLabel" />
+                    <Title text="{monitoringModel>/case/caseId}" level="H3" class="cdHeaderCaseId" />
+                </VBox>
+                <VBox class="monitoringCaseHeaderField">
+                    <Text text="EVENT" class="raKpiLabel" />
+                    <Text text="{monitoringModel>/case/event}" class="cdHeaderEvent" />
+                </VBox>
+                <HBox alignItems="Center" class="monitoringCaseHeaderBadges">
+                    <Text text="{monitoringModel>/case/severity}" class="raClassBadge raClassBadge--critical" />
+                    <Text text="{monitoringModel>/case/classification}" class="raClassBadge raClassBadge--warning" />
+                </HBox>
+            </HBox>
+            <Text text="View Monitoring →" class="monitoringCaseHeaderAction" />
+        </HBox>
+
+        <!-- MAIN CONTENT — Two-Column Layout -->
+        <HBox class="monitoringMainContent" width="100%">
+
+            <!-- LEFT: Agent Activity -->
+            <VBox class="monitoringLeftColumn">
+                <VBox class="monitoringActivityCard">
+                    <Title text="AGENT ACTIVITY" level="H4" class="raPanelTitle" />
+                    <VBox class="monitoringTimeline" items="{monitoringModel>/activities}">
+                        <VBox class="monitoringTimelineItem">
+                            <HBox class="monitoringTimelineRow">
+                                <VBox class="monitoringTimelineRail">
+                                    <core:Icon src="sap-icon://circle-task-2"
+                                        class="{= ${monitoringModel>status} === 'completed' ? 'monitoringTimelineDot monitoringTimelineDot--completed' : 'monitoringTimelineDot monitoringTimelineDot--pending' }" />
+                                    <VBox class="monitoringTimelineLine" />
+                                </VBox>
+                                <VBox class="monitoringTimelineContent">
+                                    <HBox alignItems="Center" justifyContent="SpaceBetween" class="monitoringTimelineContentHeader">
+                                        <Text text="{monitoringModel>agent}" class="monitoringActivityAgent" />
+                                        <Text text="{monitoringModel>time}" class="monitoringActivityTime" />
+                                    </HBox>
+                                    <Text text="{monitoringModel>title}" class="monitoringActivityTitle" />
+                                    <Text text="{monitoringModel>description}" class="monitoringActivityDescription" wrapping="true" />
+                                </VBox>
+                            </HBox>
+                        </VBox>
+                    </VBox>
+                </VBox>
+            </VBox>
+
+            <!-- RIGHT: Case Details + Agent Status -->
+            <VBox class="monitoringRightColumn">
+                <VBox class="monitoringCaseDetails">
+                    <Title text="CASE DETAILS" level="H4" class="raPanelTitle" />
+                    <VBox class="monitoringCaseDetailsList">
+                        <HBox class="monitoringDetailRow"><Text text="Case ID" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/caseId}" class="monitoringDetailValue" /></HBox>
+                        <HBox class="monitoringDetailRow"><Text text="Event" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/event}" class="monitoringDetailValue" wrapping="true" /></HBox>
+                        <HBox class="monitoringDetailRow"><Text text="Severity" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/severity}" class="monitoringDetailValue monitoringDetailValue--critical" /></HBox>
+                        <HBox class="monitoringDetailRow"><Text text="Classification" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/classification}" class="monitoringDetailValue" /></HBox>
+                    </VBox>
+                </VBox>
+
+                <VBox class="monitoringAgentStatusCard">
+                    <Title text="AGENT STATUS" level="H4" class="raPanelTitle" />
+                    <VBox class="monitoringAgentStatusList" items="{monitoringModel>/agentStatuses}">
+                        <HBox class="monitoringAgentStatusRow" alignItems="Center">
+                            <Text text="{monitoringModel>name}" class="monitoringAgentStatusName" />
+                            <core:Icon src="sap-icon://circle-task-2"
+                                class="{= ${monitoringModel>status} === 'completed' ? 'monitoringStatusDot monitoringStatusDot--completed' : 'monitoringStatusDot monitoringStatusDot--pending' }" />
+                        </HBox>
+                    </VBox>
+                </VBox>
+
+                <HBox class="monitoringInfoBadge" alignItems="Center" justifyContent="Center">
+                    <Text text="OPEN: AGENT COST DISPLAY IN REPORT" class="monitoringInfoBadgeText" />
+                </HBox>
+            </VBox>
+
+        </HBox>
+
+    </VBox>
+</core:FragmentDefinition>
+

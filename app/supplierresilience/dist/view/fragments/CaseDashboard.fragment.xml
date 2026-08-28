@@ -163,30 +163,30 @@
                         <HBox alignItems="Center" class="cdAgentItem">
                             <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
                             <Text text="Early Warning" class="agentPipelineText" />
-                            <Button text="Run" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                            <Button text="Run" press=".onRunEarlyWarningAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
                         </HBox>
                         <HBox alignItems="Center" class="cdAgentItem">
                             <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotBlue" />
                             <Text text="Coordinator" class="agentPipelineText" />
-                            <Button text="Run" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                            <Button text="Run" press=".onRunCoordinatorAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
                         </HBox>
                         <HBox alignItems="Center" class="cdAgentItem">
                             <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotLightBlue" />
                             <Text text="Survival Planner" class="agentPipelineText" />
-                            <Button text="Run" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                            <Button text="Run" press=".onRunSurvivalPlannerAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
                         </HBox>
                         <HBox alignItems="Center" class="cdAgentItem">
                             <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotPurple" />
                             <Text text="Substitution" class="agentPipelineText" />
-                            <Button text="Run" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                            <Button text="Run" press=".onRunSubstitutionAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
                         </HBox>
                         <HBox alignItems="Center" class="cdAgentItem">
                             <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotTeal" />
                             <Text text="Buyer" class="agentPipelineText" />
-                            <Button text="Run" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                            <Button text="Run" press=".onRunBuyerAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
                         </HBox>
                     </VBox>
-                    <Button text="Run All Agents" class="ctAiAction" width="100%" enabled="true" />
+                    <Button text="Run All Agents" press=".onRunAllAgents" class="ctAiAction" width="100%" enabled="true" />
 
                     <VBox class="raRmDivider" />
 

@@ -90,6 +90,21 @@
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.CaseDashboard" type="XML" />
                             </VBox>
 
+                            <!-- Recommendations view (ACT → Recommendations) -->
+                            <VBox id="recommendationsView" visible="false" class="dashboardViewWrap">
+                                <core:Fragment fragmentName="supplierresilience.view.fragments.Recommendations" type="XML" />
+                            </VBox>
+
+                            <!-- Execution view (ACT → Execution) -->
+                            <VBox id="executionView" visible="false" class="dashboardViewWrap">
+                                <core:Fragment fragmentName="supplierresilience.view.fragments.Execution" type="XML" />
+                            </VBox>
+
+                            <!-- Monitoring view (TRACK → Monitoring) -->
+                            <VBox id="monitoringView" visible="false" class="dashboardViewWrap">
+                                <core:Fragment fragmentName="supplierresilience.view.fragments.Monitoring" type="XML" />
+                            </VBox>
+
                         </VBox>
                     </ScrollContainer>
                 </VBox>

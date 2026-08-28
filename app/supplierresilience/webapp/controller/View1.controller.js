@@ -50,6 +50,108 @@ sap.ui.define([
             });
             this.getView().setModel(oCaseHierarchyModel, "caseHierarchy");
 
+            // Early Warning Result JSON model — populated when the user
+            // clicks "Run" on the Early Warning Agent in the Case Dashboard.
+            // Holds the full response + extracted supplier/PO data for UI binding.
+            var oEarlyWarningResultModel = new JSONModel({
+                busy: false,
+                error: null,
+                result: null,
+                caseId: null,
+                status: null,
+                totalSuppliers: 0,
+                totalPOs: 0,
+                dataSource: null,
+                calculatedAt: null,
+                suppliers: [],
+                poDetails: [],
+                summary: {
+                    totalPOs: 0, deliveredPOs: 0, overduePOs: 0, onTimePOs: 0,
+                    avgDelay: 0, totalOrdered: 0, totalDelivered: 0,
+                    maxRiskScore: 0, maxRiskLevel: null
+                }
+            });
+            this.getView().setModel(oEarlyWarningResultModel, "earlyWarningResult");
+
+            // Monitoring JSON model — static MVP data for the Case Timeline.
+            // In a future phase this model will be replaced with live
+            // CAP/HANA AgentExecutionHistory data without redesigning the XML.
+            var oMonitoringModel = new JSONModel({
+                case: {
+                    caseId: "#SC-2024-613",
+                    event: "Fire at ABC Metals Plant",
+                    severity: "CRITICAL",
+                    classification: "COMPLETE INTERRUPTION"
+                },
+                activities: [
+                    {
+                        agent: "Coordinator Agent",
+                        title: "Case Created",
+                        description: "Case created after human confirmation. 1 supplier, 2 materials, 2 plants, 3 POs at risk.",
+                        time: "14:00",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Early Warning Agent",
+                        title: "Risk Assessment Complete",
+                        description: "Risk Score: 92/100 (Critical). ABC Metals sole supplier for Al Sheet to India plants.",
+                        time: "14:03",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Survival Planner",
+                        title: "Coverage Analysis Complete",
+                        description: "Mumbai: 8 days coverage. Pune: 12 days. Gap: 14/10 days. Total shortfall: 370 MT.",
+                        time: "14:05",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Substitution Agent",
+                        title: "Recommendations Generated",
+                        description: "3 options: Delta Metals alt supplier, Pune stock transfer, Al Alloy 3003 substitution.",
+                        time: "14:08",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Approval Workflow",
+                        title: "Approved via Mock SBPA",
+                        description: "All recommendations approved. Triggering Buyer Agent.",
+                        time: "14:22",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Buyer Agent",
+                        title: "PO Created - Delta Metals (EXC-001)",
+                        description: "EXC-001: 200 MT Aluminium Sheet. Confirmed by Mock S/4HANA. Agent cost: $12.",
+                        time: "14:32",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Buyer Agent",
+                        title: "Stock Transfer Created (EXC-002)",
+                        description: "EXC-002: 80 MT Pune to Mumbai. Confirmed. Agent cost: $8.",
+                        time: "14:35",
+                        status: "completed"
+                    },
+                    {
+                        agent: "Buyer Agent",
+                        title: "PO Submitted - PolyAsia (EXC-003)",
+                        description: "EXC-003: 50 MT PET Resin. Awaiting confirmation. Agent cost: $11.",
+                        time: "15:01",
+                        status: "pending"
+                    }
+                ],
+                agentStatuses: [
+                    { name: "Coordinator", status: "completed" },
+                    { name: "Early Warning", status: "completed" },
+                    { name: "Survival Planner", status: "completed" },
+                    { name: "Substitution", status: "completed" },
+                    { name: "Approval", status: "completed" },
+                    { name: "Buyer Agent", status: "pending" }
+                ]
+            });
+            this.getView().setModel(oMonitoringModel, "monitoringModel");
+
             // Risk Assessment JSON model — sample/mock data as fallback;
             // intended to be populated from Early Warning Agent / case
             // impact results when a real case is active.
@@ -305,6 +407,15 @@ sap.ui.define([
         },
 
         /**
+         * Recommendations screen — static prototype Approve / Reject.
+         * No backend call, no persistence, no business logic.
+         * Will be replaced with real approval flow in a future phase.
+         */
+        onRecommendationAction: function () {
+            MessageToast.show("Static prototype — approval flow will be implemented in the next phase.");
+        },
+
+        /**
          * "Confirm Impact & Create Case" button on the Impact Preview card.
          * Triggers the existing Coordinator / case-creation flow for the
          * currently investigated risk. Resets the card back to initial state
@@ -460,6 +571,216 @@ sap.ui.define([
          */
         onViewMonitoring: function () {
             this._selectSideNav("audit");
+        },
+
+        /* ═══════════════════════════════════════════════════════════
+         * Agent Execution — Run buttons (Case Dashboard).
+         * Each handler currently shows a warning MessageToast.
+         * In a future phase these will trigger real backend
+         * service calls to the respective agents.
+         * ═══════════════════════════════════════════════════════════ */
+
+        /**
+         * Run Early Warning Agent with S4R data.
+         *
+         * Reads the active case from the caseHierarchy model, extracts the
+         * PO numbers (and optional supplier/plant info), then calls the
+         * CAP action `runEarlyWarningWithS4R`.
+         *
+         * Uses MULTI MODE (poList) when multiple POs exist, otherwise
+         * falls back to SINGLE MODE (po) for backward compatibility.
+         *
+         * The full response is stored in the `earlyWarningResult` JSONModel
+         * so it can be consumed by the Risk Assessment screen or any other
+         * UI that needs live Early Warning Agent output.
+         */
+        onRunEarlyWarningAgent: function () {
+            var that = this;
+            var oCaseH = this.getView().getModel("caseHierarchy");
+            var oEwModel = this.getView().getModel("earlyWarningResult");
+
+            // ── Validate: a case must be loaded ──
+            var oCaseData = oCaseH.getProperty("/caseData");
+            if (!oCaseData || !oCaseData.caseId) {
+                MessageToast.show("No active case. Please select a case first.");
+                return;
+            }
+
+            var sCaseId = oCaseData.caseId;
+            var aPurchaseOrders = oCaseH.getProperty("/purchaseOrders") || [];
+            var aSuppliers = oCaseH.getProperty("/suppliers") || [];
+            var aMaterials = oCaseH.getProperty("/materials") || [];
+
+            // Build the PO list from the case hierarchy
+            var aPoNumbers = aPurchaseOrders
+                .map(function (po) { return po.poNumber; })
+                .filter(Boolean);
+
+            if (aPoNumbers.length === 0) {
+                MessageToast.show("No Purchase Orders found for this case.");
+                return;
+            }
+
+            // ── Build payload ──
+            var oPayload;
+            if (aPoNumbers.length === 1) {
+                // SINGLE MODE — backward compatible
+                var sSupplierId = (aSuppliers.length > 0 && aSuppliers[0].supplierId) || "";
+                oPayload = {
+                    caseId: sCaseId,
+                    po: aPoNumbers[0],
+                    supplierId: sSupplierId
+                };
+            } else {
+                // MULTI MODE — multiple POs grouped by supplier
+                oPayload = {
+                    caseId: sCaseId,
+                    poList: aPoNumbers
+                };
+            }
+
+            // ── Set busy state ──
+            oEwModel.setProperty("/busy", true);
+            oEwModel.setProperty("/result", null);
+            oEwModel.setProperty("/error", null);
+            MessageToast.show("Running Early Warning Agent for " + aPoNumbers.length + " PO(s)…");
+
+            var sServiceUrl = this._getServiceUrl();
+            console.log("[EarlyWarning] POST runEarlyWarningWithS4R", oPayload);
+
+            fetch(sServiceUrl + "runEarlyWarningWithS4R", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(oPayload)
+            }).then(function (oResp) {
+                if (!oResp.ok) {
+                    return oResp.text().then(function (sBody) {
+                        throw new Error("HTTP " + oResp.status + " " + oResp.statusText +
+                            (sBody ? (": " + sBody.substring(0, 500)) : ""));
+                    });
+                }
+                return oResp.json();
+            }).then(function (oData) {
+                console.log("[EarlyWarning] runEarlyWarningWithS4R response:", oData);
+                oEwModel.setProperty("/busy", false);
+
+                if (!oData || oData.success === false) {
+                    var sError = (oData && oData.error) || "Unknown error";
+                    that._resetEarlyWarningModel(oEwModel, sError);
+                    MessageToast.show("Early Warning Agent failed: " + sError);
+                    return;
+                }
+
+                // ── Store full raw result for debugging / advanced use ──
+                oEwModel.setProperty("/result", oData);
+                oEwModel.setProperty("/error", null);
+
+                // ── Top-level fields ──
+                oEwModel.setProperty("/caseId", oData.caseId || null);
+                oEwModel.setProperty("/status", oData.status || null);
+                oEwModel.setProperty("/totalSuppliers", oData.totalSuppliers || 0);
+                oEwModel.setProperty("/totalPOs", oData.totalPOs || 0);
+                oEwModel.setProperty("/dataSource", oData.dataSource || null);
+                oEwModel.setProperty("/calculatedAt", oData.calculatedAt || null);
+
+                // ── Suppliers array (full objects as returned by API) ──
+                var aSuppliers = Array.isArray(oData.suppliers) ? oData.suppliers : [];
+                oEwModel.setProperty("/suppliers", aSuppliers);
+
+                // ── Flatten ALL poDetails across suppliers, enrich with parent supplier info ──
+                var aAllPoDetails = [];
+                aSuppliers.forEach(function (oSupplier) {
+                    var aPOs = Array.isArray(oSupplier.poDetails) ? oSupplier.poDetails : [];
+                    aPOs.forEach(function (oPO) {
+                        aAllPoDetails.push(Object.assign({}, oPO, {
+                            supplierId: oSupplier.supplierId,
+                            supplierName: oSupplier.supplierName
+                        }));
+                    });
+                });
+                oEwModel.setProperty("/poDetails", aAllPoDetails);
+
+                // ── Compute summary KPIs from flat PO list ──
+                var iDelivered = 0, iOverdue = 0, iOnTime = 0;
+                var iTotalOrdered = 0, iTotalDelivered = 0, iTotalDelay = 0;
+                aAllPoDetails.forEach(function (po) {
+                    if (po.deliveryStatus === "DELIVERED") { iDelivered++; }
+                    if (po.deliveryStatus === "OVERDUE")   { iOverdue++; }
+                    if (po.isOnTime === true)               { iOnTime++; }
+                    iTotalOrdered   += (po.orderedQuantity   || 0);
+                    iTotalDelivered += (po.deliveredQuantity  || 0);
+                    iTotalDelay     += (po.delayDays          || 0);
+                });
+                var iMaxRiskScore = 0;
+                var sMaxRiskLevel = null;
+                aSuppliers.forEach(function (s) {
+                    if ((s.riskScore || 0) > iMaxRiskScore) {
+                        iMaxRiskScore = s.riskScore;
+                        sMaxRiskLevel = s.riskLevel || null;
+                    }
+                });
+                oEwModel.setProperty("/summary", {
+                    totalPOs:       aAllPoDetails.length,
+                    deliveredPOs:   iDelivered,
+                    overduePOs:     iOverdue,
+                    onTimePOs:      iOnTime,
+                    avgDelay:       aAllPoDetails.length > 0
+                                        ? Math.round(iTotalDelay / aAllPoDetails.length)
+                                        : 0,
+                    totalOrdered:   iTotalOrdered,
+                    totalDelivered: iTotalDelivered,
+                    maxRiskScore:   iMaxRiskScore,
+                    maxRiskLevel:   sMaxRiskLevel
+                });
+
+                console.log("[EarlyWarning] Model populated —",
+                    aSuppliers.length, "supplier(s),",
+                    aAllPoDetails.length, "PO detail(s)");
+
+                // ── User-friendly success message ──
+                var sMsg = "Early Warning Agent completed — ";
+                if (oData.totalSuppliers !== undefined) {
+                    sMsg += oData.totalSuppliers + " supplier(s), " +
+                            oData.totalPOs + " PO(s) assessed.";
+                } else {
+                    sMsg += "Risk score: " + (oData.riskScore || oData.riskPercentage || "N/A");
+                }
+                if (oData.status) { sMsg += " Status: " + oData.status; }
+                MessageToast.show(sMsg);
+
+            }).catch(function (oErr) {
+                console.error("[EarlyWarning] runEarlyWarningWithS4R failed:", oErr);
+                oEwModel.setProperty("/busy", false);
+                that._resetEarlyWarningModel(oEwModel, oErr.message || "Network error");
+                MessageToast.show("Early Warning Agent error: " +
+                    (oErr.message || "Unknown error"));
+            });
+        },
+
+        /** Run Coordinator Agent. */
+        onRunCoordinatorAgent: function () {
+            MessageToast.show("Coordinator Agent — will be connected to backend service in a future phase.");
+        },
+
+        /** Run Survival Planner Agent. */
+        onRunSurvivalPlannerAgent: function () {
+            MessageToast.show("Survival Planner Agent — will be connected to backend service in a future phase.");
+        },
+
+        /** Run Substitution Agent. */
+        onRunSubstitutionAgent: function () {
+            MessageToast.show("Substitution Agent — will be connected to backend service in a future phase.");
+        },
+
+        /** Run Buyer Agent. */
+        onRunBuyerAgent: function () {
+            MessageToast.show("Buyer Agent — will be connected to backend service in a future phase.");
+        },
+
+        /** Run All Agents sequentially. */
+        onRunAllAgents: function () {
+            MessageToast.show("Run All Agents — will be connected to backend service in a future phase.");
         },
 
         /**
@@ -670,16 +991,47 @@ sap.ui.define([
             var oRaView     = this.byId("riskAssessmentView");
             var oSpView     = this.byId("survivalPlanningView");
             var oCdView     = this.byId("caseDashboardView");
+            var oRecView    = this.byId("recommendationsView");
+            var oExecView   = this.byId("executionView");
+            var oMonView    = this.byId("monitoringView");
             if (oDashView)  { oDashView.setVisible(sKey === "control"); }
             if (oRaView)    { oRaView.setVisible(sKey === "riskAssessment"); }
             if (oSpView)    { oSpView.setVisible(sKey === "survivalPlanning"); }
             if (oCdView)    { oCdView.setVisible(sKey === "caseDashboard"); }
+            if (oRecView)   { oRecView.setVisible(sKey === "approvals"); }
+            if (oExecView)  { oExecView.setVisible(sKey === "planning"); }
+            if (oMonView)   { oMonView.setVisible(sKey === "audit"); }
 
             var sExistingCaseId = oDashboard.getProperty("/selectedCaseId");
             if (sKey === "caseDashboard" && sExistingCaseId) {
                 this._loadCaseHierarchy(sExistingCaseId);
             }
         },
+        /**
+         * Reset the earlyWarningResult model to its clean initial state.
+         * Called on error / failure to ensure no stale data persists.
+         *
+         * @param {sap.ui.model.json.JSONModel} oModel - the earlyWarningResult model
+         * @param {string} [sError] - optional error message to store
+         */
+        _resetEarlyWarningModel: function (oModel, sError) {
+            oModel.setProperty("/result", null);
+            oModel.setProperty("/error", sError || null);
+            oModel.setProperty("/caseId", null);
+            oModel.setProperty("/status", null);
+            oModel.setProperty("/totalSuppliers", 0);
+            oModel.setProperty("/totalPOs", 0);
+            oModel.setProperty("/dataSource", null);
+            oModel.setProperty("/calculatedAt", null);
+            oModel.setProperty("/suppliers", []);
+            oModel.setProperty("/poDetails", []);
+            oModel.setProperty("/summary", {
+                totalPOs: 0, deliveredPOs: 0, overduePOs: 0, onTimePOs: 0,
+                avgDelay: 0, totalOrdered: 0, totalDelivered: 0,
+                maxRiskScore: 0, maxRiskLevel: null
+            });
+        },
+
         /**
          * Resolve the OData service URL relative to the component's manifest
          * so it is prefixed with the correct application base path at runtime.

@@ -1431,6 +1431,29 @@ html, body, #content {
     font-size: 0.82rem !important;
 }
 
+/* ─── Case Dropdown Select inside dark banner ─── */
+.caseDropdownSelect {
+    min-width: 280px !important;
+    max-width: 420px !important;
+}
+.caseBanner .caseDropdownSelect .sapMSltLabel,
+.caseBanner .caseDropdownSelect .sapMSltArrow {
+    color: #4ea3ff !important;
+}
+.caseBanner .caseDropdownSelect {
+    background: rgba(78, 163, 255, 0.08) !important;
+    border: 1px solid rgba(78, 163, 255, 0.25) !important;
+    border-radius: 6px !important;
+}
+.caseBanner .caseDropdownSelect:hover {
+    background: rgba(78, 163, 255, 0.14) !important;
+    border-color: rgba(78, 163, 255, 0.4) !important;
+}
+.caseBanner .caseDropdownSelect .sapMSltLabel {
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+}
+
 /* ─── KPI Cards Row ─── */
 .raKpiRow {
     gap: 1rem;

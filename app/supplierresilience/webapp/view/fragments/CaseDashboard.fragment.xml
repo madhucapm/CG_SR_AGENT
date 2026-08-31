@@ -10,6 +10,26 @@
                   class="assessSubtitle" />
         </VBox>
 
+        <!-- Case selector dropdown -->
+        <HBox class="caseBanner" alignItems="Center">
+            <HBox alignItems="Center" class="caseBannerLeft">
+                <Text text="CASE ID" class="caseBannerLabel" />
+                <Select
+                    class="caseDropdownSelect"
+                    selectedKey="{dashboard>/selectedCaseId}"
+                    change=".onCaseDropdownChange"
+                    forceSelection="false"
+                    autoAdjustWidth="true"
+                    items="{caseHierarchy>/availableCases}">
+                    <core:Item key="{caseHierarchy>caseId}"
+                               text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                </Select>
+            </HBox>
+            <Text text="No cases available. Investigate an event in News Feed to create a case."
+                  class="caseBannerHint"
+                  visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
+        </HBox>
+
         <VBox visible="{= !${caseHierarchy>/caseData} &amp;&amp; !${caseHierarchy>/busy} }" class="cdEmptyState">
             <core:Icon src="sap-icon://folder-blank" class="cdEmptyIcon" />
             <Text text="No active case selected." class="cdEmptyText" />

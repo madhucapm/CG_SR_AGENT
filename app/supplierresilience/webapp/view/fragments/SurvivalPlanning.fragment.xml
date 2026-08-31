@@ -15,16 +15,24 @@
                   class="assessSubtitle" />
         </VBox>
 
-        <!-- Case context banner -->
+        <!-- Case context banner with dropdown selector -->
         <HBox class="caseBanner" alignItems="Center">
             <HBox alignItems="Center" class="caseBannerLeft">
                 <Text text="CASE ID" class="caseBannerLabel" />
-                <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '— none active —' }"
-                      class="{= ${dashboard>/selectedCaseId} ? 'caseBannerValue caseBannerValue--active' : 'caseBannerValue' }" />
+                <Select
+                    class="caseDropdownSelect"
+                    selectedKey="{dashboard>/selectedCaseId}"
+                    change=".onCaseDropdownChange"
+                    forceSelection="false"
+                    autoAdjustWidth="true"
+                    items="{caseHierarchy>/availableCases}">
+                    <core:Item key="{caseHierarchy>caseId}"
+                               text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                </Select>
             </HBox>
-            <Text text="Preview and confirm an event in News Feed to create a case."
+            <Text text="No cases available. Investigate an event in News Feed to create a case."
                   class="caseBannerHint"
-                  visible="{= !${dashboard>/selectedCaseId} }" />
+                  visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
         </HBox>
 
         <!-- KPI Cards Row -->

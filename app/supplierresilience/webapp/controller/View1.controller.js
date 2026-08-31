@@ -46,9 +46,15 @@ sap.ui.define([
                 materials: [],
                 hierarchyTree: [],
                 allCasesTree: [],
-                allCasesBusy: false
+                allCasesBusy: false,
+                availableCases: [],
+                availableCasesBusy: false
             });
             this.getView().setModel(oCaseHierarchyModel, "caseHierarchy");
+
+            // Load available cases for the case dropdowns on
+            // Case Dashboard, Risk Assessment, and Survival Planning.
+            this._loadAvailableCases();
 
             // Early Warning Result JSON model — populated when the user
             // clicks "Run" on the Early Warning Agent in the Case Dashboard.
@@ -522,6 +528,10 @@ sap.ui.define([
 
                 oDisruptions.setProperty("/aiRiskState", "caseCreated");
                 MessageToast.show("Case " + oData.caseId + " created successfully!");
+
+                // Refresh the available cases list so the new case appears
+                // in the Case Dashboard / Risk Assessment / Survival Planning dropdowns.
+                that._loadAvailableCases();
 
             }).catch(function (oErr) {
                 console.error("[CaseCreation] Failed:", oErr);
@@ -1006,9 +1016,20 @@ sap.ui.define([
             if (oExecView)  { oExecView.setVisible(sKey === "planning"); }
             if (oMonView)   { oMonView.setVisible(sKey === "audit"); }
 
+            // Refresh the case dropdown list when entering a screen that has it
+            if (sKey === "caseDashboard" || sKey === "riskAssessment" || sKey === "survivalPlanning") {
+                this._loadAvailableCases();
+            }
+
             var sExistingCaseId = oDashboard.getProperty("/selectedCaseId");
             if (sKey === "caseDashboard" && sExistingCaseId) {
                 this._loadCaseHierarchy(sExistingCaseId);
+            }
+            if (sKey === "riskAssessment" && sExistingCaseId) {
+                this._loadCaseDataForRiskAssessment(sExistingCaseId);
+            }
+            if (sKey === "survivalPlanning" && sExistingCaseId) {
+                this._loadCaseDataForSurvivalPlanning(sExistingCaseId);
             }
         },
         /**
@@ -1184,6 +1205,9 @@ sap.ui.define([
                     });
                     oDisruptions.setProperty("/aiRiskState", "impactPreview");
 
+                    // Populate Risk Assessment model + earlyWarningResult from live API data
+                    that._populateRiskAssessmentFromImpact(oResult, oScope);
+
                     MessageToast.show("Disruption analysis complete: " +
                         (oResult.affected_supplier_count || 0) + " supplier(s) affected, " +
                         oScope.poCount + " PO(s) at risk");
@@ -1274,6 +1298,101 @@ sap.ui.define([
             oDashboard.setProperty(sBasePath + "materialCount", oScope.materialCount || 0);
             oDashboard.setProperty(sBasePath + "plantCount",    oScope.plantCount    || 0);
         },
+
+        // ── Case Dropdown + Risk / Survival helpers ────────────────
+
+        /** Fetch all cases from HANA for the case selector dropdowns. */
+        _loadAvailableCases: function () {
+            var oCH = this.getView().getModel("caseHierarchy");
+            if (!oCH) return;
+            oCH.setProperty("/availableCasesBusy", true);
+            fetch(this._getServiceUrl() + "Cases?$orderby=createdAt desc", {
+                method: "GET", headers: { "Accept": "application/json" }, credentials: "include"
+            }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
+            }).then(function (d) {
+                oCH.setProperty("/availableCases", ((d && d.value) || []).map(function (c) {
+                    return { caseId: c.caseId||"", eventTitle: c.eventTitle||"", severity: c.severity||"", status: c.status||"", riskScore: c.riskScore||0, region: c.region||"" };
+                }));
+                oCH.setProperty("/availableCasesBusy", false);
+            }).catch(function () { oCH.setProperty("/availableCasesBusy", false); });
+        },
+
+        /** Shared handler for the Case dropdown on all three screens. */
+        onCaseDropdownChange: function (oEvent) {
+            var oI = oEvent.getParameter("selectedItem"); if (!oI) return;
+            var sC = oI.getKey(), oD = this.getView().getModel("dashboard");
+            if (oD) oD.setProperty("/selectedCaseId", sC);
+            var sV = oD ? oD.getProperty("/selectedView") : "";
+            if (sV === "caseDashboard") this._loadCaseHierarchy(sC);
+            if (sV === "riskAssessment") this._loadCaseDataForRiskAssessment(sC);
+            if (sV === "survivalPlanning") this._loadCaseDataForSurvivalPlanning(sC);
+            MessageToast.show("Switched to case: " + sC);
+        },
+
+        /** Populate riskAssessment + earlyWarningResult from analyzeImpact. */
+        _populateRiskAssessmentFromImpact: function (oResult, oScope) {
+            var oRM=this.getView().getModel("riskAssessment"),oEW=this.getView().getModel("earlyWarningResult");
+            if(!oRM||!oResult)return;
+            var aAff=Array.isArray(oResult.affected_suppliers)?oResult.affected_suppliers:[];
+            if(!aAff.length)return;
+            var iMax=0,sMaxSup="";
+            var aRows=aAff.map(function(s){
+                var aPOs=Array.isArray(s.purchase_orders)?s.purchase_orders:[],pl=[],sk=[];
+                aPOs.forEach(function(po){(Array.isArray(po.materials)?po.materials:[]).forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1)pl.push(m.plant);if(m.sku&&sk.indexOf(m.sku)===-1)sk.push(m.sku);});});
+                var d=s.distance_km||999,n=s.po_count||aPOs.length;
+                var sc=d<50?90+Math.min(n,10):d<100?75+Math.min(n*2,15):d<200?60+Math.min(n*2,15):d<400?40+Math.min(n*3,20):20+Math.min(n*3,20);
+                sc=Math.min(sc,100);if(sc>iMax){iMax=sc;sMaxSup=s.name||s.supplier_id||"";}
+                var sev=sc>=80?"CRITICAL":sc>=60?"HIGH":sc>=40?"MEDIUM":"LOW";
+                var cls=d<50?"COMPLETE INTERRUPTION":d<200?"DELAYED SUPPLY":"PARTIAL DISRUPTION";
+                return{supplier:s.name||s.supplier_id||"Unknown",supplierId:s.supplier_id||"",classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",skus:sk.join(", ")||"—"};
+            });
+            aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
+            oRM.setProperty("/kpi",{highestRisk:{value:String(iMax),supplier:sMaxSup},suppliersImpacted:{value:String(oScope.supplierCount),sub:"Affected by event"},posAtRisk:{value:String(oScope.poCount),sub:"At risk"},plants:{value:String(oScope.plantCount),sub:"Affected"}});
+            oRM.setProperty("/supplierRisks",aRows);
+            if(oEW){oEW.setProperty("/result",oResult);oEW.setProperty("/suppliers",aRows);oEW.setProperty("/totalSuppliers",aAff.length);oEW.setProperty("/totalPOs",oScope.poCount||0);oEW.setProperty("/summary/maxRiskScore",iMax);oEW.setProperty("/summary/maxRiskLevel",iMax>=80?"CRITICAL":iMax>=60?"HIGH":iMax>=40?"MEDIUM":"LOW");}
+        },
+
+        /** Load case data for Risk Assessment from getCaseHierarchy. */
+        _loadCaseDataForRiskAssessment: function (sId) {
+            var t=this;if(!sId)return;
+            fetch(this._getServiceUrl()+"getCaseHierarchy(caseId='"+encodeURIComponent(sId)+"')",{method:"GET",headers:{"Accept":"application/json"},credentials:"include"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(d){if(d&&d.success!==false)t._populateRAFromHierarchy(d);}).catch(function(e){console.error("[RA] Load failed:",e);});
+        },
+        /** Populate riskAssessment model from getCaseHierarchy response. */
+        _populateRAFromHierarchy: function (oH) {
+            var oRM=this.getView().getModel("riskAssessment");if(!oRM)return;
+            var cd=oH.caseData||{},aS=oH.suppliers||[],aPOs=oH.purchaseOrders||[],aM=oH.materials||[];
+            var poBy={},matBy={};
+            aPOs.forEach(function(p){var k=p.supplierId||"";if(!poBy[k])poBy[k]=[];poBy[k].push(p);});
+            aM.forEach(function(m){var k=m.supplierId||"";if(!matBy[k])matBy[k]=[];matBy[k].push(m);});
+            var iMax=cd.riskScore||0,sMax="",tPOs=0,pSet={};
+            var aRows=aS.map(function(s){var sid=s.supplierId||"",sp=poBy[sid]||[],sm=matBy[sid]||[];var pl=[],sk=[];
+                sm.forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1){pl.push(m.plant);pSet[m.plant]=1;}if(m.sku&&sk.indexOf(m.sku)===-1)sk.push(m.sku);});
+                var n=s.poCount||sp.length;tPOs+=n;var sc=cd.riskScore||0;
+                if(aS.length>1){sc=Math.round((n/(cd.poCount||aPOs.length||1))*sc);sc=Math.max(sc,20);sc=Math.min(sc,100);}
+                if(sc>=iMax){iMax=sc;sMax=s.name||sid;}var sev=sc>=80?"CRITICAL":sc>=60?"HIGH":sc>=40?"MEDIUM":"LOW";
+                var cls=cd.classification||(sev==="CRITICAL"?"COMPLETE INTERRUPTION":sev==="HIGH"?"DELAYED SUPPLY":"PARTIAL DISRUPTION");
+                return{supplier:s.name||sid,supplierId:sid,classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",skus:sk.join(", ")||"—"};});
+            aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
+            oRM.setProperty("/kpi",{highestRisk:{value:String(iMax),supplier:sMax||"—"},suppliersImpacted:{value:String(aS.length),sub:"Affected by event"},posAtRisk:{value:String(tPOs),sub:"At risk"},plants:{value:String(Object.keys(pSet).length),sub:"Affected"}});
+            oRM.setProperty("/supplierRisks",aRows);
+        },
+        /** Load case data for Survival Planning from getCaseHierarchy. */
+        _loadCaseDataForSurvivalPlanning: function (sId) {
+            var t=this;if(!sId)return;
+            fetch(this._getServiceUrl()+"getCaseHierarchy(caseId='"+encodeURIComponent(sId)+"')",{method:"GET",headers:{"Accept":"application/json"},credentials:"include"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(d){if(d&&d.success!==false)t._populateSPFromHierarchy(d);}).catch(function(e){console.error("[SP] Load failed:",e);});
+        },
+        /** Populate survivalPlanning model from getCaseHierarchy response. */
+        _populateSPFromHierarchy: function (oH) {
+            var oSP=this.getView().getModel("survivalPlanning");if(!oSP)return;
+            var aM=oH.materials||[],crit=0,totCov=0,wGap=0,wGapM="",totSh=0;
+            var rows=aM.map(function(m){var ic=parseInt(m.coverageDays,10)||0,ig=parseInt(m.gapDays,10)||0;
+                if(ic>0&&ic<10)crit++;totCov+=ic;if(ig>wGap){wGap=ig;wGapM=(m.material||"")+" - "+(m.plant||"");}totSh+=(parseInt(m.shortfall,10)||0);
+                return{material:m.material||"—",plant:m.plant||"—",coverage:ic?(ic+" days"):"—",timeToSurvive:m.survivalDays?(m.survivalDays+" days"):"—",recovery:m.recoveryDate||"—",gap:ig?(ig+" days"):"—",shortfall:m.shortfall?(m.shortfall+" MT"):"—"};});
+            var avg=rows.length>0?Math.round(totCov/rows.length):0;
+            oSP.setProperty("/kpi",{criticalItems:{value:String(crit),sub:"Coverage < 10 days"},avgCoverage:{value:avg>0?(avg+" days"):"—",sub:"All materials"},worstGap:{value:wGap>0?(wGap+" days"):"—",sub:wGapM||"—"},totalShortfall:{value:totSh>0?(totSh+" MT"):"—",sub:"Needs mitigation"}});
+            oSP.setProperty("/materials",rows);
+        },
+
         // ─────────────────────────────────────────────────────────────
         //  Global Risks – Anthropic Claude 4.5 Opus LLM Integration
         //  via AI_CORE_CGAI_COCKPIT_SRA destination using Orchestration

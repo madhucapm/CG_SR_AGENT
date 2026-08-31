@@ -6,12 +6,22 @@
         "Today's Global Supply Chain Risks" panel.
         Rows are driven by dashboard>/globalRisks populated dynamically from
         Anthropic Claude LLM via AI_CORE_CGAI_COCKPIT destination.
-        Each row shows a colored circular icon, colored title, description,
-        plus a right-side risk-level / region / time block and a chevron
-        to open the risk detail.
+
+        LAYOUT (compact card design):
+          ┌──────────────────────────────────────────────────────────────┐
+          │ [icon]  Title                     [CLASSIFICATION] [SEVERITY]│
+          │         Region · Time                                        │
+          │         Description text …                                    │
+          │                                                              │
+          │ [ Investigate ]   N POs · N Materials · N Plants             │
+          └──────────────────────────────────────────────────────────────┘
+        The classification pill is the LLM-produced disruption type
+        (DELAYED SUPPLY / TARIFF / COMPLETE INTERRUPTION / PARTIAL
+        INTERRUPTION) and appears only on the News Feed — never on the
+        Case Dashboard hierarchy.
     -->
     <VBox class="ctCard ctRisksCard" busy="{dashboard>/globalRisksBusy}" busyIndicatorDelay="0">
-        <!-- Card header with region dropdown and refresh button -->
+        <!-- Card header with region dropdown -->
         <HBox alignItems="Center" class="ctCardHeader" justifyContent="SpaceBetween">
             <HBox alignItems="Center">
                 <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
@@ -27,24 +37,15 @@
                     items="{globalRisks>/regions}">
                     <core:Item key="{globalRisks>key}" text="{globalRisks>text}" />
                 </Select>
-                <!-- Refresh button hidden for now
-                <Button
-                    icon="sap-icon://refresh"
-                    type="Transparent"
-                    tooltip="Refresh global risks from AI"
-                    press=".onRefreshGlobalRisks"
-                    class="ctRefreshBtn" />
-                -->
             </HBox>
         </HBox>
 
         <!--
-            Risk list.
-            The row-level classes (icon wrap color, icon color, title color,
-            severity badge) are computed from the LLM response mapping in the
-            controller (_mapLLMResponseToRisks). The press handler lives on
-            the List (`itemPress`) rather than each CustomListItem, per UI5
-            best practice.
+            Risk list. Each row is a self-contained card. The two pills
+            (classification + severity) are rendered inline top-right so
+            the severity behavior (data-risklevel driven colors) is
+            preserved and the classification uses the same visual pattern
+            via data-disruption custom data.
         -->
         <List
             id="globalRisksList"
@@ -57,50 +58,53 @@
             updateFinished=".onRiskListUpdateFinished"
             itemPress=".onRiskPress">
             <CustomListItem class="ctRiskItem" type="Active">
-                <VBox width="100%">
-                    <HBox alignItems="Center" class="ctRiskRow" justifyContent="SpaceBetween">
-                        <!-- Left: icon + title + description -->
-                        <HBox alignItems="Center" class="ctRiskLeft">
+                <VBox width="100%" class="ctRiskCardBody">
+                    <!-- TOP ROW: icon + (title + subtitle) on left ▸ two pills on right -->
+                    <HBox alignItems="Start" class="ctRiskTopRow" justifyContent="SpaceBetween">
+                        <HBox alignItems="Start" class="ctRiskLeft">
                             <VBox class="{dashboard>iconWrapClass}" alignItems="Center" justifyContent="Center">
                                 <core:Icon src="{dashboard>icon}" class="{dashboard>iconClass}" />
                             </VBox>
                             <VBox class="ctRiskText">
                                 <Title text="{dashboard>title}" level="H4" class="{dashboard>titleClass}" wrapping="true" />
-                                <Text text="{dashboard>description}" class="ctRiskDescription" wrapping="true" />
+                                <Text
+                                    text="{dashboard>region} · {dashboard>time}"
+                                    class="ctRiskSubtitle" />
                             </VBox>
                         </HBox>
 
-                        <!-- Right: meta grid + chevron -->
-                        <HBox alignItems="Center" class="ctRiskRight">
-                            <VBox class="ctRiskMeta">
-                                <HBox alignItems="Center" class="ctRiskMetaRow">
-                                    <Label text="{i18n>ctRiskLevel}" class="ctRiskMetaLabel" />
-                                    <Text text="{dashboard>riskLevel}" class="riskBadgeText" app:riskLevel="{dashboard>riskLevel}" />
-                                </HBox>
-                                <HBox alignItems="Center" class="ctRiskMetaRow">
-                                    <Label text="{i18n>ctRegion}" class="ctRiskMetaLabel" />
-                                    <Text text="{dashboard>region}" class="ctRiskMetaValue" />
-                                </HBox>
-                                <HBox alignItems="Center" class="ctRiskMetaRow">
-                                    <Label text="{i18n>ctTime}" class="ctRiskMetaLabel" />
-                                    <Text text="{dashboard>time}" class="ctRiskMetaValue" />
-                                </HBox>
-                            </VBox>
-                            <core:Icon src="sap-icon://slim-arrow-right" class="ctRiskChevron" />
+                        <!-- Right: classification pill + severity pill (inline) -->
+                        <HBox alignItems="Center" class="ctRiskPills">
+                            <Text text="{dashboard>classification}"
+                                  class="ctDisrBadge"
+                                  app:disruption="{dashboard>classification}"
+                                  visible="{= !!${dashboard>classification} }" />
+                            <Text text="{dashboard>riskLevel}"
+                                  class="riskBadgeText"
+                                  app:riskLevel="{dashboard>riskLevel}" />
                         </HBox>
                     </HBox>
-                    <!-- Investigate button per risk item -->
-                    <Button
-                        text="Investigate"
-                        press=".onInvestigateRisk"
-                        class="ctRiskInvestigateBtn"
-                        width="100%" />
+
+                    <!-- Description under title/subtitle -->
+                    <Text text="{dashboard>description}" class="ctRiskDescription" wrapping="true" />
+
+                    <!-- BOTTOM ROW: Investigate button + optional impact-scope counts -->
+                    <HBox alignItems="Center" class="ctRiskBottomRow">
+                        <Button
+                            text="Investigate"
+                            press=".onInvestigateRisk"
+                            class="ctRiskInvestigateBtn" />
+                        <Text
+                            class="ctRiskCountLine"
+                            text="{= ${dashboard>poCount} + ' POs · ' + ${dashboard>materialCount} + ' Materials · ' + ${dashboard>plantCount} + ' Plants' }"
+                            visible="{= !!${dashboard>poCount} }" />
+                    </HBox>
                 </VBox>
             </CustomListItem>
         </List>
 
         <!--
-            Footer link. `sap.m.Link` has no `icon` property, so we compose
+            Footer link. sap.m.Link has no icon property, so we compose
             the arrow using an HBox + separate core:Icon next to the Link.
         -->
         <HBox justifyContent="End" alignItems="Center" class="ctRisksFooter">

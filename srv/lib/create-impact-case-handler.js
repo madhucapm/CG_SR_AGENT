@@ -66,11 +66,18 @@ module.exports = function buildHandler(logger) {
         const pri = iScore >= 80 ? 'CRITICAL' : iScore >= 60 ? 'HIGH' : iScore >= 40 ? 'MEDIUM' : 'LOW';
 
         try {
+            // NOTE: `classification` is intentionally NOT written to the
+            // Case row. Per product requirement the disruption
+            // classification (Delayed Supply / Tariff / Complete
+            // Interruption / Partial Interruption) is a news-feed-only
+            // concept and must not be persisted against a case, supplier,
+            // PO or SKU. The DB column is kept for backward compatibility
+            // with historical rows, but new impact cases leave it null.
             await INSERT.into(Cases).entries({
                 ID: generateUUID(), caseId, eventId: 'IMP-' + caseId,
                 status: 'Open', priority: pri, eventType: 'IMPACT_ANALYSIS',
                 eventTitle: d.eventTitle || '', eventDescription: d.eventDescription || '',
-                severity: d.severity || pri, classification: d.classification || '',
+                severity: d.severity || pri,
                 riskScore: iScore, impactType: d.impactType || '',
                 estimatedImpact: d.estimatedImpact || '', region: d.region || '',
                 ...c, supplier: sR.length > 0 ? sR[0].name : '',
@@ -83,8 +90,9 @@ module.exports = function buildHandler(logger) {
             logger.info(`Impact case ${caseId}: ${c.supplierCount}S ${c.poCount}PO ${c.materialCount}M`);
             return {
                 success: true, caseId, message: 'Case ' + caseId + ' created', error: null,
+                // caseData deliberately omits `classification` — see note above
                 caseData: { caseId, eventTitle: d.eventTitle || '', severity: d.severity || pri,
-                    classification: d.classification || '', riskScore: iScore,
+                    riskScore: iScore,
                     impactType: d.impactType || '', estimatedImpact: d.estimatedImpact || '',
                     region: d.region || '', ...c, status: 'Open', createdAt: now },
                 suppliers: sR.map(r => ({ supplierId: r.supplierId, name: r.name, address: r.address, distanceKm: r.distanceKm, poCount: r.poCount })),

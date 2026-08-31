@@ -853,12 +853,15 @@ html, body, #content {
     letter-spacing: 0.04rem;
 }
 
-/* ─── Investigate button inside each risk list item ─── */
+/* ─── Investigate button inside each risk list item ───
+   Compact intrinsic-width purple pill (not full width) so it sits
+   next to the "N POs · N Materials · N Plants" meta line. */
 .ctRiskInvestigateBtn.sapMBtn {
-    margin-top: 0.5rem !important;
-    height: 1.75rem !important;
-    min-height: 1.75rem !important;
-    border-radius: 6px !important;
+    margin-top: 0 !important;
+    height: 1.9rem !important;
+    min-height: 1.9rem !important;
+    width: auto !important;
+    border-radius: 8px !important;
     background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%) !important;
     border: 1px solid rgba(180, 130, 255, 0.4) !important;
 }
@@ -866,9 +869,9 @@ html, body, #content {
     background: transparent !important;
     border: none !important;
     color: #ffffff !important;
-    min-height: 1.75rem !important;
-    height: 1.75rem !important;
-    padding: 0 0.75rem !important;
+    min-height: 1.9rem !important;
+    height: 1.9rem !important;
+    padding: 0 1.1rem !important;
 }
 .ctRiskInvestigateBtn.sapMBtn .sapMBtnContent {
     font-size: 0.75rem !important;
@@ -1239,6 +1242,139 @@ html, body, #content {
     color: #4ade80 !important;
     border: 1px solid #4ade80 !important;
 }
+
+/* =========================================================================
+   Disruption classification pill (News Feed / Global Risks card only).
+   The value comes from the LLM (see _mapLLMResponseToRisks) and lives on
+   each risk row as `classification`. In the fragment we bind a
+   `<Text class="ctDisrBadge" app:disruption="..."/>` so UI5 emits a
+   `data-disruption="..."` attribute we can style per value.
+   Allowed values (normalized):
+     DELAYED SUPPLY | TARIFF | COMPLETE INTERRUPTION | PARTIAL INTERRUPTION
+   ========================================================================= */
+
+.ctDisrBadge.sapMText {
+    display: inline-block !important;
+    padding: 0.25rem 0.6rem !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-align: center !important;
+    line-height: 1.35 !important;
+    color: inherit;
+}
+
+/* Complete Interruption – deep red (supply fully halted) */
+[data-disruption="COMPLETE INTERRUPTION"],
+[data-disruption="COMPLETE INTERRUPTION"] > span {
+    background: rgba(220, 38, 38, 0.22) !important;
+    color: #fca5a5 !important;
+    border: 1px solid #ef4444 !important;
+}
+
+/* Partial Interruption – amber (capacity reduced, some flow) */
+[data-disruption="PARTIAL INTERRUPTION"],
+[data-disruption="PARTIAL INTERRUPTION"] > span {
+    background: rgba(217, 119, 6, 0.22) !important;
+    color: #fdba74 !important;
+    border: 1px solid #f59e0b !important;
+}
+
+/* Delayed Supply – blue (late but arriving) */
+[data-disruption="DELAYED SUPPLY"],
+[data-disruption="DELAYED SUPPLY"] > span {
+    background: rgba(59, 130, 246, 0.22) !important;
+    color: #93c5fd !important;
+    border: 1px solid #3b82f6 !important;
+}
+
+/* Tariff – amber (trade policy / cost impact) — matches screenshot spec */
+[data-disruption="TARIFF"],
+[data-disruption="TARIFF"] > span {
+    background: rgba(249, 115, 22, 0.18) !important;
+    color: #fb923c !important;
+    border: 1px solid #fb923c !important;
+}
+
+/* Also normalize Complete Interruption color to match the risk-level red so
+   both pills sit next to each other cleanly when severity=CRITICAL. */
+[data-disruption="COMPLETE INTERRUPTION"],
+[data-disruption="COMPLETE INTERRUPTION"] > span {
+    background: rgba(239, 68, 68, 0.18) !important;
+    color: #ff6b6b !important;
+    border: 1px solid #ff6b6b !important;
+}
+
+/* Partial Interruption → amber (same tone as HIGH risk-level badge) */
+[data-disruption="PARTIAL INTERRUPTION"],
+[data-disruption="PARTIAL INTERRUPTION"] > span {
+    background: rgba(249, 115, 22, 0.18) !important;
+    color: #fb923c !important;
+    border: 1px solid #fb923c !important;
+}
+
+/* Delayed Supply → clean blue */
+[data-disruption="DELAYED SUPPLY"],
+[data-disruption="DELAYED SUPPLY"] > span {
+    background: rgba(59, 130, 246, 0.18) !important;
+    color: #60a5fa !important;
+    border: 1px solid #60a5fa !important;
+}
+
+/* =========================================================================
+   News-feed card refactor — compact card layout.
+     Row structure:
+       [icon]  Title                             [CLASSIF]  [SEVERITY]
+               Region · Time
+               Description text ...
+       [ Investigate ]   N POs · N Materials · N Plants
+   ========================================================================= */
+
+.ctRiskCardBody {
+    gap: 0.5rem;
+}
+.ctRiskTopRow {
+    width: 100%;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+.ctRiskLeft {
+    gap: 0.85rem;
+    flex: 1;
+    min-width: 0;
+    align-items: flex-start;
+}
+.ctRiskPills {
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding-top: 0.15rem;
+}
+
+/* Subtitle under title (region · time) */
+.ctRiskSubtitle.sapMText {
+    color: #8895c2 !important;
+    font-size: 0.8rem !important;
+    line-height: 1.35 !important;
+    margin-top: 0.12rem;
+}
+
+/* Bottom row: Investigate button + count line inline */
+.ctRiskBottomRow {
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.35rem;
+}
+
+/* Small meta line beside the Investigate button (POs · Materials · Plants) */
+.ctRiskCountLine.sapMText {
+    color: #8895c2 !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    white-space: nowrap;
+}
+
 /* =========================================================================
    ASSESS screens — Risk Assessment & Survival Planning (dark theme).
    Scoped under `.assessHome` to stay consistent with the dark ctHome theme.

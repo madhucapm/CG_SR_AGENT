@@ -34,9 +34,12 @@
                     <HBox alignItems="Center" class="cdHeaderBadges">
                         <Text text="{caseHierarchy>/caseData/severity}"
                               class="{= ${caseHierarchy>/caseData/severity} === 'CRITICAL' ? 'raClassBadge raClassBadge--critical' : 'raClassBadge raClassBadge--warning' }" />
-                        <Text text="{caseHierarchy>/caseData/classification}"
-                              class="raClassBadge raClassBadge--warning"
-                              visible="{= !!${caseHierarchy>/caseData/classification} }" />
+                        <!--
+                            Classification badge removed per requirement:
+                            disruption classification is only shown on the
+                            News Feed (Global Risks card), never on cases
+                            (supplier / PO / SKU hierarchy).
+                        -->
                     </HBox>
                 </VBox>
                 <Button text="View Monitoring →" press=".onViewMonitoring" class="ctAiAction" type="Transparent" />
@@ -102,7 +105,7 @@
                                                             press=".onHierToggle" type="Transparent" class="cdHierToggleBtn" />
                                                     <core:Icon src="sap-icon://supplier" class="cdHierIcon" />
                                                     <Text text="{caseHierarchy>name}" class="raCellBold" />
-                                                    <Text text="{caseHierarchy>classification}" class="raClassBadge raClassBadge--warning" visible="{= !!${caseHierarchy>classification} }" />
+                                                    <!-- Classification badge removed (news-feed only) -->
                                                     <Text text="{caseHierarchy>severity}" class="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'raClassBadge raClassBadge--critical' : 'raClassBadge raClassBadge--warning' }" />
                                                 </HBox>
                                                 <!-- PO level -->

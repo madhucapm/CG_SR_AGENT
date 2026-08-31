@@ -441,7 +441,12 @@ sap.ui.define([
 
             oDisruptions.setProperty("/aiRiskState", "creatingCase");
 
-            // Build severity / classification from impact data
+            // Build severity from impact data. Classification is intentionally
+            // NOT forwarded to the backend: per product requirement the
+            // disruption classification (Delayed Supply / Tariff / Complete
+            // Interruption / Partial Interruption) is a news-item concept
+            // shown only on the Global Risks card, and must never travel
+            // down to the Case / Supplier / PO / SKU hierarchy.
             var oScope = oDisruptions.getProperty("/scope") || {};
             var iRiskScoreRaw = oImpact.riskScore || "0";
             var iRiskScore = parseInt(String(iRiskScoreRaw).replace(/[^0-9]/g, ""), 10) || 0;
@@ -451,7 +456,6 @@ sap.ui.define([
                 eventTitle: oImpact.impactType || (oSelectedRisk && oSelectedRisk.title) || "",
                 eventDescription: (oSelectedRisk && oSelectedRisk.description) || oResult.impact_description || "",
                 severity: sSeverity,
-                classification: sSeverity === "CRITICAL" ? "COMPLETE INTERRUPTION" : sSeverity === "HIGH" ? "DELAYED SUPPLY" : "PARTIAL DISRUPTION",
                 riskScore: iRiskScore,
                 impactType: oImpact.impactType || "",
                 estimatedImpact: oImpact.estimatedImpact || "",
@@ -1132,9 +1136,13 @@ sap.ui.define([
                 oDisruptions.setProperty("/busy", false);
 
                 // Compute the impact-scope metrics (PO count, plants, SKUs)
-                // from the enriched response for the top-row cards.
+                // from the enriched response for the top-row cards AND
+                // write them back onto the news-feed item so its
+                // "N POs · N Materials · N Plants" count line appears.
                 var oScope = that._computeDisruptionScope(oResult);
                 oDisruptions.setProperty("/scope", oScope);
+                var oInvestigatedRisk = oDisruptions.getProperty("/selectedRisk");
+                that._updateSelectedRiskCounts(oInvestigatedRisk, oScope);
 
                 if (oResult.success === false) {
                     oDisruptions.setProperty("/aiRiskState", "initial");
@@ -1211,14 +1219,16 @@ sap.ui.define([
             var iPoCount = 0;
             var oPlantSet = {};
             var oSkuSet = {};
+            var oMaterialSet = {};
             aSuppliers.forEach(function (s) {
                 var aPOs = Array.isArray(s.purchase_orders) ? s.purchase_orders : [];
                 iPoCount += aPOs.length;
                 aPOs.forEach(function (po) {
                     var aMats = Array.isArray(po.materials) ? po.materials : [];
                     aMats.forEach(function (m) {
-                        if (m.plant) { oPlantSet[m.plant] = true; }
-                        if (m.sku)   { oSkuSet[m.sku]     = true; }
+                        if (m.plant)    { oPlantSet[m.plant]        = true; }
+                        if (m.sku)      { oSkuSet[m.sku]            = true; }
+                        if (m.material) { oMaterialSet[m.material]  = true; }
                     });
                 });
             });
@@ -1226,8 +1236,43 @@ sap.ui.define([
                 supplierCount: iSupplierCount,
                 poCount:       iPoCount,
                 plantCount:    Object.keys(oPlantSet).length,
-                skuCount:      Object.keys(oSkuSet).length
+                skuCount:      Object.keys(oSkuSet).length,
+                // Distinct material master count. Fall back to SKU count if
+                // the API didn't return `material` on the item level.
+                materialCount: Object.keys(oMaterialSet).length || Object.keys(oSkuSet).length
             };
+        },
+
+        /**
+         * After analyzeImpact returns real impact-scope data for the risk
+         * the user just clicked, write those counts back onto that specific
+         * news-feed item in dashboard>/globalRisks so its "N POs · N
+         * Materials · N Plants" line becomes visible. Other news items
+         * in the list stay unchanged (counts remain 0 → line hidden).
+         *
+         * @param {Object} oSelectedRisk - The risk the user investigated
+         *                                 (already stored at disruptions>/selectedRisk)
+         * @param {Object} oScope        - Output of _computeDisruptionScope
+         */
+        _updateSelectedRiskCounts: function (oSelectedRisk, oScope) {
+            if (!oSelectedRisk || !oSelectedRisk.id) { return; }
+            var oDashboard = this.getView().getModel("dashboard");
+            if (!oDashboard) { return; }
+
+            var aRisks = oDashboard.getProperty("/globalRisks") || [];
+            var iFound = -1;
+            for (var i = 0; i < aRisks.length; i++) {
+                if (aRisks[i] && aRisks[i].id === oSelectedRisk.id) {
+                    iFound = i;
+                    break;
+                }
+            }
+            if (iFound < 0) { return; }
+
+            var sBasePath = "/globalRisks/" + iFound + "/";
+            oDashboard.setProperty(sBasePath + "poCount",       oScope.poCount       || 0);
+            oDashboard.setProperty(sBasePath + "materialCount", oScope.materialCount || 0);
+            oDashboard.setProperty(sBasePath + "plantCount",    oScope.plantCount    || 0);
         },
         // ─────────────────────────────────────────────────────────────
         //  Global Risks – Anthropic Claude 4.5 Opus LLM Integration
@@ -1286,7 +1331,13 @@ sap.ui.define([
                 "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", \"Medium\", or \"Low\"\n" +
                 "- \"region\": A specific location in the format \"City, State, Country\" within " + sRegion + ". Always include city and country; include state/province where applicable.\n" +
                 "- \"time\": Approximate recency as a relative time string (e.g., \"2h ago\", \"6h ago\", \"1d ago\", \"2d ago\")\n" +
-                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n\n" +
+                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n" +
+                "- \"classification\": Exactly one of: \"DELAYED SUPPLY\", \"TARIFF\", \"COMPLETE INTERRUPTION\", \"PARTIAL INTERRUPTION\". " +
+                "Use this rubric to choose the correct value:\n" +
+                "    * \"TARIFF\" — trade policy / customs duties / sanctions / embargoes (cost or paperwork impact, supply itself is not physically blocked).\n" +
+                "    * \"COMPLETE INTERRUPTION\" — supply is fully halted (factory destroyed, port closed, export ban, force majeure, no shipments moving).\n" +
+                "    * \"PARTIAL INTERRUPTION\" — capacity is reduced but some supply continues (partial strike, reduced throughput, damaged but operational asset).\n" +
+                "    * \"DELAYED SUPPLY\" — shipments are delayed but will still arrive (congestion, weather delays, rerouted vessels, longer lead times).\n\n" +
                 "IMPORTANT: Return ONLY a valid JSON array of exactly 5 objects. No markdown formatting, no code fences, no explanation text — just the raw JSON array.";
 
             return {
@@ -1603,11 +1654,36 @@ sap.ui.define([
                 "Low":      "riskLow"
             };
 
+            // Allowed disruption classifications produced by the LLM. Any other
+            // value returned by the model is normalized to the safe default so
+            // downstream consumers (case creation, hierarchy view, filters) only
+            // ever see one of these four canonical strings.
+            var aAllowedClasses = [
+                "DELAYED SUPPLY",
+                "TARIFF",
+                "COMPLETE INTERRUPTION",
+                "PARTIAL INTERRUPTION"
+            ];
+            var normalizeClassification = function (sRaw) {
+                var sVal = (sRaw == null ? "" : String(sRaw)).trim().toUpperCase();
+                if (aAllowedClasses.indexOf(sVal) >= 0) {
+                    return sVal;
+                }
+                if (sVal) {
+                    // Log drift so QA can spot the LLM ignoring the rubric.
+                    console.warn("[GlobalRisks] Unexpected classification from LLM, normalizing to PARTIAL INTERRUPTION:", sRaw);
+                } else {
+                    console.warn("[GlobalRisks] Missing classification from LLM, defaulting to PARTIAL INTERRUPTION");
+                }
+                return "PARTIAL INTERRUPTION";
+            };
+
             return aRisks.map(function (oRisk, iIndex) {
                 var sCategory = (oRisk.category || "geopolitical").toLowerCase();
                 var sRiskLevel = oRisk.riskLevel || "Medium";
                 var sColor = mRiskLevelColor[sRiskLevel] || "blue";
                 var sIcon = mCategoryIcon[sCategory] || "sap-icon://warning";
+                var sClassification = normalizeClassification(oRisk.classification);
 
                 return {
                     id: "AI_R" + (iIndex + 1),
@@ -1624,7 +1700,18 @@ sap.ui.define([
                     severityClass: "ctBadge-" + sRiskLevel.toLowerCase(),
                     region: oRisk.region || "Global",
                     time: oRisk.time || "recently",
-                    category: sCategory
+                    category: sCategory,
+                    classification: sClassification,
+                    // Impact-scope counts remain 0 on the initial news feed.
+                    // They are populated per-item only AFTER the user clicks
+                    // Investigate on that specific card and analyzeImpact
+                    // returns real supplier/PO/material data (see
+                    // _analyzeDisruption → _updateSelectedRiskCounts). The
+                    // count line in the fragment is guarded by visible={= !!poCount }
+                    // so it stays hidden until real numbers arrive.
+                    poCount: 0,
+                    materialCount: 0,
+                    plantCount: 0
                 };
             });
         }

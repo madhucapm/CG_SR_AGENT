@@ -441,17 +441,22 @@ sap.ui.define([
 
             oDisruptions.setProperty("/aiRiskState", "creatingCase");
 
-            // Build severity / classification from impact data
+            // Build severity from impact data. Classification is sourced from
+            // the LLM-produced value carried on the selected news risk (see
+            // _mapLLMResponseToRisks). If for any reason it is missing, fall
+            // back to the canonical safe default rather than deriving it from
+            // severity (which was inaccurate).
             var oScope = oDisruptions.getProperty("/scope") || {};
             var iRiskScoreRaw = oImpact.riskScore || "0";
             var iRiskScore = parseInt(String(iRiskScoreRaw).replace(/[^0-9]/g, ""), 10) || 0;
             var sSeverity = iRiskScore >= 80 ? "CRITICAL" : iRiskScore >= 60 ? "HIGH" : iRiskScore >= 40 ? "MEDIUM" : "LOW";
+            var sClassification = (oSelectedRisk && oSelectedRisk.classification) || "PARTIAL INTERRUPTION";
 
             var oPayload = {
                 eventTitle: oImpact.impactType || (oSelectedRisk && oSelectedRisk.title) || "",
                 eventDescription: (oSelectedRisk && oSelectedRisk.description) || oResult.impact_description || "",
                 severity: sSeverity,
-                classification: sSeverity === "CRITICAL" ? "COMPLETE INTERRUPTION" : sSeverity === "HIGH" ? "DELAYED SUPPLY" : "PARTIAL DISRUPTION",
+                classification: sClassification,
                 riskScore: iRiskScore,
                 impactType: oImpact.impactType || "",
                 estimatedImpact: oImpact.estimatedImpact || "",
@@ -1286,7 +1291,13 @@ sap.ui.define([
                 "- \"riskLevel\": Exactly one of: \"Critical\", \"High\", \"Medium\", or \"Low\"\n" +
                 "- \"region\": A specific location in the format \"City, State, Country\" within " + sRegion + ". Always include city and country; include state/province where applicable.\n" +
                 "- \"time\": Approximate recency as a relative time string (e.g., \"2h ago\", \"6h ago\", \"1d ago\", \"2d ago\")\n" +
-                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n\n" +
+                "- \"category\": Exactly one of: \"tariff\", \"fire\", \"flood\", \"shipping\", \"commodity\", \"earthquake\", \"strike\", \"cyberattack\", \"geopolitical\"\n" +
+                "- \"classification\": Exactly one of: \"DELAYED SUPPLY\", \"TARIFF\", \"COMPLETE INTERRUPTION\", \"PARTIAL INTERRUPTION\". " +
+                "Use this rubric to choose the correct value:\n" +
+                "    * \"TARIFF\" — trade policy / customs duties / sanctions / embargoes (cost or paperwork impact, supply itself is not physically blocked).\n" +
+                "    * \"COMPLETE INTERRUPTION\" — supply is fully halted (factory destroyed, port closed, export ban, force majeure, no shipments moving).\n" +
+                "    * \"PARTIAL INTERRUPTION\" — capacity is reduced but some supply continues (partial strike, reduced throughput, damaged but operational asset).\n" +
+                "    * \"DELAYED SUPPLY\" — shipments are delayed but will still arrive (congestion, weather delays, rerouted vessels, longer lead times).\n\n" +
                 "IMPORTANT: Return ONLY a valid JSON array of exactly 5 objects. No markdown formatting, no code fences, no explanation text — just the raw JSON array.";
 
             return {
@@ -1603,11 +1614,36 @@ sap.ui.define([
                 "Low":      "riskLow"
             };
 
+            // Allowed disruption classifications produced by the LLM. Any other
+            // value returned by the model is normalized to the safe default so
+            // downstream consumers (case creation, hierarchy view, filters) only
+            // ever see one of these four canonical strings.
+            var aAllowedClasses = [
+                "DELAYED SUPPLY",
+                "TARIFF",
+                "COMPLETE INTERRUPTION",
+                "PARTIAL INTERRUPTION"
+            ];
+            var normalizeClassification = function (sRaw) {
+                var sVal = (sRaw == null ? "" : String(sRaw)).trim().toUpperCase();
+                if (aAllowedClasses.indexOf(sVal) >= 0) {
+                    return sVal;
+                }
+                if (sVal) {
+                    // Log drift so QA can spot the LLM ignoring the rubric.
+                    console.warn("[GlobalRisks] Unexpected classification from LLM, normalizing to PARTIAL INTERRUPTION:", sRaw);
+                } else {
+                    console.warn("[GlobalRisks] Missing classification from LLM, defaulting to PARTIAL INTERRUPTION");
+                }
+                return "PARTIAL INTERRUPTION";
+            };
+
             return aRisks.map(function (oRisk, iIndex) {
                 var sCategory = (oRisk.category || "geopolitical").toLowerCase();
                 var sRiskLevel = oRisk.riskLevel || "Medium";
                 var sColor = mRiskLevelColor[sRiskLevel] || "blue";
                 var sIcon = mCategoryIcon[sCategory] || "sap-icon://warning";
+                var sClassification = normalizeClassification(oRisk.classification);
 
                 return {
                     id: "AI_R" + (iIndex + 1),
@@ -1624,7 +1660,8 @@ sap.ui.define([
                     severityClass: "ctBadge-" + sRiskLevel.toLowerCase(),
                     region: oRisk.region || "Global",
                     time: oRisk.time || "recently",
-                    category: sCategory
+                    category: sCategory,
+                    classification: sClassification
                 };
             });
         }

@@ -114,6 +114,12 @@ function failureEnvelope({ location, impact_description, assessment_radius_km, e
         affected_supplier_count: 0,
         message: '',
         error: asStr(error),
+        // Aggregate risk metrics — null in the failure path so the response
+        // shape stays consistent with the success envelope (Step 4 output).
+        riskScore: null,
+        maxPossibleScore: null,
+        riskPercentage: null,
+        riskLevel: null,
         affected_suppliers: []
     };
 }

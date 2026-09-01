@@ -7,7 +7,7 @@
         <Toolbar design="Transparent">
             <Title text="Case Dashboard" level="H2" />
         </Toolbar>
-        <Text text="Hierarchical view: Supplier → Purchase Order → Plant → SKU. Plant view shows only impacted PO items." class="sapUiSmallMarginBottom" />
+        <Text text="Hierarchical view: Supplier → Purchase Order → Plant → Material. Plant view shows only impacted PO items." class="sapUiSmallMarginBottom" />
 
         <!-- Case selector dropdown -->
         <Toolbar design="Solid" class="sapUiSmallMarginBottom">
@@ -64,8 +64,8 @@
                 <GenericTile header="PLANTS AFFECTED" subheader="Multi-region" frameType="OneByOne" class="sapUiTinyMarginEnd">
                     <TileContent><NumericContent value="{caseHierarchy>/caseData/plantCount}" valueColor="Neutral" /></TileContent>
                 </GenericTile>
-                <GenericTile header="SKUs AFFECTED" subheader="Beverage packaging" frameType="OneByOne">
-                    <TileContent><NumericContent value="{caseHierarchy>/caseData/skuCount}" valueColor="Good" /></TileContent>
+                <GenericTile header="MATERIALS AFFECTED" subheader="Beverage packaging" frameType="OneByOne">
+                    <TileContent><NumericContent value="{caseHierarchy>/caseData/materialCount}" valueColor="Good" /></TileContent>
                 </GenericTile>
             </HBox>
 
@@ -85,7 +85,7 @@
                         <CustomListItem>
                             <VBox width="100%" class="sapUiTinyMarginTopBottom">
                                 <!-- CASE row -->
-                                <HBox alignItems="Center">
+                                <HBox alignItems="Center" class="hierRow-case">
                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
                                             press=".onHierToggle" type="Transparent" />
                                     <core:Icon src="sap-icon://folder-full" class="sapUiSmallMarginEnd" />
@@ -95,47 +95,47 @@
                                           state="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'Error' : ${caseHierarchy>severity} === 'HIGH' ? 'Warning' : 'None' }" />
                                 </HBox>
                                 <!-- SUPPLIER level -->
-                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                <VBox visible="{caseHierarchy>_expanded}" class="hierLevel1">
                                     <List items="{ path: 'caseHierarchy>suppliers', templateShareable: false }"
                                           showSeparators="None">
                                         <CustomListItem>
                                             <VBox>
-                                                <HBox alignItems="Center">
+                                                <HBox alignItems="Center" class="hierRow-supplier">
                                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
                                                             press=".onHierToggle" type="Transparent" />
                                                     <core:Icon src="sap-icon://supplier" class="sapUiSmallMarginEnd" />
-                                                    <Text text="{caseHierarchy>name}" class="sapUiSmallMarginEnd sapMTextBold" />
+                                                    <Text text="{= ${caseHierarchy>supplierId} + ': ' + (${caseHierarchy>name} || '') }" class="sapUiSmallMarginEnd sapMTextBold" />
                                                     <ObjectStatus text="{caseHierarchy>severity}" state="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'Error' : 'Warning' }" />
                                                 </HBox>
                                                 <!-- PO level -->
-                                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                                <VBox visible="{caseHierarchy>_expanded}" class="hierLevel2">
                                                     <List items="{ path: 'caseHierarchy>purchaseOrders', templateShareable: false }" showSeparators="None">
                                                         <CustomListItem>
                                                             <VBox>
-                                                                <HBox alignItems="Center">
+                                                                <HBox alignItems="Center" class="hierRow-po">
                                                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
                                                                             press=".onHierToggle" type="Transparent" />
                                                                     <core:Icon src="sap-icon://shipping-status" class="sapUiSmallMarginEnd" />
                                                                     <Text text="{caseHierarchy>poNumber}" class="sapMTextBold" />
                                                                 </HBox>
                                                                 <!-- PLANT level -->
-                                                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                                                <VBox visible="{caseHierarchy>_expanded}" class="hierLevel3">
                                                                     <List items="{ path: 'caseHierarchy>plants', templateShareable: false }" showSeparators="None">
                                                                         <CustomListItem>
                                                                             <VBox>
-                                                                                <HBox alignItems="Center">
+                                                                                <HBox alignItems="Center" class="hierRow-plant">
                                                                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
                                                                                             press=".onHierToggle" type="Transparent" />
                                                                                     <core:Icon src="sap-icon://factory" class="sapUiSmallMarginEnd" />
                                                                                     <Text text="{caseHierarchy>plant}" />
                                                                                 </HBox>
                                                                                 <!-- MATERIAL level (leaf — no toggle) -->
-                                                                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                                                                <VBox visible="{caseHierarchy>_expanded}" class="hierLevel4">
                                                                                     <List items="{ path: 'caseHierarchy>materials', templateShareable: false }" showSeparators="None">
                                                                                         <CustomListItem>
-                                                                                            <HBox alignItems="Center">
+                                                                                            <HBox alignItems="Center" class="hierRow-material">
                                                                                                 <core:Icon src="sap-icon://product" class="sapUiSmallMarginEnd" />
-                                                                                                <Text text="{= ${caseHierarchy>sku} || ${caseHierarchy>material} || '—' }" />
+                                                                                                <Text text="{= ${caseHierarchy>materialDescription} ? (${caseHierarchy>material} + ': ' + ${caseHierarchy>materialDescription}) : (${caseHierarchy>material} || '—') }" />
                                                                                             </HBox>
                                                                                         </CustomListItem>
                                                                                     </List>
@@ -205,7 +205,7 @@
                         <HBox class="sapUiTinyMarginBottom"><Label text="Suppliers" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/supplierCount}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="POs" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/poCount}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Plants" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/plantCount}" /></HBox>
-                        <HBox class="sapUiTinyMarginBottom"><Label text="SKUs" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/skuCount}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Materials" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/materialCount}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Status" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/status}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Created" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/createdAt}" /></HBox>
                     </VBox>

@@ -17,7 +17,7 @@
                     </tnt:ToolHeader>
                 </tnt:header>
                 <tnt:sideContent>
-                    <tnt:SideNavigation expanded="true" itemSelect="onNavSelect">
+                    <tnt:SideNavigation id="sideNavigation" expanded="true" itemSelect="onNavSelect">
                         <tnt:NavigationList>
                             <!-- MONITOR group -->
                             <tnt:NavigationListItem text="MONITOR" enabled="false" />

@@ -65,8 +65,8 @@
                 <GenericTile header="PLANT" frameType="OneByOne" class="sapUiTinyMarginEnd">
                     <TileContent><NumericContent value="{agentDisruptions>/caseData/plantCount}" /></TileContent>
                 </GenericTile>
-                <GenericTile header="SKU" frameType="OneByOne">
-                    <TileContent><NumericContent value="{agentDisruptions>/caseData/skuCount}" /></TileContent>
+                <GenericTile header="MATERIALS" frameType="OneByOne">
+                    <TileContent><NumericContent value="{agentDisruptions>/caseData/materialCount}" /></TileContent>
                 </GenericTile>
             </HBox>
 

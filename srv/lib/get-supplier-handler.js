@@ -3,7 +3,7 @@
  * 
  * Handler for Get_supplier CAP function.
  * Fetches all suppliers from S/4HANA via API_BUSINESS_PARTNER, then retrieves
- * their addresses and returns a flat array of { Supplier, Address } objects.
+ * their addresses and returns a flat array of { Supplier, SupplierName, Address } objects.
  * 
  * Steps:
  * 1. Fetch all suppliers from A_Supplier
@@ -35,7 +35,7 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
         // ─────────────────────────────────────────────────────────────────────
         // STEP 1: Fetch all suppliers from A_Supplier
         // ─────────────────────────────────────────────────────────────────────
-        const supplierUrl = `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_Supplier?$select=Supplier&$format=json`;
+        const supplierUrl = `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_Supplier?$select=Supplier,SupplierName&$format=json`;
 
         logger.info('Fetching suppliers from A_Supplier');
         const supplierResp = await executeHttpRequest(destination, { ...opts, url: supplierUrl });
@@ -50,6 +50,11 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
         }
 
         const supplierIds = supplierData.map(s => s.Supplier);
+        // Build a lookup map: Supplier ID → SupplierName
+        const supplierNameMap = {};
+        supplierData.forEach(s => {
+            supplierNameMap[s.Supplier] = s.SupplierName || '';
+        });
         logger.info(`Found ${supplierIds.length} supplier(s). Fetching addresses...`);
 
         // ─────────────────────────────────────────────────────────────────────
@@ -79,7 +84,7 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
 
                     if (addresses.length === 0) {
                         // Supplier exists but has no address — include with empty address
-                        return [{ Supplier: supplierId, Address: '' }];
+                        return [{ Supplier: supplierId, SupplierName: supplierNameMap[supplierId] || '', Address: '' }];
                     }
 
                     // Each address produces a separate entry
@@ -93,12 +98,13 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
 
                         return {
                             Supplier: supplierId,
+                            SupplierName: supplierNameMap[supplierId] || '',
                             Address: parts.join(',')
                         };
                     });
                 } catch (addrErr) {
                     logger.warn(`Failed to fetch address for supplier ${supplierId}: ${addrErr?.message || addrErr}`);
-                    return [{ Supplier: supplierId, Address: '' }];
+                    return [{ Supplier: supplierId, SupplierName: supplierNameMap[supplierId] || '', Address: '' }];
                 }
             });
 

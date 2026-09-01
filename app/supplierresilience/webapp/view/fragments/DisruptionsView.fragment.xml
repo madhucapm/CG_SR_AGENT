@@ -60,8 +60,8 @@
                     <ObjectNumber number="{disruptions>/result/summary/plants}" />
                 </VBox>
                 <VBox>
-                    <Label text="SKUs" />
-                    <ObjectNumber number="{disruptions>/result/summary/skus}" />
+                    <Label text="Materials" />
+                    <ObjectNumber number="{disruptions>/result/summary/materials}" />
                 </VBox>
             </HBox>
         </Panel>
@@ -124,7 +124,7 @@
                                     <Column><Text text="Item" /></Column>
                                     <Column><Text text="Material" /></Column>
                                     <Column><Text text="Plant" /></Column>
-                                    <Column><Text text="SKU" /></Column>
+                                    <Column><Text text="Description" /></Column>
                                 </columns>
                                 <items>
                                     <ColumnListItem>
@@ -133,7 +133,7 @@
                                             <Text text="{= ${disruptions>materials/0/item_no} || '\u2014' }" />
                                             <Text text="{= ${disruptions>materials/0/material} || '\u2014' }" />
                                             <Text text="{= ${disruptions>materials/0/plant} || '\u2014' }" />
-                                            <Text text="{= ${disruptions>materials/0/sku} || '\u2014' }" />
+                                            <Text text="{= ${disruptions>materials/0/material_description} || '\u2014' }" />
                                         </cells>
                                     </ColumnListItem>
                                 </items>

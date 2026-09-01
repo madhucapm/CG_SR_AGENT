@@ -125,10 +125,11 @@ async function enrichSupplierWithPOs(executeHttpRequest, logger, affectedSupplie
         const purchaseOrders = rawPOs.map((po) => ({
             po_number: asStr(po.Number),
             materials: (Array.isArray(po.Materials) ? po.Materials : []).map((m) => ({
-                item_no:  asStr(m.ItemNo),
-                material: asStr(m.Material),
-                plant:    asStr(m.Plant),
-                sku:      asStr(m.SKU)
+                item_no:              asStr(m.ItemNo),
+                material:             asStr(m.Material),
+                material_description: asStr(m.MaterialDescription),
+                plant:                asStr(m.Plant),
+                sku:                  asStr(m.SKU)
             }))
         }));
 
@@ -218,7 +219,7 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
 
         logger.info(`analyzeImpact: Get_supplier returned ${supplierList.length} supplier(s)`);
 
-        // Adapt from CAP handler shape { Supplier, Address } to Python
+        // Adapt from CAP handler shape { Supplier, SupplierName, Address } to Python
         // agent shape { supplier_id, name, address }. Skip records that
         // have no usable address — the Python agent would fail to geocode
         // them anyway and its own rule is to skip and log.
@@ -226,7 +227,7 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
             .filter((s) => s && s.Supplier && s.Address)
             .map((s) => ({
                 supplier_id: asStr(s.Supplier),
-                name:        asStr(s.Supplier),
+                name:        asStr(s.SupplierName) || asStr(s.Supplier),
                 address:     asStr(s.Address)
             }));
 

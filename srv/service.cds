@@ -1196,6 +1196,17 @@ service SupplierResilienceService {
         affected_supplier_count : Integer;    // how many fell inside the radius
         message                 : String;
         error                   : String;
+
+        // ── Aggregate risk metrics (from runEarlyWarningWithS4R) ──
+        // Populated in Step 4 of analyze-impact-handler.js. Values come from
+        // the "worst" affected supplier (highest riskPercentage). If risk
+        // scoring fails for any reason, these are null but the rest of the
+        // response is preserved.
+        riskScore               : Integer;    // 0–58 (raw score)
+        maxPossibleScore        : Integer;    // 58 (fixed ceiling for S4R model)
+        riskPercentage          : Integer;    // 0–100 (normalized for UI)
+        riskLevel               : String;     // LOW / MEDIUM / HIGH
+
         affected_suppliers      : array of {
             supplier_id     : String;
             name            : String;
@@ -1204,6 +1215,13 @@ service SupplierResilienceService {
             longitude       : Decimal;
             distance_km     : Decimal;
             po_count        : Integer;
+
+            // ── Per-supplier risk metrics (from runEarlyWarningWithS4R) ──
+            risk_score          : Integer;    // 0–58
+            max_possible_score  : Integer;    // 58
+            risk_percentage     : Integer;    // 0–100
+            risk_level          : String;     // LOW / MEDIUM / HIGH
+
             purchase_orders : array of {
                 po_number : String;
                 materials : array of {

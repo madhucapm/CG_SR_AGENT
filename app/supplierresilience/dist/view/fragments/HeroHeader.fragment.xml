@@ -3,7 +3,7 @@
     xmlns:core="sap.ui.core">
     <!-- News Feed Home Header — sap_horizon default theme -->
     <VBox class="sapUiSmallMarginBottom">
-        <Title text="News Feed \u2014 Home" level="H1" />
+        <Title text="News Feed" level="H1" />
         <Text text="Real-time supply chain disruption monitoring. Select an event to preview supplier impact; confirm to create a case." />
     </VBox>
 </core:FragmentDefinition>

@@ -36,7 +36,7 @@
                             <core:Icon src="{dashboard>icon}" class="sapUiSmallMarginEnd" />
                             <VBox>
                                 <Title text="{dashboard>title}" level="H4" wrapping="true" />
-                                <Text text="{dashboard>region} \u00b7 {dashboard>time}" class="sapUiTinyMarginBottom" />
+                                <Text text="{dashboard>region} {dashboard>time}" class="sapUiTinyMarginBottom" />
                             </VBox>
                         </HBox>
                         <HBox alignItems="Center">

@@ -1412,6 +1412,37 @@ sap.ui.define([
                     });
                     oDisruptions.setProperty("/aiRiskState", "impactPreview");
 
+                    // Populate the Early Warning Output metrics used by the
+                    // AiAssistantCard IMPACT METRICS section. Previously this
+                    // property was never set, leaving Suppliers / POs / Plants /
+                    // SKUs empty even though the data was available in oScope.
+                    oDisruptions.setProperty("/earlyWarningOutput", {
+                        summary: oResult.message ||
+                            ((oResult.affected_supplier_count || 0) + " supplier(s) found within " +
+                             (oResult.assessment_radius_km || 500) + " km of the impact area."),
+                        suppliers: oScope.supplierCount,
+                        pos:       oScope.poCount,
+                        plants:    oScope.plantCount,
+                        skus:      oScope.skuCount
+                    });
+
+                    // Populate the classified disruption type shown in the
+                    // AiAssistantCard "TYPE" row.
+                    oDisruptions.setProperty("/classifiedType",
+                        oSelectedRisk.classification ||
+                        oResult.impact_description ||
+                        "Supply Disruption");
+
+                    // Write a summary sub-object onto /result so the
+                    // DisruptionsView IMPACT SUMMARY panel can bind to
+                    // disruptions>/result/summary/suppliers|pos|plants|skus.
+                    oDisruptions.setProperty("/result/summary", {
+                        suppliers: oScope.supplierCount,
+                        pos:       oScope.poCount,
+                        plants:    oScope.plantCount,
+                        skus:      oScope.skuCount
+                    });
+
                     // Populate Risk Assessment model + earlyWarningResult from live API data
                     that._populateRiskAssessmentFromImpact(oResult, oScope);
 

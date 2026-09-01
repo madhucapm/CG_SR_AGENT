@@ -84,6 +84,16 @@
                 </VBox>
             </HBox>
 
+            <Title text="IMPACT SCORE" level="H5" class="sapUiTinyMarginBottom" />
+            <HBox class="sapUiSmallMarginBottom" alignItems="Center">
+                <ObjectStatus text="{disruptions>/impactPreview/riskScore}" state="Error" class="sapUiSmallMarginEnd" />
+            </HBox>
+
+            <Title text="FINANCIAL IMPACT" level="H5" class="sapUiTinyMarginBottom" />
+            <HBox class="sapUiSmallMarginBottom" alignItems="Center">
+                <ObjectStatus text="{disruptions>/impactPreview/estimatedImpact}" state="Warning" class="sapUiSmallMarginEnd" />
+            </HBox>
+
             <Toolbar design="Transparent"><ToolbarSpacer /></Toolbar>
 
             <MessageStrip text="Human decision required. Confirm supplier impact to trigger the Coordinator Agent, create a Case ID, and run downstream agents." type="Warning" showIcon="true" class="sapUiSmallMarginBottom" />
@@ -116,18 +126,22 @@
             <VBox class="sapUiSmallMarginBottom">
                 <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                     <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Label text="Suppliers:" class="sapUiSmallMarginEnd" />
                     <Text text="{disruptions>/createdCase/supplierSummary}" />
                 </HBox>
                 <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                     <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Label text="POs:" class="sapUiSmallMarginEnd" />
                     <Text text="{disruptions>/createdCase/poSummary}" />
                 </HBox>
                 <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                     <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Label text="Plants:" class="sapUiSmallMarginEnd" />
                     <Text text="{disruptions>/createdCase/plantSummary}" wrapping="true" />
                 </HBox>
                 <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                     <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Label text="SKUs:" class="sapUiSmallMarginEnd" />
                     <Text text="{disruptions>/createdCase/skuSummary}" wrapping="true" />
                 </HBox>
             </VBox>

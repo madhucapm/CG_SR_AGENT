@@ -52,7 +52,7 @@
                         <Column width="10%" hAlign="Center"><Text text="SEVERITY" /></Column>
                         <Column width="10%" hAlign="Center"><Text text="POs AT RISK" /></Column>
                         <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="PLANTS" /></Column>
-                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="SKUs" /></Column>
+                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="Materials" /></Column>
                     </columns>
                     <items>
                         <ColumnListItem>
@@ -63,7 +63,7 @@
                                 <ObjectStatus text="{riskAssessment>severity}" state="{= ${riskAssessment>severity} === 'CRITICAL' ? 'Error' : ${riskAssessment>severity} === 'HIGH' ? 'Warning' : ${riskAssessment>severity} === 'MEDIUM' ? 'Information' : 'Success' }" />
                                 <Text text="{riskAssessment>posAtRisk}" />
                                 <Text text="{riskAssessment>plants}" wrapping="true" />
-                                <Text text="{riskAssessment>skus}" wrapping="true" />
+                                <Text text="{riskAssessment>materials}" wrapping="true" />
                             </cells>
                         </ColumnListItem>
                     </items>

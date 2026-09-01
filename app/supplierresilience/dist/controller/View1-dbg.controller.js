@@ -191,7 +191,7 @@ sap.ui.define([
                         severity: "CRITICAL",
                         posAtRisk: "3",
                         plants: "Mumbai Plant, Pune Plant",
-                        skus: "Coke Can, Sprite Can, Fanta Can"
+                        materials: "Coke Can, Sprite Can, Fanta Can"
                     },
                     {
                         supplier: "MetalCorp US",
@@ -200,7 +200,7 @@ sap.ui.define([
                         severity: "HIGH",
                         posAtRisk: "2",
                         plants: "Atlanta Plant, Monterey Plant",
-                        skus: "Soda Can Body, Can Lid"
+                        materials: "Soda Can Body, Can Lid"
                     }
                 ]
             });
@@ -516,10 +516,11 @@ sap.ui.define([
 
                 var aSupplierNames = aSuppliers.map(function (s) { return s.name; }).filter(Boolean);
                 var aPlantNames = [];
-                var aSkuNames = [];
+                var aMaterialNames = [];
                 aMaterials.forEach(function (m) {
                     if (m.plant && aPlantNames.indexOf(m.plant) === -1) aPlantNames.push(m.plant);
-                    if (m.sku   && aSkuNames.indexOf(m.sku)     === -1) aSkuNames.push(m.sku);
+                    var sMatDisplay = m.material || "";
+                    if (sMatDisplay && aMaterialNames.indexOf(sMatDisplay) === -1) aMaterialNames.push(sMatDisplay);
                 });
 
                 oDisruptions.setProperty("/createdCase", {
@@ -528,7 +529,7 @@ sap.ui.define([
                     supplierSummary: aSupplierNames.join(", ") || "—",
                     poSummary: (caseData.poCount || 0) + " Purchase Orders",
                     plantSummary: aPlantNames.join(", ") || "—",
-                    skuSummary: aSkuNames.join(", ") || "—",
+                    materialSummary: aMaterialNames.join(", ") || "—",
                     caseData: caseData,
                     suppliers: aSuppliers,
                     purchaseOrders: oData.purchaseOrders || [],
@@ -933,7 +934,7 @@ sap.ui.define([
                     aM.forEach(function (m) {
                         var p = m.plant || "Unknown";
                         if (!oByPlant[p]) { oByPlant[p] = []; }
-                        oByPlant[p].push({ material: m.material || "", sku: m.sku || "", itemNo: m.itemNo || "" });
+                        oByPlant[p].push({ material: m.material || "", materialDescription: m.materialDescription || "", sku: m.sku || "", itemNo: m.itemNo || "" });
                     });
                     var aPlants = Object.keys(oByPlant).map(function (p) {
                         return { plant: p, materials: oByPlant[p], _expanded: false };
@@ -1024,6 +1025,21 @@ sap.ui.define([
             oDashboard.setProperty("/selectedSteps", oDashboard.getProperty("/workspaces/" + sKey + "/steps") || []);
             oDashboard.setProperty("/selectedWorkspace",
                 oDashboard.getProperty("/workspaces/" + sKey) || oDashboard.getProperty("/workspaces/control"));
+
+            // Sync the SideNavigation highlight to match the programmatic view switch
+            var oSideNav = this.byId("sideNavigation");
+            if (oSideNav) {
+                var oNavList = oSideNav.getItem();  // the main NavigationList
+                if (oNavList) {
+                    var aNavItems = oNavList.getItems() || [];
+                    for (var i = 0; i < aNavItems.length; i++) {
+                        if (aNavItems[i].getKey && aNavItems[i].getKey() === sKey) {
+                            oSideNav.setSelectedItem(aNavItems[i]);
+                            break;
+                        }
+                    }
+                }
+            }
 
             var oDashView   = this.byId("dashboardView");
             var oRaView     = this.byId("riskAssessmentView");
@@ -1382,16 +1398,17 @@ sap.ui.define([
                     var aAffSuppliers = Array.isArray(oResult.affected_suppliers)
                         ? oResult.affected_suppliers : [];
 
-                    // Collect plant names and SKU names from all affected suppliers
+                    // Collect plant names and material display names from all affected suppliers
                     var aPlantNames = [];
-                    var aSkuNames = [];
+                    var aMaterialDisplayNames = [];
                     aAffSuppliers.forEach(function (s) {
                         var aPOs = Array.isArray(s.purchase_orders) ? s.purchase_orders : [];
                         aPOs.forEach(function (po) {
                             var aMats = Array.isArray(po.materials) ? po.materials : [];
                             aMats.forEach(function (m) {
                                 if (m.plant && aPlantNames.indexOf(m.plant) === -1) { aPlantNames.push(m.plant); }
-                                if (m.sku   && aSkuNames.indexOf(m.sku)     === -1) { aSkuNames.push(m.sku); }
+                                var sMatDisplay = m.material_description || m.material || "";
+                                if (sMatDisplay && aMaterialDisplayNames.indexOf(sMatDisplay) === -1) { aMaterialDisplayNames.push(sMatDisplay); }
                             });
                         });
                     });
@@ -1408,7 +1425,7 @@ sap.ui.define([
                             (aAffSuppliers.length > 1 ? " (+" + (aAffSuppliers.length - 1) + " more)" : ""),
                         posAtRisk:  oScope.poCount + " at risk",
                         plants:     aPlantNames.join(", ") || "—",
-                        skus:       aSkuNames.join(", ")   || "—"
+                        materials:  aMaterialDisplayNames.join(", ") || "—"
                     });
                     oDisruptions.setProperty("/aiRiskState", "impactPreview");
 
@@ -1423,7 +1440,7 @@ sap.ui.define([
                         suppliers: oScope.supplierCount,
                         pos:       oScope.poCount,
                         plants:    oScope.plantCount,
-                        skus:      oScope.skuCount
+                        materials: oScope.materialCount
                     });
 
                     // Populate the classified disruption type shown in the
@@ -1435,12 +1452,12 @@ sap.ui.define([
 
                     // Write a summary sub-object onto /result so the
                     // DisruptionsView IMPACT SUMMARY panel can bind to
-                    // disruptions>/result/summary/suppliers|pos|plants|skus.
+                    // disruptions>/result/summary/suppliers|pos|plants|materials.
                     oDisruptions.setProperty("/result/summary", {
                         suppliers: oScope.supplierCount,
                         pos:       oScope.poCount,
                         plants:    oScope.plantCount,
-                        skus:      oScope.skuCount
+                        materials: oScope.materialCount
                     });
 
                     // Populate Risk Assessment model + earlyWarningResult from live API data
@@ -1575,14 +1592,14 @@ sap.ui.define([
             if(!aAff.length)return;
             var iMax=0,sMaxSup="";
             var aRows=aAff.map(function(s){
-                var aPOs=Array.isArray(s.purchase_orders)?s.purchase_orders:[],pl=[],sk=[];
-                aPOs.forEach(function(po){(Array.isArray(po.materials)?po.materials:[]).forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1)pl.push(m.plant);if(m.sku&&sk.indexOf(m.sku)===-1)sk.push(m.sku);});});
+                var aPOs=Array.isArray(s.purchase_orders)?s.purchase_orders:[],pl=[],ml=[];
+                aPOs.forEach(function(po){(Array.isArray(po.materials)?po.materials:[]).forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1)pl.push(m.plant);var md=m.material_description||m.material||"";if(md&&ml.indexOf(md)===-1)ml.push(md);});});
                 var d=s.distance_km||999,n=s.po_count||aPOs.length;
                 var sc=d<50?90+Math.min(n,10):d<100?75+Math.min(n*2,15):d<200?60+Math.min(n*2,15):d<400?40+Math.min(n*3,20):20+Math.min(n*3,20);
                 sc=Math.min(sc,100);if(sc>iMax){iMax=sc;sMaxSup=s.name||s.supplier_id||"";}
                 var sev=sc>=80?"CRITICAL":sc>=60?"HIGH":sc>=40?"MEDIUM":"LOW";
                 var cls=d<50?"COMPLETE INTERRUPTION":d<200?"DELAYED SUPPLY":"PARTIAL DISRUPTION";
-                return{supplier:s.name||s.supplier_id||"Unknown",supplierId:s.supplier_id||"",classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",skus:sk.join(", ")||"—"};
+                return{supplier:s.name||s.supplier_id||"Unknown",supplierId:s.supplier_id||"",classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",materials:ml.join(", ")||"—"};
             });
             aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
             oRM.setProperty("/kpi",{highestRisk:{value:String(iMax),supplier:sMaxSup},suppliersImpacted:{value:String(oScope.supplierCount),sub:"Affected by event"},posAtRisk:{value:String(oScope.poCount),sub:"At risk"},plants:{value:String(oScope.plantCount),sub:"Affected"}});
@@ -1603,13 +1620,13 @@ sap.ui.define([
             aPOs.forEach(function(p){var k=p.supplierId||"";if(!poBy[k])poBy[k]=[];poBy[k].push(p);});
             aM.forEach(function(m){var k=m.supplierId||"";if(!matBy[k])matBy[k]=[];matBy[k].push(m);});
             var iMax=cd.riskScore||0,sMax="",tPOs=0,pSet={};
-            var aRows=aS.map(function(s){var sid=s.supplierId||"",sp=poBy[sid]||[],sm=matBy[sid]||[];var pl=[],sk=[];
-                sm.forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1){pl.push(m.plant);pSet[m.plant]=1;}if(m.sku&&sk.indexOf(m.sku)===-1)sk.push(m.sku);});
+            var aRows=aS.map(function(s){var sid=s.supplierId||"",sp=poBy[sid]||[],sm=matBy[sid]||[];var pl=[],ml=[];
+                sm.forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1){pl.push(m.plant);pSet[m.plant]=1;}var md=m.material||"";if(md&&ml.indexOf(md)===-1)ml.push(md);});
                 var n=s.poCount||sp.length;tPOs+=n;var sc=cd.riskScore||0;
                 if(aS.length>1){sc=Math.round((n/(cd.poCount||aPOs.length||1))*sc);sc=Math.max(sc,20);sc=Math.min(sc,100);}
                 if(sc>=iMax){iMax=sc;sMax=s.name||sid;}var sev=sc>=80?"CRITICAL":sc>=60?"HIGH":sc>=40?"MEDIUM":"LOW";
                 var cls=cd.classification||(sev==="CRITICAL"?"COMPLETE INTERRUPTION":sev==="HIGH"?"DELAYED SUPPLY":"PARTIAL DISRUPTION");
-                return{supplier:s.name||sid,supplierId:sid,classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",skus:sk.join(", ")||"—"};});
+                return{supplier:s.name||sid,supplierId:sid,classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",materials:ml.join(", ")||"—"};});
             aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
             oRM.setProperty("/kpi",{highestRisk:{value:String(iMax),supplier:sMax||"—"},suppliersImpacted:{value:String(aS.length),sub:"Affected by event"},posAtRisk:{value:String(tPOs),sub:"At risk"},plants:{value:String(Object.keys(pSet).length),sub:"Affected"}});
             oRM.setProperty("/supplierRisks",aRows);

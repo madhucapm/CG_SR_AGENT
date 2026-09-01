@@ -4,3 +4,16 @@ html, body, #content {
     margin: 0;
     padding: 0;
 }
+
+/* ── Case Hierarchy Tree — progressive indentation + tree-line cues ── */
+.hierLevel1 { padding-left: 1.5rem !important; border-left: 2px solid #91C8F6; }
+.hierLevel2 { padding-left: 3rem   !important; border-left: 2px solid #91C8F6; }
+.hierLevel3 { padding-left: 4.5rem !important; border-left: 2px solid #91C8F6; }
+.hierLevel4 { padding-left: 6rem   !important; border-left: 2px solid #D3D7D9; }
+
+/* Row highlights so each depth band is distinguishable */
+.hierRow-case     { background: #F5F6F7; border-radius: 4px; padding: 0.25rem 0.5rem; margin-bottom: 2px; }
+.hierRow-supplier { background: #EDF6FF; border-radius: 4px; padding: 0.25rem 0.5rem; margin-bottom: 2px; }
+.hierRow-po       { background: #FFF8E1; border-radius: 4px; padding: 0.25rem 0.5rem; margin-bottom: 2px; }
+.hierRow-plant    { background: #F1F8E9; border-radius: 4px; padding: 0.25rem 0.5rem; margin-bottom: 2px; }
+.hierRow-material { background: #FAFAFA; border-radius: 4px; padding: 0.15rem 0.5rem; margin-bottom: 1px; }

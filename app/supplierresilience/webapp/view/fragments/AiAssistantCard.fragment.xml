@@ -79,8 +79,8 @@
                     <ObjectNumber number="{disruptions>/earlyWarningOutput/plants}" />
                 </VBox>
                 <VBox>
-                    <Label text="SKUs" />
-                    <ObjectNumber number="{disruptions>/earlyWarningOutput/skus}" />
+                    <Label text="Materials" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/materials}" />
                 </VBox>
             </HBox>
 
@@ -141,8 +141,8 @@
                 </HBox>
                 <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                     <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
-                    <Label text="SKUs:" class="sapUiSmallMarginEnd" />
-                    <Text text="{disruptions>/createdCase/skuSummary}" wrapping="true" />
+                    <Label text="Materials:" class="sapUiSmallMarginEnd" />
+                    <Text text="{disruptions>/createdCase/materialSummary}" wrapping="true" />
                 </HBox>
             </VBox>
 

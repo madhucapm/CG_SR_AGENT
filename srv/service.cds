@@ -1225,10 +1225,11 @@ service SupplierResilienceService {
             purchase_orders : array of {
                 po_number : String;
                 materials : array of {
-                    item_no  : String;
-                    material : String;
-                    plant    : String;
-                    sku      : String;
+                    item_no              : String;
+                    material             : String;
+                    material_description : String;
+                    plant                : String;
+                    sku                  : String;
                 };
             };
         };
@@ -1350,8 +1351,9 @@ service SupplierResilienceService {
      * @returns Array of supplier-address records
      */
     function Get_supplier() returns array of {
-        Supplier    : String;
-        Address     : String;
+        Supplier     : String;
+        SupplierName : String;
+        Address      : String;
     };
     
     
@@ -1382,10 +1384,11 @@ service SupplierResilienceService {
         PO          : array of {
             Number      : String;
             Materials   : array of {
-                ItemNo      : String;
-                Material    : String;
-                Plant       : String;
-                SKU         : String;
+                ItemNo              : String;
+                Material            : String;
+                MaterialDescription : String;
+                Plant               : String;
+                SKU                 : String;
             };
         };
     };

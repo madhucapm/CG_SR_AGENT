@@ -6,10 +6,14 @@
  * (API_PURCHASEORDER_PROCESS_SRV) and then fetches the line items
  * for each PO via the to_PurchaseOrderItem navigation property.
  * 
+ * Additionally fetches material descriptions from API_PRODUCT_SRV.
+ * 
  * Steps:
  * 1. Fetch POs filtered by Supplier from A_PurchaseOrder
  * 2. For each PO, fetch items from A_PurchaseOrder('<PO>')/to_PurchaseOrderItem
- * 3. Map PurchaseOrderItem → ItemNo, Material → Material & SKU, Plant → Plant
+ * 3. Collect unique material IDs and fetch descriptions from API_PRODUCT_SRV
+ * 4. Map PurchaseOrderItem → ItemNo, Material → Material & SKU, Plant → Plant,
+ *    MaterialDescription → ProductDescription
  */
 
 'use strict';
@@ -69,7 +73,7 @@ async function handleGetSupplierDetails(executeHttpRequest, logger, req) {
         // Process in batches of 10 to avoid overloading the backend
         // ─────────────────────────────────────────────────────────────────────
         const BATCH_SIZE = 10;
-        const poResults = [];
+        const poItemsRaw = [];
 
         for (let i = 0; i < poNumbers.length; i += BATCH_SIZE) {
             const batch = poNumbers.slice(i, i + BATCH_SIZE);
@@ -87,24 +91,81 @@ async function handleGetSupplierDetails(executeHttpRequest, logger, req) {
                         || itemsResp?.data?.value
                         || [];
 
-                    // STEP 3: Map item fields to output structure
-                    const materials = itemsData.map(item => ({
-                        ItemNo: item.PurchaseOrderItem || '',
-                        Material: item.Material || '',
-                        Plant: item.Plant || '',
-                        SKU: item.Material || ''
-                    }));
-
-                    return { Number: poNumber, Materials: materials };
+                    return { Number: poNumber, items: itemsData };
                 } catch (itemErr) {
                     logger.warn(`Failed to fetch items for PO ${poNumber}: ${itemErr?.message || itemErr}`);
-                    return { Number: poNumber, Materials: [] };
+                    return { Number: poNumber, items: [] };
                 }
             });
 
             const batchResults = await Promise.all(batchPromises);
-            poResults.push(...batchResults);
+            poItemsRaw.push(...batchResults);
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // STEP 3: Collect unique material IDs and fetch descriptions from
+        // API_PRODUCT_SRV/A_ProductDescription(Product='<id>',Language='EN')
+        // ─────────────────────────────────────────────────────────────────────
+        const uniqueMaterials = new Set();
+        poItemsRaw.forEach(po => {
+            po.items.forEach(item => {
+                const mat = item.Material || '';
+                if (mat) uniqueMaterials.add(mat);
+            });
+        });
+
+        const materialDescMap = {};
+        const materialIds = Array.from(uniqueMaterials);
+
+        if (materialIds.length > 0) {
+            logger.info(`Fetching descriptions for ${materialIds.length} unique material(s)...`);
+
+            for (let i = 0; i < materialIds.length; i += BATCH_SIZE) {
+                const descBatch = materialIds.slice(i, i + BATCH_SIZE);
+
+                const descPromises = descBatch.map(async (materialId) => {
+                    try {
+                        const descUrl =
+                            `/sap/opu/odata/sap/API_PRODUCT_SRV/A_ProductDescription` +
+                            `(Product='${encodeURIComponent(materialId)}',Language='EN')` +
+                            `?$format=json`;
+
+                        const descResp = await executeHttpRequest(destination, { ...opts, url: descUrl });
+
+                        const description = descResp?.data?.d?.ProductDescription
+                            || descResp?.data?.ProductDescription
+                            || '';
+
+                        materialDescMap[materialId] = description;
+                    } catch (descErr) {
+                        logger.warn(`Failed to fetch description for material ${materialId}: ${descErr?.message || descErr}`);
+                        materialDescMap[materialId] = '';
+                    }
+                });
+
+                await Promise.all(descPromises);
+            }
+
+            logger.info(`Fetched descriptions for ${Object.keys(materialDescMap).length} material(s)`);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // STEP 4: Map item fields to output structure, enriching with
+        // material descriptions
+        // ─────────────────────────────────────────────────────────────────────
+        const poResults = poItemsRaw.map(po => {
+            const materials = po.items.map(item => {
+                const materialId = item.Material || '';
+                return {
+                    ItemNo: item.PurchaseOrderItem || '',
+                    Material: materialId,
+                    MaterialDescription: materialDescMap[materialId] || '',
+                    Plant: item.Plant || '',
+                    SKU: materialId
+                };
+            });
+            return { Number: po.Number, Materials: materials };
+        });
 
         logger.info(`GET_SupplierDetails complete: ${poResults.length} PO(s) with items returned`);
         return { Supplier: supplier, PO: poResults };

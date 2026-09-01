@@ -989,7 +989,76 @@ service SupplierResilienceService {
         error                   : String;
     };
     
-    
+
+    /**
+     * Run Substitution Agent
+     * 
+     * Checks BOM, approved suppliers, and material alternatives
+     * for the given case. Returns substitution recommendations.
+     * 
+     * @param caseId - Case identifier
+     * 
+     * @returns Substitution analysis with alternatives
+     */
+    action runSubstitution(
+        caseId      : String
+    ) returns {
+        success             : Boolean;
+        agent               : String;
+        caseId              : String;
+        status              : String;
+        alternatives        : array of {
+            materialId          : String;
+            description         : String;
+            alternateSupplier   : String;
+            feasibility         : String;
+            leadTimeDays        : Integer;
+            costImpact          : String;
+        };
+        substitutes         : array of {
+            originalMaterial    : String;
+            substituteMaterial  : String;
+            complianceStatus    : String;
+            qualityMatch        : String;
+        };
+        recommendation      : String;
+        dataSource          : String;
+        calculatedAt        : String;
+        error               : String;
+    };
+
+    /**
+     * Run Buyer Agent
+     * 
+     * Handles PO creation, stock transfers, and procurement
+     * execution for the given case.
+     * 
+     * @param caseId - Case identifier
+     * 
+     * @returns Buyer execution result with PO details
+     */
+    action runBuyer(
+        caseId      : String
+    ) returns {
+        success             : Boolean;
+        agent               : String;
+        caseId              : String;
+        status              : String;
+        poNumber            : String;
+        poStatus            : String;
+        totalAmount         : String;
+        actions             : array of {
+            actionType          : String;
+            description         : String;
+            status              : String;
+            reference           : String;
+        };
+        recommendation      : String;
+        dataSource          : String;
+        calculatedAt        : String;
+        error               : String;
+    };
+
     // ═══════════════════════════════════════════════════════════════════════════
     // UTILITY FUNCTIONS
     // ═══════════════════════════════════════════════════════════════════════════

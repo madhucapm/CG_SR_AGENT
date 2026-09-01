@@ -1,162 +1,139 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!--
-        Recommendations & Approval — Static prototype (MVP1).
-        All content is static XML text. No JSONModel, no backend.
-        In a future phase this will be connected to the Substitution Agent
-        and CAP/HANA recommendation + approval persistence.
-    -->
-    <VBox class="assessHome" width="100%">
+    <!-- Recommendations & Approval — Static prototype (MVP1). sap_horizon default theme. -->
+    <VBox width="100%">
 
-        <!-- PAGE HEADER -->
-        <VBox class="assessTitleWrap">
-            <Title text="Recommendations &amp; Approval" level="H2" class="assessTitle" />
-            <Text text="Substitution Agent recommendations with scenario comparison. Approve or reject for execution."
-                  class="assessSubtitle" />
-        </VBox>
+        <Toolbar design="Transparent">
+            <Title text="Recommendations &amp; Approval" level="H2" />
+        </Toolbar>
+        <Text text="Substitution Agent recommendations with scenario comparison. Approve or reject for execution." class="sapUiSmallMarginBottom" />
 
-        <!-- CASE HEADER (reuses caseBanner pattern — empty state) -->
-        <HBox class="caseBanner" alignItems="Center">
-            <HBox alignItems="Center" class="caseBannerLeft">
-                <Text text="CASE ID" class="caseBannerLabel" />
-                <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '— none active —' }"
-                      class="{= ${dashboard>/selectedCaseId} ? 'caseBannerValue caseBannerValue--active' : 'caseBannerValue' }" />
-            </HBox>
+        <Toolbar design="Solid" class="sapUiSmallMarginBottom">
+            <Label text="CASE ID" />
+            <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '\u2014 none active \u2014' }" />
             <Text text="Preview and confirm an event in News Feed to create a case."
-                  class="caseBannerHint"
                   visible="{= !${dashboard>/selectedCaseId} }" />
-        </HBox>
+        </Toolbar>
 
-        <!-- ════════════════════════════════════════════════════════
-             SCENARIO COMPARISON (LITE)
-             ════════════════════════════════════════════════════════ -->
-        <VBox class="recSectionCard">
-            <HBox alignItems="Center" class="recSectionHeader">
-                <Title text="SCENARIO COMPARISON (LITE)" level="H4" class="raPanelTitle" />
-                <Text text="OPEN: BUSINESS KPI + COST DISPLAY" class="recOpenBadgeText" />
+        <!-- SCENARIO COMPARISON -->
+        <Panel class="sapUiSmallMarginBottom">
+            <headerToolbar>
+                <Toolbar>
+                    <Title text="SCENARIO COMPARISON (LITE)" level="H4" />
+                    <ToolbarSpacer />
+                    <Text text="OPEN: BUSINESS KPI + COST DISPLAY" />
+                </Toolbar>
+            </headerToolbar>
+
+            <HBox class="sapUiSmallMarginBottom">
+                <Panel class="sapUiTinyMarginEnd" width="33%">
+                    <headerToolbar><Toolbar><ObjectStatus text="RECOMMENDED" state="Success" /><ToolbarSpacer /><Title text="Alt Supplier + Stock Transfer" level="H5" /></Toolbar></headerToolbar>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Cost Impact" class="sapUiSmallMarginEnd" width="6rem" /><Text text="+8%" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Lead Time" class="sapUiSmallMarginEnd" width="6rem" /><Text text="12 days" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Risk Level" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="Low" state="Success" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Coverage" class="sapUiSmallMarginEnd" width="6rem" /><Text text="100%" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="OTIF Recovery" class="sapUiSmallMarginEnd" width="6rem" /><Text text="-8% \u2192 -1%" /></HBox>
+                    <ObjectStatus text="\u2713 AI Recommended" state="Success" />
+                </Panel>
+                <Panel class="sapUiTinyMarginEnd" width="33%">
+                    <headerToolbar><Toolbar><Text text="OPTION B" /><ToolbarSpacer /><Title text="Alt Material (Aluminium 3003)" level="H5" /></Toolbar></headerToolbar>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Cost Impact" class="sapUiSmallMarginEnd" width="6rem" /><Text text="+12%" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Lead Time" class="sapUiSmallMarginEnd" width="6rem" /><Text text="18 days" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Risk Level" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="Medium" state="Warning" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Coverage" class="sapUiSmallMarginEnd" width="6rem" /><Text text="85%" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="OTIF Recovery" class="sapUiSmallMarginEnd" width="6rem" /><Text text="-8% \u2192 -3%" /></HBox>
+                </Panel>
+                <Panel width="33%">
+                    <headerToolbar><Toolbar><Text text="OPTION C" /><ToolbarSpacer /><Title text="Wait for Recovery" level="H5" /></Toolbar></headerToolbar>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Cost Impact" class="sapUiSmallMarginEnd" width="6rem" /><Text text="$0" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Lead Time" class="sapUiSmallMarginEnd" width="6rem" /><Text text="45+ days" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Risk Level" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="High" state="Error" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="Coverage" class="sapUiSmallMarginEnd" width="6rem" /><Text text="0%" /></HBox>
+                    <HBox class="sapUiTinyMarginBottom"><Label text="OTIF Recovery" class="sapUiSmallMarginEnd" width="6rem" /><Text text="-8% maintained" /></HBox>
+                </Panel>
             </HBox>
+        </Panel>
 
-            <HBox class="recScenarioCards">
+        <!-- RECOMMENDATION CARDS -->
+        <Panel class="sapUiSmallMarginBottom">
+            <headerToolbar><Toolbar><Title text="RECOMMENDATIONS" level="H4" /></Toolbar></headerToolbar>
 
-                <!-- OPTION 1 — RECOMMENDED -->
-                <VBox class="recScenarioCard recScenarioCard--recommended">
-                    <Text text="RECOMMENDED" class="recScenarioLabel recScenarioLabel--recommended" />
-                    <Title text="Alt Supplier + Stock Transfer" level="H5" class="recScenarioTitle" />
-                    <VBox class="recScenarioMetrics">
-                        <HBox class="recScenarioMetricRow"><Text text="Cost Impact" class="recScenarioMetricLabel" /><Text text="+8%" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Lead Time" class="recScenarioMetricLabel" /><Text text="12 days" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Risk Level" class="recScenarioMetricLabel" /><Text text="Low" class="recScenarioMetricValue recScenarioMetricValue--low" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Coverage" class="recScenarioMetricLabel" /><Text text="100%" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="OTIF Recovery" class="recScenarioMetricLabel" /><Text text="-8% → -1%" class="recScenarioMetricValue" /></HBox>
-                    </VBox>
-                    <Text text="✓ AI Recommended" class="recAiRecommendedBadge" />
-                </VBox>
+            <!-- Recommendation 1 -->
+            <Panel class="sapUiSmallMarginBottom">
+                <headerToolbar>
+                    <Toolbar>
+                        <Title text="Switch to Indorama Ventures (qualified)" level="H5" />
+                        <ToolbarSpacer />
+                        <ObjectStatus text="Alt Supplier" state="Information" />
+                    </Toolbar>
+                </headerToolbar>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Supplier" /><Text text="Indorama Ventures" /></VBox>
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Material" /><Text text="PET Resin" /></VBox>
+                    <VBox><Label text="Qty" /><Text text="200 MT" /></VBox>
+                </HBox>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Projected OTIF Impact" /><Text text="-8% \u2192 -2%" /></VBox>
+                    <VBox><Label text="Cost / KPI Impact Avoided" /><ObjectStatus text="$1.2M avoided" state="Success" /></VBox>
+                </HBox>
+                <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
+                <HBox>
+                    <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
+                    <Button text="Reject" press=".onRecommendationAction" type="Reject" />
+                </HBox>
+            </Panel>
 
-                <!-- OPTION 2 -->
-                <VBox class="recScenarioCard">
-                    <Text text="OPTION B" class="recScenarioLabel" />
-                    <Title text="Alt Material (Aluminium Alloy)" level="H5" class="recScenarioTitle" />
-                    <VBox class="recScenarioMetrics">
-                        <HBox class="recScenarioMetricRow"><Text text="Cost Impact" class="recScenarioMetricLabel" /><Text text="+15%" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Lead Time" class="recScenarioMetricLabel" /><Text text="7 days" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Risk Level" class="recScenarioMetricLabel" /><Text text="Medium" class="recScenarioMetricValue recScenarioMetricValue--medium" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Coverage" class="recScenarioMetricLabel" /><Text text="85%" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="OTIF Recovery" class="recScenarioMetricLabel" /><Text text="-8% → -3%" class="recScenarioMetricValue" /></HBox>
-                    </VBox>
-                </VBox>
+            <!-- Recommendation 2 -->
+            <Panel class="sapUiSmallMarginBottom">
+                <headerToolbar>
+                    <Toolbar>
+                        <Title text="Transfer from Pune Safety Stock" level="H5" />
+                        <ToolbarSpacer />
+                        <ObjectStatus text="Stock Transfer" state="Information" />
+                    </Toolbar>
+                </headerToolbar>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Source" /><Text text="Pune Plant" /></VBox>
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Dest" /><Text text="Mumbai Plant" /></VBox>
+                    <VBox><Label text="Qty" /><Text text="80 MT" /></VBox>
+                </HBox>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Projected OTIF Impact" /><Text text="-8% \u2192 -4%" /></VBox>
+                    <VBox><Label text="Cost / KPI Impact Avoided" /><ObjectStatus text="$0.5M avoided" state="Success" /></VBox>
+                </HBox>
+                <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
+                <HBox>
+                    <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
+                    <Button text="Reject" press=".onRecommendationAction" type="Reject" />
+                </HBox>
+            </Panel>
 
-                <!-- OPTION 3 -->
-                <VBox class="recScenarioCard">
-                    <Text text="OPTION C" class="recScenarioLabel" />
-                    <Title text="Expedite from Existing" level="H5" class="recScenarioTitle" />
-                    <VBox class="recScenarioMetrics">
-                        <HBox class="recScenarioMetricRow"><Text text="Cost Impact" class="recScenarioMetricLabel" /><Text text="+22%" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Lead Time" class="recScenarioMetricLabel" /><Text text="18 days" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Risk Level" class="recScenarioMetricLabel" /><Text text="High" class="recScenarioMetricValue recScenarioMetricValue--high" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="Coverage" class="recScenarioMetricLabel" /><Text text="60%" class="recScenarioMetricValue" /></HBox>
-                        <HBox class="recScenarioMetricRow"><Text text="OTIF Recovery" class="recScenarioMetricLabel" /><Text text="-8% → -5%" class="recScenarioMetricValue" /></HBox>
-                    </VBox>
-                </VBox>
-
-            </HBox>
-        </VBox>
-
-        <!-- ════════════════════════════════════════════════════════
-             RECOMMENDATIONS — APPROVE / REJECT
-             ════════════════════════════════════════════════════════ -->
-        <VBox class="recSectionCard">
-            <Title text="RECOMMENDATIONS — APPROVE / REJECT" level="H4" class="raPanelTitle" />
-
-            <!-- Recommendation 1: Alt Supplier -->
-            <VBox class="recCard">
-                <HBox class="recCardHeader" alignItems="Center" justifyContent="SpaceBetween">
-                    <Title text="Switch to Delta Metals (India)" level="H5" class="recCardTitle" />
-                    <Text text="Alt Supplier" class="recCardBadge recCardBadge--supplier" />
+            <!-- Recommendation 3 -->
+            <Panel>
+                <headerToolbar>
+                    <Toolbar>
+                        <Title text="Use Al Alloy 3003 (qualified)" level="H5" />
+                        <ToolbarSpacer />
+                        <ObjectStatus text="Alt Material" state="Information" />
+                    </Toolbar>
+                </headerToolbar>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Material" /><Text text="Al Alloy 3003" /></VBox>
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Supplier" /><Text text="ABC alt line" /></VBox>
+                    <VBox><Label text="Compliance" /><ObjectStatus text="Approved" state="Success" /></VBox>
                 </HBox>
-                <HBox class="recCardDetails">
-                    <VBox class="recDetailItem"><Text text="Supplier" class="recDetailLabel" /><Text text="Delta Metals" class="recDetailValue" /></VBox>
-                    <VBox class="recDetailItem"><Text text="Material" class="recDetailLabel" /><Text text="Aluminium Sheet" class="recDetailValue" /></VBox>
-                    <VBox class="recDetailItem"><Text text="Lead Time" class="recDetailLabel" /><Text text="10 days" class="recDetailValue" /></VBox>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiSmallMarginEnd"><Label text="Projected OTIF Impact" /><Text text="-8% \u2192 -3%" /></VBox>
+                    <VBox><Label text="Cost / KPI Impact Avoided" /><ObjectStatus text="$0.7M avoided" state="Success" /></VBox>
                 </HBox>
-                <HBox class="recKpiRow">
-                    <VBox class="recKpiItem recKpiItem--primary"><Text text="Projected OTIF Impact" class="recDetailLabel" /><Text text="-8% → -1%" class="recKpiValue" /></VBox>
-                    <VBox class="recKpiItem"><Text text="Cost / KPI Impact Avoided" class="recDetailLabel" /><Text text="$1.2M avoided" class="recKpiValue recKpiValue--green" /></VBox>
+                <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
+                <HBox>
+                    <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
+                    <Button text="Reject" press=".onRecommendationAction" type="Reject" />
                 </HBox>
-                <Input placeholder="Comment (optional)..." class="recComment" />
-                <HBox class="recActions">
-                    <Button text="Approve" press=".onRecommendationAction" class="recBtnApprove" />
-                    <Button text="Reject" press=".onRecommendationAction" class="recBtnReject" />
-                </HBox>
-            </VBox>
-
-
-            <!-- Recommendation 2: Stock Transfer -->
-            <VBox class="recCard">
-                <HBox class="recCardHeader" alignItems="Center" justifyContent="SpaceBetween">
-                    <Title text="Transfer from Pune Safety Stock" level="H5" class="recCardTitle" />
-                    <Text text="Stock Transfer" class="recCardBadge recCardBadge--transfer" />
-                </HBox>
-                <HBox class="recCardDetails">
-                    <VBox class="recDetailItem"><Text text="Source" class="recDetailLabel" /><Text text="Pune Plant" class="recDetailValue" /></VBox>
-                    <VBox class="recDetailItem"><Text text="Dest" class="recDetailLabel" /><Text text="Mumbai Plant" class="recDetailValue" /></VBox>
-                    <VBox class="recDetailItem"><Text text="Qty" class="recDetailLabel" /><Text text="80 MT" class="recDetailValue" /></VBox>
-                </HBox>
-                <HBox class="recKpiRow">
-                    <VBox class="recKpiItem recKpiItem--primary"><Text text="Projected OTIF Impact" class="recDetailLabel" /><Text text="-8% → -4%" class="recKpiValue" /></VBox>
-                    <VBox class="recKpiItem"><Text text="Cost / KPI Impact Avoided" class="recDetailLabel" /><Text text="$0.5M avoided" class="recKpiValue recKpiValue--green" /></VBox>
-                </HBox>
-                <Input placeholder="Comment (optional)..." class="recComment" />
-                <HBox class="recActions">
-                    <Button text="Approve" press=".onRecommendationAction" class="recBtnApprove" />
-                    <Button text="Reject" press=".onRecommendationAction" class="recBtnReject" />
-                </HBox>
-            </VBox>
-
-            <!-- Recommendation 3: Alt Material -->
-            <VBox class="recCard">
-                <HBox class="recCardHeader" alignItems="Center" justifyContent="SpaceBetween">
-                    <Title text="Use Al Alloy 3003 (qualified)" level="H5" class="recCardTitle" />
-                    <Text text="Alt Material" class="recCardBadge recCardBadge--material" />
-                </HBox>
-                <HBox class="recCardDetails">
-                    <VBox class="recDetailItem"><Text text="Material" class="recDetailLabel" /><Text text="Al Alloy 3003" class="recDetailValue" /></VBox>
-                    <VBox class="recDetailItem"><Text text="Supplier" class="recDetailLabel" /><Text text="ABC alt line" class="recDetailValue" /></VBox>
-                    <VBox class="recDetailItem"><Text text="Compliance" class="recDetailLabel" /><Text text="Approved" class="recDetailValue recDetailValue--approved" /></VBox>
-                </HBox>
-                <HBox class="recKpiRow">
-                    <VBox class="recKpiItem recKpiItem--primary"><Text text="Projected OTIF Impact" class="recDetailLabel" /><Text text="-8% → -3%" class="recKpiValue" /></VBox>
-                    <VBox class="recKpiItem"><Text text="Cost / KPI Impact Avoided" class="recDetailLabel" /><Text text="$0.7M avoided" class="recKpiValue recKpiValue--green" /></VBox>
-                </HBox>
-                <Input placeholder="Comment (optional)..." class="recComment" />
-                <HBox class="recActions">
-                    <Button text="Approve" press=".onRecommendationAction" class="recBtnApprove" />
-                    <Button text="Reject" press=".onRecommendationAction" class="recBtnReject" />
-                </HBox>
-            </VBox>
-
-        </VBox>
+            </Panel>
+        </Panel>
 
     </VBox>
 </core:FragmentDefinition>
-

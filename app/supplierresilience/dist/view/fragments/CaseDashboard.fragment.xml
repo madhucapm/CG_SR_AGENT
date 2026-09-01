@@ -1,162 +1,141 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <VBox class="assessHome" width="100%"
+    <VBox width="100%"
           busy="{caseHierarchy>/busy}" busyIndicatorDelay="0">
 
-        <VBox class="assessTitleWrap">
-            <Title text="Case Dashboard" level="H2" class="assessTitle" />
-            <Text text="Hierarchical view: Supplier → Purchase Order → Plant → SKU. Plant view shows only impacted PO items."
-                  class="assessSubtitle" />
-        </VBox>
+        <Toolbar design="Transparent">
+            <Title text="Case Dashboard" level="H2" />
+        </Toolbar>
+        <Text text="Hierarchical view: Supplier → Purchase Order → Plant → SKU. Plant view shows only impacted PO items." class="sapUiSmallMarginBottom" />
 
         <!-- Case selector dropdown -->
-        <HBox class="caseBanner" alignItems="Center">
-            <HBox alignItems="Center" class="caseBannerLeft">
-                <Text text="CASE ID" class="caseBannerLabel" />
-                <Select
-                    class="caseDropdownSelect"
-                    selectedKey="{dashboard>/selectedCaseId}"
-                    change=".onCaseDropdownChange"
-                    forceSelection="false"
-                    autoAdjustWidth="true"
-                    items="{caseHierarchy>/availableCases}">
-                    <core:Item key="{caseHierarchy>caseId}"
-                               text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
-                </Select>
-            </HBox>
+        <Toolbar design="Solid" class="sapUiSmallMarginBottom">
+            <Label text="CASE ID" />
+            <Select
+                selectedKey="{dashboard>/selectedCaseId}"
+                change=".onCaseDropdownChange"
+                forceSelection="false"
+                autoAdjustWidth="true"
+                items="{caseHierarchy>/availableCases}">
+                <core:Item key="{caseHierarchy>caseId}"
+                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+            </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
-                  class="caseBannerHint"
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
-        </HBox>
+        </Toolbar>
 
-        <VBox visible="{= !${caseHierarchy>/caseData} &amp;&amp; !${caseHierarchy>/busy} }" class="cdEmptyState">
-            <core:Icon src="sap-icon://folder-blank" class="cdEmptyIcon" />
-            <Text text="No active case selected." class="cdEmptyText" />
-            <Text text="Investigate and confirm a disruption event in the News Feed to create a case." class="cdEmptyHint" />
+        <VBox visible="{= !${caseHierarchy>/caseData} &amp;&amp; !${caseHierarchy>/busy} }"
+              alignItems="Center" justifyContent="Center" class="sapUiLargeMarginTopBottom">
+            <core:Icon src="sap-icon://folder-blank" size="3rem" color="Default" />
+            <Text text="No active case selected." class="sapUiSmallMarginTop" />
+            <Text text="Investigate and confirm a disruption event in the News Feed to create a case." />
         </VBox>
 
         <VBox visible="{= !!${caseHierarchy>/caseData} }" width="100%">
 
             <!-- CASE HEADER -->
-            <HBox class="cdHeaderCard" alignItems="Center" justifyContent="SpaceBetween">
-                <VBox>
-                    <HBox alignItems="Center" class="cdHeaderTop">
-                        <VBox>
-                            <Text text="CASE ID" class="raKpiLabel" />
-                            <Title text="#{caseHierarchy>/caseData/caseId}" level="H3" class="cdHeaderCaseId" />
-                        </VBox>
-                        <VBox class="cdHeaderEventWrap">
-                            <Text text="EVENT" class="raKpiLabel" />
-                            <Text text="{caseHierarchy>/caseData/eventTitle}" class="cdHeaderEvent" />
-                        </VBox>
-                    </HBox>
-                    <HBox alignItems="Center" class="cdHeaderBadges">
-                        <Text text="{caseHierarchy>/caseData/severity}"
-                              class="{= ${caseHierarchy>/caseData/severity} === 'CRITICAL' ? 'raClassBadge raClassBadge--critical' : 'raClassBadge raClassBadge--warning' }" />
-                        <!--
-                            Classification badge removed per requirement:
-                            disruption classification is only shown on the
-                            News Feed (Global Risks card), never on cases
-                            (supplier / PO / SKU hierarchy).
-                        -->
-                    </HBox>
-                </VBox>
-                <Button text="View Monitoring →" press=".onViewMonitoring" class="ctAiAction" type="Transparent" />
-            </HBox>
+            <Panel class="sapUiSmallMarginBottom">
+                <headerToolbar>
+                    <Toolbar>
+                        <Title text="#{caseHierarchy>/caseData/caseId}" level="H3" />
+                        <ToolbarSpacer />
+                        <Button text="View Monitoring →" press=".onViewMonitoring" type="Transparent" />
+                    </Toolbar>
+                </headerToolbar>
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                    <Label text="EVENT" class="sapUiSmallMarginEnd" />
+                    <Text text="{caseHierarchy>/caseData/eventTitle}" />
+                </HBox>
+                <HBox alignItems="Center">
+                    <ObjectStatus text="{caseHierarchy>/caseData/severity}"
+                                  state="{= ${caseHierarchy>/caseData/severity} === 'CRITICAL' ? 'Error' : 'Warning' }" />
+                </HBox>
+            </Panel>
 
             <!-- KPI CARDS -->
-            <HBox class="raKpiRow" width="100%">
-                <VBox class="raKpiCard raKpiCard--critical">
-                    <Text text="SUPPLIERS IMPACTED" class="raKpiLabel" />
-                    <Title text="{caseHierarchy>/caseData/supplierCount}" level="H1" class="raKpiValue raKpiValue--critical" />
-                    <Text text="Primary risk driver" class="raKpiSub" />
-                </VBox>
-                <VBox class="raKpiCard raKpiCard--warning">
-                    <Text text="POs AT RISK" class="raKpiLabel" />
-                    <Title text="{caseHierarchy>/caseData/poCount}" level="H1" class="raKpiValue raKpiValue--warning" />
-                    <Text text="Across active events" class="raKpiSub" />
-                </VBox>
-                <VBox class="raKpiCard raKpiCard--info">
-                    <Text text="PLANTS AFFECTED" class="raKpiLabel" />
-                    <Title text="{caseHierarchy>/caseData/plantCount}" level="H1" class="raKpiValue raKpiValue--info" />
-                    <Text text="Multi-region" class="raKpiSub" />
-                </VBox>
-                <VBox class="raKpiCard raKpiCard--success">
-                    <Text text="SKUs AFFECTED" class="raKpiLabel" />
-                    <Title text="{caseHierarchy>/caseData/skuCount}" level="H1" class="raKpiValue raKpiValue--success" />
-                    <Text text="Beverage packaging" class="raKpiSub" />
-                </VBox>
+            <HBox width="100%" class="sapUiSmallMarginBottom">
+                <GenericTile header="SUPPLIERS IMPACTED" subheader="Primary risk driver" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                    <TileContent><NumericContent value="{caseHierarchy>/caseData/supplierCount}" valueColor="Error" /></TileContent>
+                </GenericTile>
+                <GenericTile header="POs AT RISK" subheader="Across active events" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                    <TileContent><NumericContent value="{caseHierarchy>/caseData/poCount}" valueColor="Critical" /></TileContent>
+                </GenericTile>
+                <GenericTile header="PLANTS AFFECTED" subheader="Multi-region" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                    <TileContent><NumericContent value="{caseHierarchy>/caseData/plantCount}" valueColor="Neutral" /></TileContent>
+                </GenericTile>
+                <GenericTile header="SKUs AFFECTED" subheader="Beverage packaging" frameType="OneByOne">
+                    <TileContent><NumericContent value="{caseHierarchy>/caseData/skuCount}" valueColor="Good" /></TileContent>
+                </GenericTile>
             </HBox>
 
             <!-- MAIN BODY: Hierarchy + Agent Execution -->
-            <HBox class="raBodyRow" width="100%">
+            <HBox width="100%">
 
                 <!-- Left: CASE HIERARCHY (ALL cases from HANA) -->
-                <VBox class="raTablePanel" width="100%"
-                      busy="{caseHierarchy>/allCasesBusy}" busyIndicatorDelay="0">
-                    <HBox alignItems="Center" class="raPanelHeader">
-                        <Title text="CASE HIERARCHY" level="H4" class="raPanelTitle" />
-                    </HBox>
+                <Panel width="100%" expandable="false"
+                       busy="{caseHierarchy>/allCasesBusy}" busyIndicatorDelay="0">
+                    <headerToolbar>
+                        <Toolbar><Title text="CASE HIERARCHY" level="H4" /></Toolbar>
+                    </headerToolbar>
 
                     <List items="{caseHierarchy>/allCasesTree}"
-                          showSeparators="None" class="raTable cdHierList"
+                          showSeparators="Inner"
                           noDataText="No cases found.">
-                        <CustomListItem class="cdHierSupplierItem">
-                            <VBox class="cdHierCaseBlock" width="100%">
+                        <CustomListItem>
+                            <VBox width="100%" class="sapUiTinyMarginTopBottom">
                                 <!-- CASE row -->
-                                <HBox alignItems="Center" class="cdHierCaseHeader">
+                                <HBox alignItems="Center">
                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
-                                            press=".onHierToggle" type="Transparent" class="cdHierToggleBtn" />
-                                    <core:Icon src="sap-icon://folder-full" class="cdHierIcon" />
-                                    <Text text="{caseHierarchy>caseId}" class="raCellBold cdHierCaseIdText" />
-                                    <Text text="{caseHierarchy>eventTitle}" class="raCell cdHierCaseEvent" wrapping="true" />
-                                    <Text text="{caseHierarchy>severity}"
-                                          class="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'raClassBadge raClassBadge--critical' : ${caseHierarchy>severity} === 'HIGH' ? 'raClassBadge raClassBadge--warning' : 'raClassBadge' }" />
+                                            press=".onHierToggle" type="Transparent" />
+                                    <core:Icon src="sap-icon://folder-full" class="sapUiSmallMarginEnd" />
+                                    <Text text="{caseHierarchy>caseId}" class="sapUiSmallMarginEnd sapMTextBold" />
+                                    <Text text="{caseHierarchy>eventTitle}" class="sapUiSmallMarginEnd" wrapping="true" />
+                                    <ObjectStatus text="{caseHierarchy>severity}"
+                                          state="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'Error' : ${caseHierarchy>severity} === 'HIGH' ? 'Warning' : 'None' }" />
                                 </HBox>
                                 <!-- SUPPLIER level -->
-                                <VBox class="cdHierIndent1" visible="{caseHierarchy>_expanded}">
+                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
                                     <List items="{ path: 'caseHierarchy>suppliers', templateShareable: false }"
-                                          showSeparators="None" class="cdHierInnerList">
-                                        <CustomListItem class="cdHierInnerItem">
+                                          showSeparators="None">
+                                        <CustomListItem>
                                             <VBox>
-                                                <HBox alignItems="Center" class="cdHierSupplierRow">
+                                                <HBox alignItems="Center">
                                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
-                                                            press=".onHierToggle" type="Transparent" class="cdHierToggleBtn" />
-                                                    <core:Icon src="sap-icon://supplier" class="cdHierIcon" />
-                                                    <Text text="{caseHierarchy>name}" class="raCellBold" />
-                                                    <!-- Classification badge removed (news-feed only) -->
-                                                    <Text text="{caseHierarchy>severity}" class="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'raClassBadge raClassBadge--critical' : 'raClassBadge raClassBadge--warning' }" />
+                                                            press=".onHierToggle" type="Transparent" />
+                                                    <core:Icon src="sap-icon://supplier" class="sapUiSmallMarginEnd" />
+                                                    <Text text="{caseHierarchy>name}" class="sapUiSmallMarginEnd sapMTextBold" />
+                                                    <ObjectStatus text="{caseHierarchy>severity}" state="{= ${caseHierarchy>severity} === 'CRITICAL' ? 'Error' : 'Warning' }" />
                                                 </HBox>
                                                 <!-- PO level -->
-                                                <VBox class="cdHierIndent2" visible="{caseHierarchy>_expanded}">
-                                                    <List items="{ path: 'caseHierarchy>purchaseOrders', templateShareable: false }" showSeparators="None" class="cdHierInnerList">
-                                                        <CustomListItem class="cdHierInnerItem">
+                                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                                    <List items="{ path: 'caseHierarchy>purchaseOrders', templateShareable: false }" showSeparators="None">
+                                                        <CustomListItem>
                                                             <VBox>
-                                                                <HBox alignItems="Center" class="cdHierPORow">
+                                                                <HBox alignItems="Center">
                                                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
-                                                                            press=".onHierToggle" type="Transparent" class="cdHierToggleBtn" />
-                                                                    <core:Icon src="sap-icon://shipping-status" class="cdHierPOIcon" />
-                                                                    <Text text="{caseHierarchy>poNumber}" class="raCellBold" />
+                                                                            press=".onHierToggle" type="Transparent" />
+                                                                    <core:Icon src="sap-icon://shipping-status" class="sapUiSmallMarginEnd" />
+                                                                    <Text text="{caseHierarchy>poNumber}" class="sapMTextBold" />
                                                                 </HBox>
                                                                 <!-- PLANT level -->
-                                                                <VBox class="cdHierIndent3" visible="{caseHierarchy>_expanded}">
-                                                                    <List items="{ path: 'caseHierarchy>plants', templateShareable: false }" showSeparators="None" class="cdHierInnerList">
-                                                                        <CustomListItem class="cdHierInnerItem">
+                                                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                                                    <List items="{ path: 'caseHierarchy>plants', templateShareable: false }" showSeparators="None">
+                                                                        <CustomListItem>
                                                                             <VBox>
-                                                                                <HBox alignItems="Center" class="cdHierPlantRow">
+                                                                                <HBox alignItems="Center">
                                                                                     <Button icon="{= ${caseHierarchy>_expanded} ? 'sap-icon://navigation-down-arrow' : 'sap-icon://navigation-right-arrow' }"
-                                                                                            press=".onHierToggle" type="Transparent" class="cdHierToggleBtn" />
-                                                                                    <core:Icon src="sap-icon://factory" class="cdHierPlantIcon" />
-                                                                                    <Text text="{caseHierarchy>plant}" class="raCell" />
+                                                                                            press=".onHierToggle" type="Transparent" />
+                                                                                    <core:Icon src="sap-icon://factory" class="sapUiSmallMarginEnd" />
+                                                                                    <Text text="{caseHierarchy>plant}" />
                                                                                 </HBox>
                                                                                 <!-- MATERIAL level (leaf — no toggle) -->
-                                                                                <VBox class="cdHierIndent4" visible="{caseHierarchy>_expanded}">
-                                                                                    <List items="{ path: 'caseHierarchy>materials', templateShareable: false }" showSeparators="None" class="cdHierInnerList">
-                                                                                        <CustomListItem class="cdHierInnerItem">
-                                                                                            <HBox alignItems="Center" class="cdHierMatRow">
-                                                                                                <core:Icon src="sap-icon://product" class="cdHierMatIcon" />
-                                                                                                <Text text="{= ${caseHierarchy>sku} || ${caseHierarchy>material} || '—' }" class="raCell" />
+                                                                                <VBox visible="{caseHierarchy>_expanded}" class="sapUiSmallMarginStart">
+                                                                                    <List items="{ path: 'caseHierarchy>materials', templateShareable: false }" showSeparators="None">
+                                                                                        <CustomListItem>
+                                                                                            <HBox alignItems="Center">
+                                                                                                <core:Icon src="sap-icon://product" class="sapUiSmallMarginEnd" />
+                                                                                                <Text text="{= ${caseHierarchy>sku} || ${caseHierarchy>material} || '—' }" />
                                                                                             </HBox>
                                                                                         </CustomListItem>
                                                                                     </List>
@@ -176,60 +155,61 @@
                             </VBox>
                         </CustomListItem>
                     </List>
-                </VBox>
+                </Panel>
 
                 <!-- Right: AGENT EXECUTION + CASE SUMMARY -->
-                <VBox class="raRightPanel cdAgentPanel">
-                    <Title text="AGENT EXECUTION" level="H4" class="raPanelTitle" />
-                    <!-- <Text text="WIRE FRAME" class="cdWireframeBadge" /> -->
-                    <VBox class="cdAgentList">
-                        <HBox alignItems="Center" class="cdAgentItem">
-                            <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                            <Text text="Early Warning" class="agentPipelineText" />
-                            <Button text="Run" press=".onRunEarlyWarningAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                <Panel class="sapUiSmallMarginStart" width="20rem">
+                    <headerToolbar>
+                        <Toolbar><Title text="AGENT EXECUTION" level="H4" /></Toolbar>
+                    </headerToolbar>
+                    <VBox class="sapUiSmallMarginBottom">
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                            <Text text="Early Warning" class="sapUiSmallMarginEnd" />
+                            <Button text="Run" press=".onRunEarlyWarningAgent" type="Transparent" enabled="true" />
                         </HBox>
-                        <HBox alignItems="Center" class="cdAgentItem">
-                            <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotBlue" />
-                            <Text text="Coordinator" class="agentPipelineText" />
-                            <Button text="Run" press=".onRunCoordinatorAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                            <Text text="Coordinator" class="sapUiSmallMarginEnd" />
+                            <Button text="Run" press=".onRunCoordinatorAgent" type="Transparent" enabled="true" />
                         </HBox>
-                        <HBox alignItems="Center" class="cdAgentItem">
-                            <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotLightBlue" />
-                            <Text text="Survival Planner" class="agentPipelineText" />
-                            <Button text="Run" press=".onRunSurvivalPlannerAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                            <Text text="Survival Planner" class="sapUiSmallMarginEnd" />
+                            <Button text="Run" press=".onRunSurvivalPlannerAgent" type="Transparent" enabled="true" />
                         </HBox>
-                        <HBox alignItems="Center" class="cdAgentItem">
-                            <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotPurple" />
-                            <Text text="Substitution" class="agentPipelineText" />
-                            <Button text="Run" press=".onRunSubstitutionAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                            <Text text="Substitution" class="sapUiSmallMarginEnd" />
+                            <Button text="Run" press=".onRunSubstitutionAgent" type="Transparent" enabled="true" />
                         </HBox>
-                        <HBox alignItems="Center" class="cdAgentItem">
-                            <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotTeal" />
-                            <Text text="Buyer" class="agentPipelineText" />
-                            <Button text="Run" press=".onRunBuyerAgent" class="cdAgentRunBtn" type="Transparent" enabled="true" />
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                            <Text text="Buyer" class="sapUiSmallMarginEnd" />
+                            <Button text="Run" press=".onRunBuyerAgent" type="Transparent" enabled="true" />
                         </HBox>
                     </VBox>
-                    <Button text="Run All Agents" press=".onRunAllAgents" class="ctAiAction" width="100%" enabled="true" />
+                    <Button text="Run All Agents" press=".onRunAllAgents" type="Emphasized" width="100%" enabled="true" />
 
-                    <VBox class="raRmDivider" />
+                    <Toolbar design="Transparent" class="sapUiSmallMarginTop"><ToolbarSpacer /></Toolbar>
 
                     <!-- CASE SUMMARY -->
-                    <Title text="CASE SUMMARY" level="H4" class="raPanelTitle" />
-                    <VBox class="cdSummaryList">
-                        <HBox class="cdSummaryRow"><Text text="Case ID" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/caseId}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Event" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/eventTitle}" class="cdSumValue" wrapping="true" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Risk Score" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/riskScore}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Severity" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/severity}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Impact" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/estimatedImpact}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Region" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/region}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Suppliers" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/supplierCount}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="POs" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/poCount}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Plants" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/plantCount}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="SKUs" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/skuCount}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Status" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/status}" class="cdSumValue" /></HBox>
-                        <HBox class="cdSummaryRow"><Text text="Created" class="cdSumLabel" /><Text text="{caseHierarchy>/caseData/createdAt}" class="cdSumValue" /></HBox>
+                    <Title text="CASE SUMMARY" level="H4" class="sapUiSmallMarginBottom" />
+                    <VBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Case ID" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/caseId}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Event" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/eventTitle}" wrapping="true" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Risk Score" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/riskScore}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Severity" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/severity}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Impact" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/estimatedImpact}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Region" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/region}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Suppliers" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/supplierCount}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="POs" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/poCount}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Plants" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/plantCount}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="SKUs" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/skuCount}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Status" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/status}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Created" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/createdAt}" /></HBox>
                     </VBox>
-                </VBox>
+                </Panel>
             </HBox>
 
         </VBox>

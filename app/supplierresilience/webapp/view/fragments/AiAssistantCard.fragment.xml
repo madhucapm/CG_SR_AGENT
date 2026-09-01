@@ -1,240 +1,142 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!--
-        Two-state right-side panel for the News Feed.
-        STATE 1 (initial/loading): Case Creation + Agent Pipeline
-        STATE 2 (impactPreview):   Impact Preview + Early Warning Output
-        Controlled by disruptions>/aiRiskState
+    <!-- AI Assistant / Case Creation panel — sap_horizon default theme.
+         STATE 1 (initial): Case Creation + Agent Pipeline
+         STATE 2 (impactPreview): Impact Preview + Early Warning Output
+         STATE 3 (caseCreated): Case Created confirmation
     -->
-    <VBox class="ctCard ctCaseCreationCard" width="100%"
-          busy="{= ${disruptions>/aiRiskState} === 'loading' }"
-          busyIndicatorDelay="0">
+    <Panel width="100%"
+           busy="{= ${disruptions>/aiRiskState} === &apos;loading&apos; }"
+           busyIndicatorDelay="0">
 
         <!-- STATE 1 — INITIAL -->
-        <VBox visible="{= ${disruptions>/aiRiskState} !== 'impactPreview' &amp;&amp; ${disruptions>/aiRiskState} !== 'creatingCase' &amp;&amp; ${disruptions>/aiRiskState} !== 'caseCreated' }" width="100%">
-            <HBox alignItems="Center" class="caseCreationHeader">
-                <Title text="CASE CREATION" level="H3" class="ctCardTitle" />
-                <ObjectStatus text="HUMAN-IN-THE-LOOP" state="Warning" class="humanLoopBadge" />
+        <VBox visible="{= ${disruptions>/aiRiskState} !== &apos;impactPreview&apos; &amp;&amp; ${disruptions>/aiRiskState} !== &apos;creatingCase&apos; &amp;&amp; ${disruptions>/aiRiskState} !== &apos;caseCreated&apos; }" width="100%">
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <Title text="CASE CREATION" level="H3" class="sapUiSmallMarginEnd" />
+                <ObjectStatus text="HUMAN-IN-THE-LOOP" state="Warning" />
             </HBox>
-            <Text text="Select a disruption event to preview supplier impact. The Early Warning Agent runs automatically. A case is created only after you confirm the impact."
-                  class="caseCreationDescription" />
+            <Text text="Select a disruption event to preview supplier impact. The Early Warning Agent runs automatically. A case is created only after you confirm the impact." class="sapUiSmallMarginBottom" />
 
+            <Toolbar design="Transparent"><ToolbarSpacer /></Toolbar>
 
-        <!-- Separator -->
-        <HBox
-            class="caseCreationSeparator" />
-
-
-        <!-- Agent Pipeline Heading -->
-        <Title
-            text="AGENT PIPELINE"
-            level="H4"
-            class="agentPipelineTitle" />
-
-
-        <!-- Agent Pipeline -->
-        <VBox class="agentPipeline">
-
-            <!-- Early Warning -->
-            <HBox
-                alignItems="Center"
-                class="agentPipelineItem">
-
-                <core:Icon
-                    src="sap-icon://circle-task-2"
-                    class="agentPipelineDot agentPipelineDotWarning" />
-
-                <Text
-                    text="Early Warning Agent (auto)"
-                    class="agentPipelineText" />
-
-            </HBox>
-
-
-            <!-- Coordinator -->
-            <HBox
-                alignItems="Center"
-                class="agentPipelineItem">
-
-                <core:Icon
-                    src="sap-icon://circle-task-2"
-                    class="agentPipelineDot agentPipelineDotBlue" />
-
-                <Text
-                    text="Coordinator Agent (on confirm)"
-                    class="agentPipelineText" />
-
-            </HBox>
-
-
-            <!-- Survival Planner -->
-            <HBox
-                alignItems="Center"
-                class="agentPipelineItem">
-
-                <core:Icon
-                    src="sap-icon://circle-task-2"
-                    class="agentPipelineDot agentPipelineDotLightBlue" />
-
-                <Text
-                    text="Survival Planner Agent"
-                    class="agentPipelineText" />
-
-            </HBox>
-
-
-            <!-- Substitution -->
-            <HBox
-                alignItems="Center"
-                class="agentPipelineItem">
-
-                <core:Icon
-                    src="sap-icon://circle-task-2"
-                    class="agentPipelineDot agentPipelineDotPurple" />
-
-                <Text
-                    text="Substitution Agent"
-                    class="agentPipelineText" />
-
-            </HBox>
-
-
-            <!-- Buyer -->
-            <HBox
-                alignItems="Center"
-                class="agentPipelineItem">
-
-                <core:Icon
-                    src="sap-icon://circle-task-2"
-                    class="agentPipelineDot agentPipelineDotTeal" />
-
-                <Text
-                    text="Buyer Agent"
-                    class="agentPipelineText" />
-
-            </HBox>
-
+            <Title text="AGENT PIPELINE" level="H4" class="sapUiSmallMarginBottom" />
+            <VBox>
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="Early Warning Agent (auto)" />
+                </HBox>
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="Coordinator Agent (on confirm)" />
+                </HBox>
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="Survival Planner Agent" />
+                </HBox>
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="Substitution Agent" />
+                </HBox>
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="Buyer Agent" />
+                </HBox>
+            </VBox>
         </VBox>
 
-
-        <!-- Separator -->
-        <HBox
-            class="caseCreationSeparator" />
-
-
-            <ObjectStatus text="OPEN: CRITERIA FOR HUMAN DECISION TO PROCEED" state="Warning" class="humanDecisionBadge" />
-        </VBox>
 
         <!-- STATE 2 — IMPACT PREVIEW -->
-        <VBox visible="{= ${disruptions>/aiRiskState} === 'impactPreview' || ${disruptions>/aiRiskState} === 'creatingCase' }" width="100%">
-            <HBox alignItems="Center" class="caseCreationHeader">
-                <Title text="IMPACT PREVIEW" level="H3" class="ctCardTitle" />
-                <ObjectStatus text="AWAITING CONFIRMATION" state="Warning" class="humanLoopBadge" />
+        <VBox visible="{= ${disruptions>/aiRiskState} === &apos;impactPreview&apos; || ${disruptions>/aiRiskState} === &apos;creatingCase&apos; }" width="100%">
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <Title text="IMPACT PREVIEW" level="H3" class="sapUiSmallMarginEnd" />
+                <ObjectStatus text="HUMAN DECISION" state="Warning" />
             </HBox>
-            <!-- Impact Summary Card -->
-            <VBox class="ipSummaryCard">
-                <Text text="IMPACT TYPE" class="ipLabel" />
-                <Text text="{disruptions>/impactPreview/impactType}" class="ipTypeValue" />
-                <HBox class="ipMetricRow">
-                    <VBox class="ipMetricBlock">
-                        <Text text="Risk Score" class="ipLabel" />
-                        <Title text="{disruptions>/impactPreview/riskScore}" level="H2" class="ipMetricValue ipMetricValue--critical" />
-                    </VBox>
-                    <VBox class="ipMetricBlock">
-                        <Text text="Est. Impact" class="ipLabel" />
-                        <Title text="{disruptions>/impactPreview/estimatedImpact}" level="H2" class="ipMetricValue ipMetricValue--warning" />
-                    </VBox>
-                </HBox>
+
+            <Title text="EVENT" level="H5" class="sapUiTinyMarginBottom" />
+            <Text text="{disruptions>/selectedRisk/title}" class="sapUiSmallMarginBottom" />
+
+            <Title text="TYPE" level="H5" class="sapUiTinyMarginBottom" />
+            <Text text="{disruptions>/classifiedType}" class="sapUiSmallMarginBottom" />
+
+            <Title text="EARLY WARNING OUTPUT" level="H5" class="sapUiTinyMarginBottom" />
+            <VBox class="sapUiSmallMarginBottom">
+                <HBox class="sapUiTinyMarginBottom"><Label text="Summary" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{disruptions>/earlyWarningOutput/summary}" wrapping="true" /></HBox>
             </VBox>
-            <!-- Early Warning Output -->
-            <Text text="EARLY WARNING OUTPUT" class="ipSectionTitle" />
-            <VBox class="ipEwOutput">
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="Supplier:" class="ipEwLabel" />
-                    <Text text="{disruptions>/impactPreview/supplierName}" class="ipEwValue" />
-                </HBox>
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="POs:" class="ipEwLabel" />
-                    <Text text="{disruptions>/impactPreview/posAtRisk}" class="ipEwValue" />
-                </HBox>
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="Plants:" class="ipEwLabel" />
-                    <Text text="{disruptions>/impactPreview/plants}" class="ipEwValue" wrapping="true" />
-                </HBox>
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="SKUs:" class="ipEwLabel" />
-                    <Text text="{disruptions>/impactPreview/skus}" class="ipEwValue" wrapping="true" />
-                </HBox>
-            </VBox>
-            <HBox class="caseCreationSeparator" />
-            <!-- Human Decision -->
-            <VBox class="ipHumanDecision">
-                <Text text="Human decision required." class="ipHumanBold" />
-                <Text text="Confirm supplier impact to trigger the Coordinator Agent, create a Case ID, and run downstream agents." class="ipHumanDescription" />
-            </VBox>
-            <!-- Action Buttons -->
-            <VBox class="ipActions">
+
+            <Title text="IMPACT METRICS" level="H5" class="sapUiTinyMarginBottom" />
+            <HBox class="sapUiSmallMarginBottom">
+                <VBox class="sapUiSmallMarginEnd">
+                    <Label text="Suppliers" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/suppliers}" state="Error" />
+                </VBox>
+                <VBox class="sapUiSmallMarginEnd">
+                    <Label text="POs" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/pos}" state="Warning" />
+                </VBox>
+                <VBox class="sapUiSmallMarginEnd">
+                    <Label text="Plants" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/plants}" />
+                </VBox>
+                <VBox>
+                    <Label text="SKUs" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/skus}" />
+                </VBox>
+            </HBox>
+
+            <Toolbar design="Transparent"><ToolbarSpacer /></Toolbar>
+
+            <MessageStrip text="Human decision required. Confirm supplier impact to trigger the Coordinator Agent, create a Case ID, and run downstream agents." type="Warning" showIcon="true" class="sapUiSmallMarginBottom" />
+
+            <VBox>
                 <Button text="Confirm Impact &amp; Create Case" press=".onConfirmImpact"
-                        class="ctAiAction ctAiActionPrimary ipConfirmBtn" width="100%"
-                        enabled="{= ${disruptions>/aiRiskState} !== 'creatingCase' }"
-                        busy="{= ${disruptions>/aiRiskState} === 'creatingCase' }" />
-                <Button text="Dismiss" press=".onDismissImpact" class="ctAiAction ipDismissBtn" width="100%"
-                        enabled="{= ${disruptions>/aiRiskState} !== 'creatingCase' }" />
+                        type="Emphasized" width="100%" class="sapUiTinyMarginBottom"
+                        enabled="{= ${disruptions>/aiRiskState} !== &apos;creatingCase&apos; }"
+                        busy="{= ${disruptions>/aiRiskState} === &apos;creatingCase&apos; }" />
+                <Button text="Dismiss" press=".onDismissImpact" type="Transparent" width="100%"
+                        enabled="{= ${disruptions>/aiRiskState} !== &apos;creatingCase&apos; }" />
             </VBox>
         </VBox>
 
 
-        <!-- ═══ STATE 3 — CASE CREATED ═══ -->
-        <VBox visible="{= ${disruptions>/aiRiskState} === 'caseCreated' }" width="100%">
-            <HBox alignItems="Center" class="caseCreationHeader">
-                <Title text="CASE CREATED" level="H3" class="ctCardTitle" />
-                <ObjectStatus text="SUCCESS" state="Success" class="humanLoopBadge" />
+        <!-- STATE 3 — CASE CREATED -->
+        <VBox visible="{= ${disruptions>/aiRiskState} === &apos;caseCreated&apos; }" width="100%">
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <Title text="CASE CREATED" level="H3" class="sapUiSmallMarginEnd" />
+                <ObjectStatus text="SUCCESS" state="Success" />
             </HBox>
 
-            <!-- Case ID -->
-            <VBox class="ccCaseIdWrap">
-                <HBox alignItems="Center" class="ccCaseIdRow">
-                    <core:Icon src="sap-icon://accept" class="ccCheckIcon" />
-                    <Text text="Case #{disruptions>/createdCase/caseId}" class="ccCaseIdText" />
-                </HBox>
-                <Text text="{disruptions>/createdCase/eventTitle}" class="ccEventTitle" />
-            </VBox>
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <core:Icon src="sap-icon://accept" color="Positive" class="sapUiSmallMarginEnd" />
+                <Title text="Case #{disruptions>/createdCase/caseId}" level="H4" />
+            </HBox>
+            <Text text="{disruptions>/createdCase/eventTitle}" class="sapUiSmallMarginBottom" />
 
-            <!-- Impact summary -->
-            <Text text="IMPACT" class="ipSectionTitle" />
-            <VBox class="ipEwOutput">
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="{disruptions>/createdCase/supplierSummary}" class="ipEwValue" />
+            <Title text="IMPACT" level="H5" class="sapUiTinyMarginBottom" />
+            <VBox class="sapUiSmallMarginBottom">
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="{disruptions>/createdCase/supplierSummary}" />
                 </HBox>
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="{disruptions>/createdCase/poSummary}" class="ipEwValue" />
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="{disruptions>/createdCase/poSummary}" />
                 </HBox>
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="{disruptions>/createdCase/plantSummary}" class="ipEwValue" wrapping="true" />
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="{disruptions>/createdCase/plantSummary}" wrapping="true" />
                 </HBox>
-                <HBox alignItems="Center" class="ipEwRow">
-                    <core:Icon src="sap-icon://circle-task-2" class="agentPipelineDot agentPipelineDotWarning" />
-                    <Text text="{disruptions>/createdCase/skuSummary}" class="ipEwValue" wrapping="true" />
+                <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
+                    <Text text="{disruptions>/createdCase/skuSummary}" wrapping="true" />
                 </HBox>
             </VBox>
 
-            <HBox class="caseCreationSeparator" />
+            <Toolbar design="Transparent"><ToolbarSpacer /></Toolbar>
 
-            <!-- Open Case Dashboard button -->
-            <VBox class="ipActions">
-                <Button text="Open Case Dashboard →" press=".onOpenCaseDashboard"
-                        class="ctAiAction ctAiActionPrimary ipConfirmBtn" width="100%" />
-            </VBox>
+            <Button text="Open Case Dashboard \u2192" press=".onOpenCaseDashboard"
+                    type="Emphasized" width="100%" />
         </VBox>
 
-    </VBox>
-
+    </Panel>
 </core:FragmentDefinition>

@@ -1,152 +1,92 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!--
-        Risk Assessment Dashboard.
-        Consumes the riskAssessment JSON model populated from Early Warning
-        Agent output / case impact results.
-    -->
-    <VBox class="assessHome" width="100%">
+    <!-- Risk Assessment Dashboard. sap_horizon default theme. -->
+    <VBox width="100%">
 
-        <!-- Page title -->
-        <VBox class="assessTitleWrap">
-            <Title text="Risk Assessment Dashboard" level="H2" class="assessTitle" />
-            <Text text="Early Warning Agent output — risk scores, severity and impact analysis." class="assessSubtitle" />
-        </VBox>
+        <Toolbar design="Transparent">
+            <Title text="Risk Assessment Dashboard" level="H2" />
+        </Toolbar>
+        <Text text="Early Warning Agent output — risk scores, severity and impact analysis." class="sapUiSmallMarginBottom" />
 
-        <!-- Case context banner with dropdown selector -->
-        <HBox class="caseBanner" alignItems="Center">
-            <HBox alignItems="Center" class="caseBannerLeft">
-                <Text text="CASE ID" class="caseBannerLabel" />
-                <Select
-                    class="caseDropdownSelect"
-                    selectedKey="{dashboard>/selectedCaseId}"
-                    change=".onCaseDropdownChange"
-                    forceSelection="false"
-                    autoAdjustWidth="true"
-                    items="{caseHierarchy>/availableCases}">
-                    <core:Item key="{caseHierarchy>caseId}"
-                               text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
-                </Select>
-            </HBox>
+        <Toolbar design="Solid" class="sapUiSmallMarginBottom">
+            <Label text="CASE ID" />
+            <Select
+                selectedKey="{dashboard>/selectedCaseId}"
+                change=".onCaseDropdownChange"
+                forceSelection="false"
+                autoAdjustWidth="true"
+                items="{caseHierarchy>/availableCases}">
+                <core:Item key="{caseHierarchy>caseId}"
+                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+            </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
-                  class="caseBannerHint"
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
+        </Toolbar>
+
+        <HBox width="100%" class="sapUiSmallMarginBottom">
+            <GenericTile header="HIGHEST RISK" subheader="{riskAssessment>/kpi/highestRisk/supplier}" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="{riskAssessment>/kpi/highestRisk/value}" valueColor="Error" /></TileContent>
+            </GenericTile>
+            <GenericTile header="SUPPLIERS IMPACTED" subheader="{riskAssessment>/kpi/suppliersImpacted/sub}" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="{riskAssessment>/kpi/suppliersImpacted/value}" valueColor="Critical" /></TileContent>
+            </GenericTile>
+            <GenericTile header="POS AT RISK" subheader="{riskAssessment>/kpi/posAtRisk/sub}" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="{riskAssessment>/kpi/posAtRisk/value}" valueColor="Neutral" /></TileContent>
+            </GenericTile>
+            <GenericTile header="PLANTS" subheader="{riskAssessment>/kpi/plants/sub}" frameType="OneByOne">
+                <TileContent><NumericContent value="{riskAssessment>/kpi/plants/value}" /></TileContent>
+            </GenericTile>
         </HBox>
 
-        <!-- KPI Cards Row -->
-        <HBox class="raKpiRow" width="100%">
-            <VBox class="raKpiCard raKpiCard--critical">
-                <Text text="HIGHEST RISK" class="raKpiLabel" />
-                <Title text="{riskAssessment>/kpi/highestRisk/value}" level="H1" class="raKpiValue raKpiValue--critical" />
-                <Text text="{riskAssessment>/kpi/highestRisk/supplier}" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--warning">
-                <Text text="SUPPLIERS IMPACTED" class="raKpiLabel" />
-                <Title text="{riskAssessment>/kpi/suppliersImpacted/value}" level="H1" class="raKpiValue raKpiValue--warning" />
-                <Text text="{riskAssessment>/kpi/suppliersImpacted/sub}" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--info">
-                <Text text="POS AT RISK" class="raKpiLabel" />
-                <Title text="{riskAssessment>/kpi/posAtRisk/value}" level="H1" class="raKpiValue raKpiValue--info" />
-                <Text text="{riskAssessment>/kpi/posAtRisk/sub}" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--neutral">
-                <Text text="PLANTS" class="raKpiLabel" />
-                <Title text="{riskAssessment>/kpi/plants/value}" level="H1" class="raKpiValue" />
-                <Text text="{riskAssessment>/kpi/plants/sub}" class="raKpiSub" />
-            </VBox>
-        </HBox>
-
-        <!-- Main body: Supplier Risk Table + Risk Model -->
-        <HBox class="raBodyRow" width="100%">
-            <!-- Left: Supplier Risk Table -->
-            <VBox class="raTablePanel" width="100%">
-                <HBox alignItems="Center" class="raPanelHeader">
-                    <Title text="SUPPLIER RISK TABLE" level="H4" class="raPanelTitle" />
-                </HBox>
+        <HBox width="100%">
+            <Panel width="100%" expandable="false">
+                <headerToolbar><Toolbar><Title text="SUPPLIER RISK TABLE" level="H4" /></Toolbar></headerToolbar>
                 <Table items="{riskAssessment>/supplierRisks}"
-                       showSeparators="Inner" fixedLayout="false" class="raTable"
+                       showSeparators="Inner" fixedLayout="false"
                        noDataText="No supplier risk data available. Select a case to populate.">
                     <columns>
-                        <Column width="14%"><Text text="SUPPLIER" class="raColHeader" /></Column>
-                        <Column width="16%"><Text text="CLASSIFICATION" class="raColHeader" /></Column>
-                        <Column width="10%" hAlign="Center"><Text text="RISK SCORE" class="raColHeader" /></Column>
-                        <Column width="10%" hAlign="Center"><Text text="SEVERITY" class="raColHeader" /></Column>
-                        <Column width="10%" hAlign="Center"><Text text="POs AT RISK" class="raColHeader" /></Column>
-                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="PLANTS" class="raColHeader" /></Column>
-                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="SKUs" class="raColHeader" /></Column>
+                        <Column width="14%"><Text text="SUPPLIER" /></Column>
+                        <Column width="16%"><Text text="CLASSIFICATION" /></Column>
+                        <Column width="10%" hAlign="Center"><Text text="RISK SCORE" /></Column>
+                        <Column width="10%" hAlign="Center"><Text text="SEVERITY" /></Column>
+                        <Column width="10%" hAlign="Center"><Text text="POs AT RISK" /></Column>
+                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="PLANTS" /></Column>
+                        <Column width="20%" minScreenWidth="Tablet" demandPopin="true"><Text text="SKUs" /></Column>
                     </columns>
                     <items>
-                        <ColumnListItem class="raTableRow">
+                        <ColumnListItem>
                             <cells>
-                                <Text text="{riskAssessment>supplier}" class="raCell raCellBold" />
-                                <Text text="{riskAssessment>classification}"
-                                      class="{= ${riskAssessment>classification} === 'COMPLETE INTERRUPTION' ? 'raClassBadge raClassBadge--critical' : 'raClassBadge raClassBadge--warning' }" />
-                                <Text text="{riskAssessment>riskScore}"
-                                      class="{= parseInt(${riskAssessment>riskScore}) >= 80 ? 'raScoreText raScoreText--critical' : parseInt(${riskAssessment>riskScore}) >= 60 ? 'raScoreText raScoreText--high' : 'raScoreText raScoreText--medium' }" />
-                                <ObjectStatus text="{riskAssessment>severity}"
-                                             state="{= ${riskAssessment>severity} === 'CRITICAL' ? 'Error' : ${riskAssessment>severity} === 'HIGH' ? 'Warning' : ${riskAssessment>severity} === 'MEDIUM' ? 'Information' : 'Success' }" />
-                                <Text text="{riskAssessment>posAtRisk}" class="raCell" />
-                                <Text text="{riskAssessment>plants}" class="raCell raCellSmall" wrapping="true" />
-                                <Text text="{riskAssessment>skus}" class="raCell raCellSmall" wrapping="true" />
+                                <Text text="{riskAssessment>supplier}" />
+                                <ObjectStatus text="{riskAssessment>classification}" state="{= ${riskAssessment>classification} === 'COMPLETE INTERRUPTION' ? 'Error' : 'Warning' }" />
+                                <ObjectNumber number="{riskAssessment>riskScore}" state="{= parseInt(${riskAssessment>riskScore}) >= 80 ? 'Error' : parseInt(${riskAssessment>riskScore}) >= 60 ? 'Warning' : 'None' }" />
+                                <ObjectStatus text="{riskAssessment>severity}" state="{= ${riskAssessment>severity} === 'CRITICAL' ? 'Error' : ${riskAssessment>severity} === 'HIGH' ? 'Warning' : ${riskAssessment>severity} === 'MEDIUM' ? 'Information' : 'Success' }" />
+                                <Text text="{riskAssessment>posAtRisk}" />
+                                <Text text="{riskAssessment>plants}" wrapping="true" />
+                                <Text text="{riskAssessment>skus}" wrapping="true" />
                             </cells>
                         </ColumnListItem>
                     </items>
                 </Table>
-            </VBox>
+            </Panel>
 
-            <!-- Right: Risk Model Panel -->
-            <VBox class="raRiskModelPanel">
-                <Title text="RISK MODEL" level="H4" class="raPanelTitle" />
-                <VBox class="raRiskModelSection">
-                    <HBox alignItems="Center" class="raRiskModelItem">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--red" />
-                        <Text text="Disruption severity" class="raRmLabel" />
-                        <Text text="40%" class="raRmValue" />
-                    </HBox>
-                    <HBox alignItems="Center" class="raRiskModelItem">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--orange" />
-                        <Text text="Supplier concentration" class="raRmLabel" />
-                        <Text text="25%" class="raRmValue" />
-                    </HBox>
-                    <HBox alignItems="Center" class="raRiskModelItem">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--blue" />
-                        <Text text="Material criticality" class="raRmLabel" />
-                        <Text text="20%" class="raRmValue" />
-                    </HBox>
-                    <HBox alignItems="Center" class="raRiskModelItem">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--purple" />
-                        <Text text="Lead time exposure" class="raRmLabel" />
-                        <Text text="15%" class="raRmValue" />
-                    </HBox>
+            <Panel class="sapUiSmallMarginStart" width="18rem" expandable="false">
+                <headerToolbar><Toolbar><Title text="RISK MODEL" level="H4" /></Toolbar></headerToolbar>
+                <VBox class="sapUiSmallMarginBottom">
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="Error" class="sapUiTinyMarginEnd" /><Text text="Disruption severity" class="sapUiSmallMarginEnd" /><Text text="40%" /></HBox>
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="Warning" class="sapUiTinyMarginEnd" /><Text text="Supplier concentration" class="sapUiSmallMarginEnd" /><Text text="25%" /></HBox>
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="Information" class="sapUiTinyMarginEnd" /><Text text="Material criticality" class="sapUiSmallMarginEnd" /><Text text="20%" /></HBox>
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="None" class="sapUiTinyMarginEnd" /><Text text="Lead time exposure" class="sapUiSmallMarginEnd" /><Text text="15%" /></HBox>
                 </VBox>
-                <VBox class="raRmDivider" />
-                <VBox class="raRiskModelSection">
-                    <Text text="SEVERITY" class="raRmSectionTitle" />
-                    <HBox alignItems="Center" class="raRmSeverityRow">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--red" />
-                        <Text text="Critical" class="raRmSevLabel" />
-                        <Text text="80–100" class="raRmSevRange" />
-                    </HBox>
-                    <HBox alignItems="Center" class="raRmSeverityRow">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--orange" />
-                        <Text text="High" class="raRmSevLabel" />
-                        <Text text="60–79" class="raRmSevRange" />
-                    </HBox>
-                    <HBox alignItems="Center" class="raRmSeverityRow">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--yellow" />
-                        <Text text="Medium" class="raRmSevLabel" />
-                        <Text text="40–59" class="raRmSevRange" />
-                    </HBox>
-                    <HBox alignItems="Center" class="raRmSeverityRow">
-                        <core:Icon src="sap-icon://circle-task-2" class="raRmDot raRmDot--green" />
-                        <Text text="Low" class="raRmSevLabel" />
-                        <Text text="0–39" class="raRmSevRange" />
-                    </HBox>
+                <Toolbar design="Transparent"><ToolbarSpacer /></Toolbar>
+                <VBox>
+                    <Title text="SEVERITY" level="H5" class="sapUiTinyMarginBottom" />
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="Error" class="sapUiTinyMarginEnd" /><Text text="Critical" class="sapUiSmallMarginEnd" /><Text text="80–100" /></HBox>
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="Warning" class="sapUiTinyMarginEnd" /><Text text="High" class="sapUiSmallMarginEnd" /><Text text="60–79" /></HBox>
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="None" class="sapUiTinyMarginEnd" /><Text text="Medium" class="sapUiSmallMarginEnd" /><Text text="40–59" /></HBox>
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom"><ObjectStatus text="●" state="Success" class="sapUiTinyMarginEnd" /><Text text="Low" class="sapUiSmallMarginEnd" /><Text text="0–39" /></HBox>
                 </VBox>
-            </VBox>
+            </Panel>
         </HBox>
     </VBox>
 </core:FragmentDefinition>
-

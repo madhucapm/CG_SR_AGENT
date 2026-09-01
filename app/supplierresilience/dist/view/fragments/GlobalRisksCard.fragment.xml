@@ -1,34 +1,14 @@
 <core:FragmentDefinition
     xmlns="sap.m"
-    xmlns:core="sap.ui.core"
-    xmlns:app="http://schemas.sap.com/sapui5/extension/sap.ui.core.CustomData/1">
-    <!--
-        "Today's Global Supply Chain Risks" panel.
-        Rows are driven by dashboard>/globalRisks populated dynamically from
-        Anthropic Claude LLM via AI_CORE_CGAI_COCKPIT destination.
-
-        LAYOUT (compact card design):
-          ┌──────────────────────────────────────────────────────────────┐
-          │ [icon]  Title                     [CLASSIFICATION] [SEVERITY]│
-          │         Region · Time                                        │
-          │         Description text …                                    │
-          │                                                              │
-          │ [ Investigate ]   N POs · N Materials · N Plants             │
-          └──────────────────────────────────────────────────────────────┘
-        The classification pill is the LLM-produced disruption type
-        (DELAYED SUPPLY / TARIFF / COMPLETE INTERRUPTION / PARTIAL
-        INTERRUPTION) and appears only on the News Feed — never on the
-        Case Dashboard hierarchy.
-    -->
-    <VBox class="ctCard ctRisksCard" busy="{dashboard>/globalRisksBusy}" busyIndicatorDelay="0">
-        <!-- Card header with region dropdown -->
-        <HBox alignItems="Center" class="ctCardHeader" justifyContent="SpaceBetween">
-            <HBox alignItems="Center">
-                <core:Icon src="sap-icon://globe" class="ctCardHeaderIcon ctIcon-blue" />
-                <Title text="{i18n>ctGlobalRisksTitle}" level="H3" class="ctCardTitle" />
-            </HBox>
-            <HBox alignItems="Center" class="ctRegionSelectWrap">
-                <Label text="Region" class="ctRegionLabel" />
+    xmlns:core="sap.ui.core">
+    <!-- Today's Global Supply Chain Risks — sap_horizon default theme -->
+    <Panel busy="{dashboard>/globalRisksBusy}" busyIndicatorDelay="0">
+        <headerToolbar>
+            <Toolbar>
+                <core:Icon src="sap-icon://globe" class="sapUiSmallMarginEnd" />
+                <Title text="{i18n>ctGlobalRisksTitle}" level="H3" />
+                <ToolbarSpacer />
+                <Label text="Region" class="sapUiSmallMarginEnd" />
                 <Select
                     id="globalRisksRegionSelect"
                     selectedKey="{globalRisks>/selectedRegion}"
@@ -37,82 +17,51 @@
                     items="{globalRisks>/regions}">
                     <core:Item key="{globalRisks>key}" text="{globalRisks>text}" />
                 </Select>
-            </HBox>
-        </HBox>
+            </Toolbar>
+        </headerToolbar>
 
-        <!--
-            Risk list. Each row is a self-contained card. The two pills
-            (classification + severity) are rendered inline top-right so
-            the severity behavior (data-risklevel driven colors) is
-            preserved and the classification uses the same visual pattern
-            via data-disruption custom data.
-        -->
         <List
             id="globalRisksList"
             items="{dashboard>/globalRisks}"
-            showSeparators="None"
-            class="ctRiskList"
+            showSeparators="Inner"
             noDataText="{i18n>ctNoRisks}"
             busy="{dashboard>/globalRisksBusy}"
             busyIndicatorDelay="0"
             updateFinished=".onRiskListUpdateFinished"
             itemPress=".onRiskPress">
-            <CustomListItem class="ctRiskItem" type="Active">
-                <VBox width="100%" class="ctRiskCardBody">
-                    <!-- TOP ROW: icon + (title + subtitle) on left ▸ two pills on right -->
-                    <HBox alignItems="Start" class="ctRiskTopRow" justifyContent="SpaceBetween">
-                        <HBox alignItems="Start" class="ctRiskLeft">
-                            <VBox class="{dashboard>iconWrapClass}" alignItems="Center" justifyContent="Center">
-                                <core:Icon src="{dashboard>icon}" class="{dashboard>iconClass}" />
-                            </VBox>
-                            <VBox class="ctRiskText">
-                                <Title text="{dashboard>title}" level="H4" class="{dashboard>titleClass}" wrapping="true" />
-                                <Text
-                                    text="{dashboard>region} · {dashboard>time}"
-                                    class="ctRiskSubtitle" />
+            <CustomListItem type="Active">
+                <VBox width="100%" class="sapUiTinyMarginTopBottom">
+                    <HBox alignItems="Start" justifyContent="SpaceBetween">
+                        <HBox alignItems="Start" width="70%">
+                            <core:Icon src="{dashboard>icon}" class="sapUiSmallMarginEnd" />
+                            <VBox>
+                                <Title text="{dashboard>title}" level="H4" wrapping="true" />
+                                <Text text="{dashboard>region} \u00b7 {dashboard>time}" class="sapUiTinyMarginBottom" />
                             </VBox>
                         </HBox>
-
-                        <!-- Right: classification pill + severity pill (inline) -->
-                        <HBox alignItems="Center" class="ctRiskPills">
-                            <Text text="{dashboard>classification}"
-                                  class="ctDisrBadge"
-                                  app:disruption="{dashboard>classification}"
-                                  visible="{= !!${dashboard>classification} }" />
-                            <Text text="{dashboard>riskLevel}"
-                                  class="riskBadgeText"
-                                  app:riskLevel="{dashboard>riskLevel}" />
+                        <HBox alignItems="Center">
+                            <ObjectStatus text="{dashboard>classification}"
+                                state="{= ${dashboard>classification} === 'COMPLETE INTERRUPTION' ? 'Error' : ${dashboard>classification} === 'PARTIAL INTERRUPTION' ? 'Warning' : 'Information' }"
+                                visible="{= !!${dashboard>classification} }"
+                                class="sapUiTinyMarginEnd" />
+                            <ObjectStatus text="{dashboard>riskLevel}"
+                                state="{= ${dashboard>riskLevel} === 'Critical' ? 'Error' : ${dashboard>riskLevel} === 'High' ? 'Warning' : ${dashboard>riskLevel} === 'Medium' ? 'Information' : 'Success' }" />
                         </HBox>
                     </HBox>
-
-                    <!-- Description under title/subtitle -->
-                    <Text text="{dashboard>description}" class="ctRiskDescription" wrapping="true" />
-
-                    <!-- BOTTOM ROW: Investigate button + optional impact-scope counts -->
-                    <HBox alignItems="Center" class="ctRiskBottomRow">
-                        <Button
-                            text="Investigate"
-                            press=".onInvestigateRisk"
-                            class="ctRiskInvestigateBtn" />
-                        <Text
-                            class="ctRiskCountLine"
-                            text="{= ${dashboard>poCount} + ' POs · ' + ${dashboard>materialCount} + ' Materials · ' + ${dashboard>plantCount} + ' Plants' }"
-                            visible="{= !!${dashboard>poCount} }" />
+                    <Text text="{dashboard>description}" wrapping="true" class="sapUiTinyMarginBottom" />
+                    <HBox alignItems="Center">
+                        <Button text="Investigate" press=".onInvestigateRisk" class="sapUiTinyMarginEnd" />
+                        <Text text="{= ${dashboard>poCount} + ' POs \u00b7 ' + ${dashboard>materialCount} + ' Materials \u00b7 ' + ${dashboard>plantCount} + ' Plants' }"
+                              visible="{= !!${dashboard>poCount} }" />
                     </HBox>
                 </VBox>
             </CustomListItem>
         </List>
 
-        <!--
-            Footer link. sap.m.Link has no icon property, so we compose
-            the arrow using an HBox + separate core:Icon next to the Link.
-        -->
-        <HBox justifyContent="End" alignItems="Center" class="ctRisksFooter">
-            <Link
-                text="{i18n>ctViewAllDisruptions}"
-                press=".onViewAllDisruptions"
-                class="ctViewAllLink" />
-            <core:Icon src="sap-icon://slim-arrow-right" class="ctViewAllLinkIcon" />
-        </HBox>
-    </VBox>
+        <Toolbar design="Transparent">
+            <ToolbarSpacer />
+            <Link text="{i18n>ctViewAllDisruptions}" press=".onViewAllDisruptions" />
+            <core:Icon src="sap-icon://slim-arrow-right" />
+        </Toolbar>
+    </Panel>
 </core:FragmentDefinition>

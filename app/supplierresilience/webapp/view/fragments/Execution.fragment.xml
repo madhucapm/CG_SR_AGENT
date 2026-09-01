@@ -1,158 +1,126 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!--
-        Execution Tracking — Static prototype (MVP1).
-        All content is static XML. No JSONModel, no backend, no mock data.
-        Future phase: connect to Buyer Agent + CAP/HANA execution persistence.
-    -->
-    <VBox class="assessHome" width="100%">
+    <!-- Execution Tracking — Static prototype (MVP1). sap_horizon default theme. -->
+    <VBox width="100%">
 
-        <!-- PAGE HEADER -->
-        <VBox class="assessTitleWrap">
-            <Title text="Execution Tracking" level="H2" class="assessTitle" />
-            <Text text="Buyer Agent actions against Mock SAP — PO creation, stock transfers, confirmation."
-                  class="assessSubtitle" />
-        </VBox>
+        <Toolbar design="Transparent">
+            <Title text="Execution Tracking" level="H2" />
+        </Toolbar>
+        <Text text="Buyer Agent actions against Mock SAP — PO creation, stock transfers, confirmation." class="sapUiSmallMarginBottom" />
 
-        <!-- CASE HEADER (reuses caseBanner — empty state) -->
-        <HBox class="caseBanner" alignItems="Center">
-            <HBox alignItems="Center" class="caseBannerLeft">
-                <Text text="CASE ID" class="caseBannerLabel" />
-                <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '— none active —' }"
-                      class="{= ${dashboard>/selectedCaseId} ? 'caseBannerValue caseBannerValue--active' : 'caseBannerValue' }" />
-            </HBox>
+        <Toolbar design="Solid" class="sapUiSmallMarginBottom">
+            <Label text="CASE ID" />
+            <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '\u2014 none active \u2014' }" />
             <Text text="Preview and confirm an event in News Feed to create a case."
-                  class="caseBannerHint"
                   visible="{= !${dashboard>/selectedCaseId} }" />
+        </Toolbar>
+
+        <HBox width="100%" class="sapUiSmallMarginBottom">
+            <GenericTile header="CONFIRMED" subheader="Executed in Mock SAP" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="2" valueColor="Good" /></TileContent>
+            </GenericTile>
+            <GenericTile header="SUBMITTED" subheader="Awaiting confirmation" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="1" valueColor="Neutral" /></TileContent>
+            </GenericTile>
+            <GenericTile header="PENDING" subheader="Queued" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="1" /></TileContent>
+            </GenericTile>
+            <GenericTile header="TOTAL AGENT COST" subheader="Buyer Agent (mock)" frameType="OneByOne">
+                <TileContent><NumericContent value="$31" valueColor="Critical" /></TileContent>
+            </GenericTile>
         </HBox>
 
-        <!-- KPI CARDS -->
-        <HBox class="raKpiRow execKpiRow" width="100%">
-            <VBox class="raKpiCard raKpiCard--info">
-                <Text text="CONFIRMED" class="raKpiLabel" />
-                <Title text="2" level="H1" class="raKpiValue execKpiValue--confirmed" />
-                <Text text="Executed in Mock SAP" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--info">
-                <Text text="SUBMITTED" class="raKpiLabel" />
-                <Title text="1" level="H1" class="raKpiValue execKpiValue--submitted" />
-                <Text text="Awaiting confirmation" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--neutral">
-                <Text text="PENDING" class="raKpiLabel" />
-                <Title text="1" level="H1" class="raKpiValue" />
-                <Text text="Queued" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--warning">
-                <Text text="TOTAL AGENT COST" class="raKpiLabel" />
-                <Title text="$31" level="H1" class="raKpiValue execKpiValue--cost" />
-                <Text text="Buyer Agent (mock)" class="raKpiSub" />
-            </VBox>
-        </HBox>
-
-        <!-- EXECUTION ACTIONS -->
-        <VBox class="recSectionCard">
-            <HBox alignItems="Center" class="execActionsHeader">
-                <Title text="EXECUTION ACTIONS" level="H4" class="raPanelTitle" />
-                <Text text="Click an Action ID to jump to its monitoring entry" class="execActionsHint" />
-            </HBox>
-
-            <Table showSeparators="Inner" fixedLayout="false" class="raTable execTable">
+        <Panel class="sapUiSmallMarginBottom">
+            <headerToolbar>
+                <Toolbar>
+                    <Title text="EXECUTION ACTIONS" level="H4" />
+                    <ToolbarSpacer />
+                    <Text text="Click an Action ID to jump to its monitoring entry" />
+                </Toolbar>
+            </headerToolbar>
+            <Table showSeparators="Inner" fixedLayout="false">
                 <columns>
-                    <Column width="10%"><Text text="ACTION ID" class="raColHeader" /></Column>
-                    <Column width="12%"><Text text="TYPE" class="raColHeader" /></Column>
-                    <Column width="13%"><Text text="MATERIAL" class="raColHeader" /></Column>
-                    <Column width="12%"><Text text="SUPPLIER" class="raColHeader" /></Column>
-                    <Column width="8%"><Text text="QTY" class="raColHeader" /></Column>
-                    <Column width="11%"><Text text="SYSTEM" class="raColHeader" /></Column>
-                    <Column width="10%"><Text text="AGENT COST" class="raColHeader" /></Column>
-                    <Column width="12%"><Text text="STATUS" class="raColHeader" /></Column>
-                    <Column width="7%"><Text text="TIME" class="raColHeader" /></Column>
+                    <Column width="10%"><Text text="ACTION ID" /></Column>
+                    <Column width="12%"><Text text="TYPE" /></Column>
+                    <Column width="13%"><Text text="MATERIAL" /></Column>
+                    <Column width="12%"><Text text="SUPPLIER" /></Column>
+                    <Column width="8%"><Text text="QTY" /></Column>
+                    <Column width="10%"><Text text="SYSTEM" /></Column>
+                    <Column width="8%"><Text text="COST" /></Column>
+                    <Column width="12%"><Text text="STATUS" /></Column>
+                    <Column width="8%"><Text text="TIME" /></Column>
                 </columns>
                 <items>
                     <ColumnListItem>
                         <cells>
-                            <Text text="EXC-001" class="execActionId" />
-                            <Text text="Purchase Order" class="raCell" />
-                            <Text text="Aluminium Sheet" class="raCell" />
-                            <Text text="Delta Metals" class="raCell raCellBold" />
-                            <Text text="200 MT" class="raCell" />
-                            <Text text="Mock S/4HANA" class="raCell raCellSmall" />
-                            <Text text="$12" class="raCell" />
-                            <Text text="✓ Confirmed" class="execStatusBadge execStatusBadge--confirmed" />
-                            <Text text="14:32" class="raCell raCellSmall" />
+                            <Link text="EXC-001" press=".onViewMonitoring" />
+                            <Text text="Purchase Order" />
+                            <Text text="PET Resin" />
+                            <Text text="Indorama Ventures" />
+                            <Text text="200 MT" />
+                            <Text text="Mock S/4HANA" />
+                            <Text text="$12" />
+                            <ObjectStatus text="\u2713 Confirmed" state="Success" />
+                            <Text text="14:22" />
                         </cells>
                     </ColumnListItem>
                     <ColumnListItem>
                         <cells>
-                            <Text text="EXC-002" class="execActionId" />
-                            <Text text="Stock Transfer" class="raCell" />
-                            <Text text="Aluminium Sheet" class="raCell" />
-                            <Text text="Pune to Mumbai" class="raCell raCellBold" />
-                            <Text text="80 MT" class="raCell" />
-                            <Text text="Mock S/4HANA" class="raCell raCellSmall" />
-                            <Text text="$8" class="raCell" />
-                            <Text text="✓ Confirmed" class="execStatusBadge execStatusBadge--confirmed" />
-                            <Text text="14:35" class="raCell raCellSmall" />
+                            <Link text="EXC-002" press=".onViewMonitoring" />
+                            <Text text="Stock Transfer" />
+                            <Text text="Aluminium Sheet" />
+                            <Text text="Pune to Mumbai" />
+                            <Text text="80 MT" />
+                            <Text text="Mock S/4HANA" />
+                            <Text text="$8" />
+                            <ObjectStatus text="\u2713 Confirmed" state="Success" />
+                            <Text text="14:35" />
                         </cells>
                     </ColumnListItem>
                     <ColumnListItem>
                         <cells>
-                            <Text text="EXC-003" class="execActionId" />
-                            <Text text="Purchase Order" class="raCell" />
-                            <Text text="PET Resin" class="raCell" />
-                            <Text text="PolyAsia Corp" class="raCell raCellBold" />
-                            <Text text="50 MT" class="raCell" />
-                            <Text text="Mock S/4HANA" class="raCell raCellSmall" />
-                            <Text text="$11" class="raCell" />
-                            <Text text="↻ Submitted" class="execStatusBadge execStatusBadge--submitted" />
-                            <Text text="15:01" class="raCell raCellSmall" />
+                            <Link text="EXC-003" press=".onViewMonitoring" />
+                            <Text text="Purchase Order" />
+                            <Text text="PET Resin" />
+                            <Text text="PolyAsia Corp" />
+                            <Text text="50 MT" />
+                            <Text text="Mock S/4HANA" />
+                            <Text text="$11" />
+                            <ObjectStatus text="\u21bb Submitted" state="Information" />
+                            <Text text="15:01" />
                         </cells>
                     </ColumnListItem>
                     <ColumnListItem>
                         <cells>
-                            <Text text="EXC-004" class="execActionId" />
-                            <Text text="Purchase Order" class="raCell" />
-                            <Text text="Aluminium Coil" class="raCell" />
-                            <Text text="Delta Metals" class="raCell raCellBold" />
-                            <Text text="95 MT" class="raCell" />
-                            <Text text="Mock S/4HANA" class="raCell raCellSmall" />
-                            <Text text="$–" class="raCell" />
-                            <Text text="○ Pending" class="execStatusBadge execStatusBadge--pending" />
-                            <Text text="-" class="raCell raCellSmall" />
+                            <Link text="EXC-004" press=".onViewMonitoring" />
+                            <Text text="Purchase Order" />
+                            <Text text="Aluminium Coil" />
+                            <Text text="Delta Metals" />
+                            <Text text="95 MT" />
+                            <Text text="Mock S/4HANA" />
+                            <Text text="$\u2013" />
+                            <ObjectStatus text="\u25cb Pending" state="None" />
+                            <Text text="-" />
                         </cells>
                     </ColumnListItem>
                 </items>
             </Table>
-        </VBox>
+        </Panel>
 
-        <!-- PROGRESS -->
-        <VBox class="recSectionCard">
-            <Title text="PROGRESS" level="H4" class="raPanelTitle" />
-            <HBox class="execProgressRow">
-
-                <!-- Execution Progress -->
-                <VBox class="execProgressItem">
-                    <Text text="Execution Progress" class="execProgressLabel" />
-                    <VBox class="execProgressBarTrack">
-                        <VBox class="execProgressBarFill execProgressBarFill--green" width="50%" />
-                    </VBox>
-                    <Text text="2 of 4 confirmed" class="execProgressValue" />
+        <Panel>
+            <headerToolbar><Toolbar><Title text="PROGRESS" level="H4" /></Toolbar></headerToolbar>
+            <HBox class="sapUiSmallMarginBottom">
+                <VBox width="50%" class="sapUiSmallMarginEnd">
+                    <Label text="Execution Progress" class="sapUiSmallMarginBottom" />
+                    <ProgressIndicator percentValue="50" displayValue="2 of 4 confirmed" state="Success" />
                 </VBox>
-
-                <!-- Coverage Recovery -->
-                <VBox class="execProgressItem">
-                    <Text text="Coverage Recovery" class="execProgressLabel" />
-                    <VBox class="execProgressBarTrack">
-                        <VBox class="execProgressBarFill execProgressBarFill--blue" width="76%" />
-                    </VBox>
-                    <Text text="280 of 370 MT addressed" class="execProgressValue" />
+                <VBox width="50%">
+                    <Label text="Coverage Recovery" class="sapUiSmallMarginBottom" />
+                    <ProgressIndicator percentValue="76" displayValue="280 of 370 MT addressed" state="Information" />
                 </VBox>
-
             </HBox>
-        </VBox>
+        </Panel>
 
     </VBox>
 </core:FragmentDefinition>
-

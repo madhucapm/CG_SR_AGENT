@@ -1,105 +1,81 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!--
-        Survival Planning Dashboard.
-        Consumes the survivalPlanning JSON model populated from Survival
-        Planner Agent output / case material-supply data.
-    -->
-    <VBox class="assessHome" width="100%">
+    <!-- Survival Planning Dashboard. sap_horizon default theme. -->
+    <VBox width="100%">
 
-        <!-- Page title -->
-        <VBox class="assessTitleWrap">
-            <Title text="Survival Planning" level="H2" class="assessTitle" />
-            <Text text="Coverage analysis, time-to-survive, recovery gaps and shortfall quantification."
-                  class="assessSubtitle" />
-        </VBox>
+        <Toolbar design="Transparent">
+            <Title text="Survival Planning" level="H2" />
+        </Toolbar>
+        <Text text="Coverage analysis, time-to-survive, recovery gaps and shortfall quantification." class="sapUiSmallMarginBottom" />
 
-        <!-- Case context banner with dropdown selector -->
-        <HBox class="caseBanner" alignItems="Center">
-            <HBox alignItems="Center" class="caseBannerLeft">
-                <Text text="CASE ID" class="caseBannerLabel" />
-                <Select
-                    class="caseDropdownSelect"
-                    selectedKey="{dashboard>/selectedCaseId}"
-                    change=".onCaseDropdownChange"
-                    forceSelection="false"
-                    autoAdjustWidth="true"
-                    items="{caseHierarchy>/availableCases}">
-                    <core:Item key="{caseHierarchy>caseId}"
-                               text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
-                </Select>
-            </HBox>
+        <Toolbar design="Solid" class="sapUiSmallMarginBottom">
+            <Label text="CASE ID" />
+            <Select
+                selectedKey="{dashboard>/selectedCaseId}"
+                change=".onCaseDropdownChange"
+                forceSelection="false"
+                autoAdjustWidth="true"
+                items="{caseHierarchy>/availableCases}">
+                <core:Item key="{caseHierarchy>caseId}"
+                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+            </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
-                  class="caseBannerHint"
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
+        </Toolbar>
+
+        <HBox width="100%" class="sapUiSmallMarginBottom">
+            <GenericTile header="CRITICAL ITEMS" subheader="{survivalPlanning>/kpi/criticalItems/sub}" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="{survivalPlanning>/kpi/criticalItems/value}" valueColor="Error" /></TileContent>
+            </GenericTile>
+            <GenericTile header="AVG COVERAGE" subheader="{survivalPlanning>/kpi/avgCoverage/sub}" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="{survivalPlanning>/kpi/avgCoverage/value}" valueColor="Critical" /></TileContent>
+            </GenericTile>
+            <GenericTile header="WORST GAP" subheader="{survivalPlanning>/kpi/worstGap/sub}" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent><NumericContent value="{survivalPlanning>/kpi/worstGap/value}" valueColor="Neutral" /></TileContent>
+            </GenericTile>
+            <GenericTile header="TOTAL SHORTFALL" subheader="{survivalPlanning>/kpi/totalShortfall/sub}" frameType="OneByOne">
+                <TileContent><NumericContent value="{survivalPlanning>/kpi/totalShortfall/value}" /></TileContent>
+            </GenericTile>
         </HBox>
 
-        <!-- KPI Cards Row -->
-        <HBox class="raKpiRow" width="100%">
-            <VBox class="raKpiCard raKpiCard--critical">
-                <Text text="CRITICAL ITEMS" class="raKpiLabel" />
-                <Title text="{survivalPlanning>/kpi/criticalItems/value}" level="H1"
-                       class="raKpiValue raKpiValue--critical" />
-                <Text text="{survivalPlanning>/kpi/criticalItems/sub}" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--warning">
-                <Text text="AVG COVERAGE" class="raKpiLabel" />
-                <Title text="{survivalPlanning>/kpi/avgCoverage/value}" level="H1"
-                       class="raKpiValue raKpiValue--warning" />
-                <Text text="{survivalPlanning>/kpi/avgCoverage/sub}" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--info">
-                <Text text="WORST GAP" class="raKpiLabel" />
-                <Title text="{survivalPlanning>/kpi/worstGap/value}" level="H1"
-                       class="raKpiValue raKpiValue--info" />
-                <Text text="{survivalPlanning>/kpi/worstGap/sub}" class="raKpiSub" />
-            </VBox>
-            <VBox class="raKpiCard raKpiCard--neutral">
-                <Text text="TOTAL SHORTFALL" class="raKpiLabel" />
-                <Title text="{survivalPlanning>/kpi/totalShortfall/value}" level="H1"
-                       class="raKpiValue" />
-                <Text text="{survivalPlanning>/kpi/totalShortfall/sub}" class="raKpiSub" />
-            </VBox>
-        </HBox>
-
-        <!-- Material Coverage Analysis panel (full width) -->
-        <VBox class="raTablePanel spFullPanel" width="100%">
-            <HBox alignItems="Center" class="raPanelHeader">
-                <Title text="MATERIAL COVERAGE ANALYSIS" level="H4" class="raPanelTitle" />
-                <Text text="OPEN: IMPACT CALCULATION INTEGRATION" class="spStatusBadge" />
-            </HBox>
+        <Panel width="100%" expandable="false">
+            <headerToolbar>
+                <Toolbar>
+                    <Title text="MATERIAL COVERAGE ANALYSIS" level="H4" />
+                    <ToolbarSpacer />
+                    <Text text="OPEN: IMPACT CALCULATION INTEGRATION" />
+                </Toolbar>
+            </headerToolbar>
             <Table items="{survivalPlanning>/materials}"
-                   showSeparators="Inner" fixedLayout="false" class="raTable spTable"
+                   showSeparators="Inner" fixedLayout="false"
                    noDataText="No material coverage data. Select a case to populate.">
                 <columns>
-                    <Column width="16%"><Text text="MATERIAL" class="raColHeader" /></Column>
-                    <Column width="14%"><Text text="PLANT" class="raColHeader" /></Column>
-                    <Column width="12%" hAlign="Center"><Text text="COVERAGE" class="raColHeader" /></Column>
-                    <Column width="14%" hAlign="Center"><Text text="TIME-TO-SURVIVE" class="raColHeader" /></Column>
-                    <Column width="14%" hAlign="Center"><Text text="RECOVERY" class="raColHeader" /></Column>
-                    <Column width="12%" hAlign="Center"><Text text="GAP" class="raColHeader" /></Column>
-                    <Column width="12%" hAlign="Center"><Text text="SHORTFALL" class="raColHeader" /></Column>
+                    <Column width="16%"><Text text="MATERIAL" /></Column>
+                    <Column width="14%"><Text text="PLANT" /></Column>
+                    <Column width="12%" hAlign="Center"><Text text="COVERAGE" /></Column>
+                    <Column width="14%" hAlign="Center"><Text text="TIME-TO-SURVIVE" /></Column>
+                    <Column width="14%" hAlign="Center"><Text text="RECOVERY" /></Column>
+                    <Column width="12%" hAlign="Center"><Text text="GAP" /></Column>
+                    <Column width="12%" hAlign="Center"><Text text="SHORTFALL" /></Column>
                 </columns>
                 <items>
-                    <ColumnListItem class="raTableRow">
+                    <ColumnListItem>
                         <cells>
-                            <Text text="{survivalPlanning>material}" class="raCell raCellBold" />
-                            <Text text="{survivalPlanning>plant}" class="raCell" />
-                            <Text text="{survivalPlanning>coverage}"
-                                  class="{= parseInt(${survivalPlanning>coverage}) &lt; 10 ? 'spCovBadge spCovBadge--critical' : parseInt(${survivalPlanning>coverage}) &lt;= 20 ? 'spCovBadge spCovBadge--warning' : 'spCovBadge spCovBadge--safe' }" />
-                            <Text text="{survivalPlanning>timeToSurvive}" class="raCell" />
-                            <Text text="{survivalPlanning>recovery}" class="raCell" />
-                            <Text text="{survivalPlanning>gap}"
-                                  class="{= parseInt(${survivalPlanning>gap}) > 10 ? 'spGapText spGapText--critical' : parseInt(${survivalPlanning>gap}) > 0 ? 'spGapText spGapText--warning' : 'spGapText spGapText--safe' }" />
-                            <Text text="{survivalPlanning>shortfall}"
-                                  class="{= ${survivalPlanning>shortfall} === '-' || ${survivalPlanning>shortfall} === '—' ? 'raCell' : 'spShortfallText' }" />
+                            <Text text="{survivalPlanning>material}" />
+                            <Text text="{survivalPlanning>plant}" />
+                            <ObjectStatus text="{survivalPlanning>coverage}"
+                                  state="{= parseInt(${survivalPlanning>coverage}) &lt; 10 ? 'Error' : parseInt(${survivalPlanning>coverage}) &lt;= 20 ? 'Warning' : 'Success' }" />
+                            <Text text="{survivalPlanning>timeToSurvive}" />
+                            <Text text="{survivalPlanning>recovery}" />
+                            <ObjectStatus text="{survivalPlanning>gap}"
+                                  state="{= parseInt(${survivalPlanning>gap}) > 10 ? 'Error' : parseInt(${survivalPlanning>gap}) > 0 ? 'Warning' : 'Success' }" />
+                            <Text text="{survivalPlanning>shortfall}" />
                         </cells>
                     </ColumnListItem>
                 </items>
             </Table>
-        </VBox>
+        </Panel>
 
     </VBox>
 </core:FragmentDefinition>
-

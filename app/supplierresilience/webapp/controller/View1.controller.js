@@ -79,6 +79,21 @@ sap.ui.define([
             });
             this.getView().setModel(oEarlyWarningResultModel, "earlyWarningResult");
 
+            // Agent Disruptions JSON model — drives the Disruptions screen
+            // with per-agent execution state, results, and case details.
+            var oAgentDisruptionsModel = new JSONModel({
+                selectedCaseId: "",
+                caseData: null,
+                agents: {
+                    earlyWarning:    { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
+                    coordinator:     { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
+                    survivalPlanner: { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
+                    substitution:    { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
+                    buyer:           { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" }
+                }
+            });
+            this.getView().setModel(oAgentDisruptionsModel, "agentDisruptions");
+
             // Monitoring JSON model — static MVP data for the Case Timeline.
             // In a future phase this model will be replaced with live
             // CAP/HANA AgentExecutionHistory data without redesigning the XML.
@@ -609,6 +624,15 @@ sap.ui.define([
          * UI that needs live Early Warning Agent output.
          */
         onRunEarlyWarningAgent: function () {
+            this._enableDisruptionsAndNavigate("Early Warning");
+        },
+
+        /**
+         * Original Early Warning Agent implementation that calls the
+         * runEarlyWarningWithS4R CAP action. Now invoked from the
+         * Disruptions screen instead of the Case Dashboard Run button.
+         */
+        _executeEarlyWarningFromCaseDashboard: function () {
             var that = this;
             var oCaseH = this.getView().getModel("caseHierarchy");
             var oEwModel = this.getView().getModel("earlyWarningResult");
@@ -772,29 +796,29 @@ sap.ui.define([
             });
         },
 
-        /** Run Coordinator Agent. */
+        /** Run Coordinator Agent — enable Disruptions and navigate. */
         onRunCoordinatorAgent: function () {
-            MessageToast.show("Coordinator Agent — will be connected to backend service in a future phase.");
+            this._enableDisruptionsAndNavigate("Coordinator");
         },
 
-        /** Run Survival Planner Agent. */
+        /** Run Survival Planner Agent — enable Disruptions and navigate. */
         onRunSurvivalPlannerAgent: function () {
-            MessageToast.show("Survival Planner Agent — will be connected to backend service in a future phase.");
+            this._enableDisruptionsAndNavigate("Survival Planner");
         },
 
-        /** Run Substitution Agent. */
+        /** Run Substitution Agent — enable Disruptions and navigate. */
         onRunSubstitutionAgent: function () {
-            MessageToast.show("Substitution Agent — will be connected to backend service in a future phase.");
+            this._enableDisruptionsAndNavigate("Substitution");
         },
 
-        /** Run Buyer Agent. */
+        /** Run Buyer Agent — enable Disruptions and navigate. */
         onRunBuyerAgent: function () {
-            MessageToast.show("Buyer Agent — will be connected to backend service in a future phase.");
+            this._enableDisruptionsAndNavigate("Buyer");
         },
 
-        /** Run All Agents sequentially. */
+        /** Run All Agents — enable Disruptions and navigate. */
         onRunAllAgents: function () {
-            MessageToast.show("Run All Agents — will be connected to backend service in a future phase.");
+            this._enableDisruptionsAndNavigate("All Agents");
         },
 
         /**
@@ -1008,6 +1032,7 @@ sap.ui.define([
             var oRecView    = this.byId("recommendationsView");
             var oExecView   = this.byId("executionView");
             var oMonView    = this.byId("monitoringView");
+            var oAdView     = this.byId("agentDisruptionsView");
             if (oDashView)  { oDashView.setVisible(sKey === "control"); }
             if (oRaView)    { oRaView.setVisible(sKey === "riskAssessment"); }
             if (oSpView)    { oSpView.setVisible(sKey === "survivalPlanning"); }
@@ -1015,9 +1040,10 @@ sap.ui.define([
             if (oRecView)   { oRecView.setVisible(sKey === "approvals"); }
             if (oExecView)  { oExecView.setVisible(sKey === "planning"); }
             if (oMonView)   { oMonView.setVisible(sKey === "audit"); }
+            if (oAdView)    { oAdView.setVisible(sKey === "agentDisruptions"); }
 
             // Refresh the case dropdown list when entering a screen that has it
-            if (sKey === "caseDashboard" || sKey === "riskAssessment" || sKey === "survivalPlanning") {
+            if (sKey === "caseDashboard" || sKey === "riskAssessment" || sKey === "survivalPlanning" || sKey === "agentDisruptions") {
                 this._loadAvailableCases();
             }
 
@@ -1031,7 +1057,188 @@ sap.ui.define([
             if (sKey === "survivalPlanning" && sExistingCaseId) {
                 this._loadCaseDataForSurvivalPlanning(sExistingCaseId);
             }
+            if (sKey === "agentDisruptions" && sExistingCaseId) {
+                this._loadCaseDataForAgentDisruptions(sExistingCaseId);
+            }
         },
+
+        // ═══════════════════════════════════════════════════════════════
+        // AGENT DISRUPTIONS — Enable / Navigate / Execute
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Called by every Case Dashboard agent Run button.
+         * Validates case, enables Disruptions nav, navigates.
+         * @param {string} sAgentLabel - Friendly name for the toast.
+         */
+        _enableDisruptionsAndNavigate: function (sAgentLabel) {
+            var oView = this.getView();
+            var oDashboard = oView.getModel("dashboard");
+            var sCaseId = oDashboard.getProperty("/selectedCaseId");
+            if (!sCaseId) {
+                MessageToast.show("No case selected. Please select a case first.");
+                return;
+            }
+            oDashboard.setProperty("/disruptionsEnabled", true);
+            var oAdModel = oView.getModel("agentDisruptions");
+            oAdModel.setProperty("/selectedCaseId", sCaseId);
+            MessageToast.show(sAgentLabel + " — Navigating to Disruptions for " + sCaseId);
+            this._selectSideNav("agentDisruptions");
+        },
+
+        /**
+         * Load case data for the Agent Disruptions screen via
+         * getCaseHierarchy. Resets agent results on new case.
+         * @param {string} sCaseId - The case identifier.
+         */
+        _loadCaseDataForAgentDisruptions: function (sCaseId) {
+            var oAdModel = this.getView().getModel("agentDisruptions");
+            if (!oAdModel || !sCaseId) { return; }
+            oAdModel.setProperty("/selectedCaseId", sCaseId);
+            this._resetAllAgentDisruptionCards();
+
+            fetch(this._getServiceUrl() + "getCaseHierarchy(caseId='" + encodeURIComponent(sCaseId) + "')", {
+                method: "GET", headers: { "Accept": "application/json" }, credentials: "include"
+            }).then(function (r) {
+                if (!r.ok) { throw new Error("HTTP " + r.status); }
+                return r.json();
+            }).then(function (oData) {
+                if (oData && oData.success !== false) {
+                    oAdModel.setProperty("/caseData", oData.caseData || null);
+                } else {
+                    oAdModel.setProperty("/caseData", null);
+                }
+            }).catch(function (oErr) {
+                console.error("[AgentDisruptions] Load case failed:", oErr);
+                oAdModel.setProperty("/caseData", null);
+            });
+        },
+
+        /** Reset all five agent cards to their initial Not Run state. */
+        _resetAllAgentDisruptionCards: function () {
+            var oAdModel = this.getView().getModel("agentDisruptions");
+            if (!oAdModel) { return; }
+            ["earlyWarning", "coordinator", "survivalPlanner", "substitution", "buyer"].forEach(function (sKey) {
+                oAdModel.setProperty("/agents/" + sKey, {
+                    status: "notRun", busy: false, result: null, error: null,
+                    formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue"
+                });
+            });
+        },
+
+        /** Handle case dropdown change on Agent Disruptions screen. */
+        onAgentDisruptionsCaseChange: function (oEvent) {
+            var oItem = oEvent.getParameter("selectedItem");
+            if (!oItem) { return; }
+            var sCaseId = oItem.getKey();
+            var oAdModel = this.getView().getModel("agentDisruptions");
+            var oDashboard = this.getView().getModel("dashboard");
+            oAdModel.setProperty("/selectedCaseId", sCaseId);
+            oAdModel.setProperty("/caseData", null);
+            if (oDashboard) { oDashboard.setProperty("/selectedCaseId", sCaseId); }
+            this._resetAllAgentDisruptionCards();
+            this._loadCaseDataForAgentDisruptions(sCaseId);
+        },
+
+        /** Disruptions Run handlers — thin wrappers. */
+        onRunDisruptionEarlyWarning:    function () { this._runDisruptionAgent("earlyWarning"); },
+        onRunDisruptionCoordinator:     function () { this._runDisruptionAgent("coordinator"); },
+        onRunDisruptionSurvivalPlanner: function () { this._runDisruptionAgent("survivalPlanner"); },
+        onRunDisruptionSubstitution:    function () { this._runDisruptionAgent("substitution"); },
+        onRunDisruptionBuyer:           function () { this._runDisruptionAgent("buyer"); },
+
+        /**
+         * Generic agent execution for the Disruptions screen.
+         * @param {string} sAgentKey - Agent key.
+         */
+        _runDisruptionAgent: function (sAgentKey) {
+            var that = this, oAdModel = this.getView().getModel("agentDisruptions");
+            var sCaseId = oAdModel.getProperty("/selectedCaseId");
+            var oCaseData = oAdModel.getProperty("/caseData");
+            if (!sCaseId || !oCaseData) { MessageToast.show("No case selected."); return; }
+            var mCfg = {
+                earlyWarning:    { action: "runEarlyWarning",  label: "Early Warning",    payload: { caseId: sCaseId, supplier: "", material: "", plant: "", delayDays: 0 } },
+                coordinator:     { action: "runCoordinator",   label: "Coordinator",      payload: { eventId: oCaseData.eventId || sCaseId, eventType: oCaseData.eventType || "DISRUPTION", eventTime: new Date().toISOString(), po: "", supplier: "", material: "", plant: "", delayDays: 0 } },
+                survivalPlanner: { action: "runSurvival",      label: "Survival Planner", payload: { caseId: sCaseId, material: "", plant: "", supplierRecoveryWeeks: 4 } },
+                substitution:    { action: "runSubstitution",  label: "Substitution",     payload: { caseId: sCaseId } },
+                buyer:           { action: "runBuyer",         label: "Buyer",            payload: { caseId: sCaseId } }
+            };
+            var oC = mCfg[sAgentKey]; if (!oC) { return; }
+            var sP = "/agents/" + sAgentKey;
+            oAdModel.setProperty(sP + "/busy", true);
+            oAdModel.setProperty(sP + "/status", "running");
+            oAdModel.setProperty(sP + "/statusText", "⏳ Running...");
+            oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--running");
+            oAdModel.setProperty(sP + "/error", null);
+            oAdModel.setProperty(sP + "/formattedResult", "");
+            MessageToast.show("Running " + oC.label + " for " + sCaseId + "…");
+            fetch(this._getServiceUrl() + oC.action, {
+                method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                credentials: "include", body: JSON.stringify(oC.payload)
+            }).then(function (r) {
+                if (!r.ok) { return r.text().then(function (b) { throw new Error("HTTP " + r.status + (b ? ": " + b.substring(0,500) : "")); }); }
+                return r.json();
+            }).then(function (oData) {
+                oAdModel.setProperty(sP + "/busy", false);
+                oAdModel.setProperty(sP + "/result", oData);
+                oAdModel.setProperty(sP + "/status", "completed");
+                oAdModel.setProperty(sP + "/statusText", "✓ Completed");
+                oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--success");
+                oAdModel.setProperty(sP + "/formattedResult", that._formatAgentResponse(oData));
+                MessageToast.show(oC.label + " completed.");
+            }).catch(function (oErr) {
+                oAdModel.setProperty(sP + "/busy", false);
+                oAdModel.setProperty(sP + "/status", "failed");
+                oAdModel.setProperty(sP + "/statusText", "✕ Failed");
+                oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--error");
+                oAdModel.setProperty(sP + "/error", oErr.message || "Unknown error");
+                oAdModel.setProperty(sP + "/formattedResult", "");
+                MessageToast.show(oC.label + " error: " + (oErr.message || "Unknown error"));
+            });
+        },
+
+        /** Escape HTML special characters. */
+        _escapeHtml: function (s) {
+            if (!s) return "";
+            return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+        },
+
+        /** Format agent API response into readable HTML. */
+        _formatAgentResponse: function (oData) {
+            if (!oData) { return "<div class='adResponseEmpty'>No data.</div>"; }
+            var that = this, aL = [];
+            var mL = { success:"Success", status:"Status", caseId:"Case ID",
+                riskScore:"Risk Score", riskLevel:"Risk Level", priority:"Priority",
+                recommendation:"Recommendation", agent:"Agent",
+                survivalWeeks:"Survival Weeks", coverageGapWeeks:"Coverage Gap",
+                shortfallQuantity:"Shortfall", actionRequired:"Action Required",
+                availableInventory:"Available Inventory", weeklyDemand:"Weekly Demand",
+                supplierRecoveryWeeks:"Recovery Weeks", uncoveredWeeks:"Uncovered Weeks",
+                supplierId:"Supplier ID", supplierName:"Supplier", supplierOtif:"OTIF",
+                materialId:"Material", materialCriticality:"Criticality",
+                dataSource:"Data Source", calculatedAt:"Calculated At",
+                error:"Error" };
+            Object.keys(oData).forEach(function (k) {
+                var v = oData[k];
+                if (v === null || v === undefined) return;
+                if (k === "@odata.context" || k === "@odata.metadataEtag") return;
+                var lb = mL[k] || k;
+                if (typeof v === "object" && !Array.isArray(v)) {
+                    aL.push("<div class='adRespSection'><strong>" + lb + "</strong></div>");
+                    Object.keys(v).forEach(function (sk) {
+                        if (v[sk] !== null && v[sk] !== undefined) {
+                            aL.push("<div class='adRespRow'><span class='adRespKey'>" + (mL[sk]||sk) + ":</span> <span class='adRespVal'>" + that._escapeHtml(String(v[sk])) + "</span></div>");
+                        }
+                    });
+                } else if (Array.isArray(v) && v.length > 0) {
+                    aL.push("<div class='adRespRow'><span class='adRespKey'>" + lb + ":</span> <span class='adRespVal'>" + that._escapeHtml(v.join(", ")) + "</span></div>");
+                } else if (!Array.isArray(v)) {
+                    aL.push("<div class='adRespRow'><span class='adRespKey'>" + lb + ":</span> <span class='adRespVal'>" + that._escapeHtml(String(v)) + "</span></div>");
+                }
+            });
+            return "<div class='adResponseWrap'>" + aL.join("") + "</div>";
+        },
+
         /**
          * Reset the earlyWarningResult model to its clean initial state.
          * Called on error / failure to ensure no stale data persists.

@@ -1,177 +1,123 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!--
-        Disruptions Analysis view.
-        Displays results from the supplier_resilience_agent /analyze endpoint.
-        Shows impact summary, affected suppliers, and affected POs.
-    -->
+    <!-- Disruptions Analysis view — sap_horizon default theme -->
     <VBox>
         <!-- Back to Risk Feed header -->
-        <VBox class="disruptionsBackHeader sapUiSmallMarginBottom">
-            <Link text="← Back to Risk Feed"
-                  press=".onBackToRiskFeed"
-                  class="sapUiTinyMarginBottom" />
-            <!-- Display the selected risk in the same layout as the GlobalRisksCard row -->
-            <HBox alignItems="Center" class="ctRiskItem ctRiskRow" justifyContent="SpaceBetween"
-                  visible="{= !!${disruptions>/selectedRisk}}">
-                <!-- Left: icon + title + description -->
-                <HBox alignItems="Center" class="ctRiskLeft">
-                    <VBox class="{disruptions>/selectedRisk/iconWrapClass}" alignItems="Center" justifyContent="Center">
-                        <core:Icon src="{disruptions>/selectedRisk/icon}" class="{disruptions>/selectedRisk/iconClass}" />
-                    </VBox>
-                    <VBox class="ctRiskText">
-                        <Title text="{disruptions>/selectedRisk/title}" level="H4" class="{disruptions>/selectedRisk/titleClass}" wrapping="true" />
-                        <Text text="{disruptions>/selectedRisk/description}" class="ctRiskDescription" wrapping="true" />
-                    </VBox>
-                </HBox>
-                <!-- Right: meta grid -->
-                <HBox alignItems="Center" class="ctRiskRight">
-                    <VBox class="ctRiskMeta">
-                        <HBox alignItems="Center" class="ctRiskMetaRow">
-                            <Label text="Risk Level" class="ctRiskMetaLabel" />
+        <VBox class="sapUiSmallMarginBottom">
+            <Link text="\u2190 Back to Risk Feed" press=".onBackToRiskFeed" class="sapUiTinyMarginBottom" />
+            <Panel visible="{= !!${disruptions>/selectedRisk}}">
+                <HBox alignItems="Center" justifyContent="SpaceBetween">
+                    <HBox alignItems="Center">
+                        <core:Icon src="{disruptions>/selectedRisk/icon}" class="sapUiSmallMarginEnd" />
+                        <VBox>
+                            <Title text="{disruptions>/selectedRisk/title}" level="H4" wrapping="true" />
+                            <Text text="{disruptions>/selectedRisk/description}" wrapping="true" />
+                        </VBox>
+                    </HBox>
+                    <VBox>
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <Label text="Risk Level" class="sapUiSmallMarginEnd" />
                             <ObjectStatus text="{disruptions>/selectedRisk/riskLevel}"
                                          state="{= ${disruptions>/selectedRisk/riskLevel} === 'Critical' ? 'Error' : ${disruptions>/selectedRisk/riskLevel} === 'High' ? 'Warning' : ${disruptions>/selectedRisk/riskLevel} === 'Medium' ? 'Information' : 'Success'}" />
                         </HBox>
-                        <HBox alignItems="Center" class="ctRiskMetaRow">
-                            <Label text="Region" class="ctRiskMetaLabel" />
-                            <Text text="{disruptions>/selectedRisk/region}" class="ctRiskMetaValue" />
+                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                            <Label text="Region" class="sapUiSmallMarginEnd" />
+                            <Text text="{disruptions>/selectedRisk/region}" />
                         </HBox>
-                        <HBox alignItems="Center" class="ctRiskMetaRow">
-                            <Label text="Time" class="ctRiskMetaLabel" />
-                            <Text text="{disruptions>/selectedRisk/time}" class="ctRiskMetaValue" />
+                        <HBox alignItems="Center">
+                            <Label text="Time" class="sapUiSmallMarginEnd" />
+                            <Text text="{disruptions>/selectedRisk/time}" />
                         </HBox>
                     </VBox>
                 </HBox>
-            </HBox>
+            </Panel>
         </VBox>
 
         <!-- Page header -->
-        <HBox justifyContent="SpaceBetween" alignItems="End" class="pageIntro">
+        <HBox justifyContent="SpaceBetween" alignItems="End" class="sapUiSmallMarginBottom">
             <VBox>
-                <Text text="DISRUPTION ANALYSIS" class="eyebrow" />
-                <Title text="Coordinator Agent complete — case opened as CRITICAL priority." level="H2" />
-                <Text text="3 affected purchase orders found. Early Warning, Survival Planner and Substitution Checker are ready to run — in any order, on any PO. The Buyer Agent unlocks once Survival Planner has run for a given PO."  />
+                <Label text="DISRUPTION ANALYSIS" />
+                <Title text="Coordinator Agent complete \u2014 case opened as CRITICAL priority." level="H2" />
+                <Text text="3 affected purchase orders found. Early Warning, Survival Planner and Substitution Checker are ready to run \u2014 in any order, on any PO. The Buyer Agent unlocks once Survival Planner has run for a given PO." />
             </VBox>
-            <!-- <ObjectStatus text="{= ${disruptions>/hasResult} ? 'Analysis Complete' : 'Ready'}"
-                          state="{= ${disruptions>/hasResult} ? 'Success' : 'Information'}"
-                          icon="sap-icon://warning2" /> -->
         </HBox>
 
-        <!-- Selected Risk Info (shown when a risk has been selected for investigation) -->
-        <VBox visible="{= !!${disruptions>/selectedRisk}}" class="sapUiSmallMarginTop">
-            <MessageStrip
-                text="Analyzing: {disruptions>/selectedRisk/title} — Location: {disruptions>/selectedRisk/region} — Category: {disruptions>/selectedRisk/category}"
-                type="Information"
-                showIcon="true"
-                class="sapUiSmallMarginBottom" />
-        </VBox>
-
-        <!-- No risk selected placeholder -->
-        <!-- <VBox visible="{= !${disruptions>/selectedRisk} &amp;&amp; !${disruptions>/hasResult}}" class="sapUiMediumMarginTop">
-            <MessageStrip
-                text="Select a risk from the Global Risks list on the News Feed, then click 'Investigate a Risk' in the AI Assistant to analyze its impact."
-                type="Warning"
-                showIcon="true" />
-        </VBox> -->
-
-        <!-- Impact scope section -->
-        <VBox class="sapUiSmallMarginTop">
-            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                <core:Icon src="sap-icon://grid" class="sapUiTinyMarginEnd" />
-                <Title text="Impact scope" level="H4" class="sapUiTinyMarginBegin" />
-            </HBox>
-            <!--
-                Impact-scope cards. Populated by _computeDisruptionScope in the
-                controller from the analyzeImpact response. When no analysis has
-                been run yet the "scope" model defaults to zeros.
-            -->
-            <HBox justifyContent="SpaceBetween" wrap="Wrap">
-                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Title text="{disruptions>/scope/poCount}" level="H3" />
-                    <Text text="Purchase orders affected" class="impactLabel" />
+        <!-- Impact summary -->
+        <Panel class="sapUiSmallMarginBottom">
+            <headerToolbar><Toolbar><Title text="IMPACT SUMMARY" level="H4" /></Toolbar></headerToolbar>
+            <HBox class="sapUiSmallMarginBottom">
+                <VBox class="sapUiMediumMarginEnd">
+                    <Label text="Suppliers" />
+                    <ObjectNumber number="{disruptions>/result/summary/suppliers}" state="Error" />
                 </VBox>
-                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Title text="{disruptions>/scope/plantCount}" level="H3" />
-                    <Text text="Plants affected" class="impactLabel" />
+                <VBox class="sapUiMediumMarginEnd">
+                    <Label text="POs" />
+                    <ObjectNumber number="{disruptions>/result/summary/pos}" state="Warning" />
                 </VBox>
-                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Title text="{disruptions>/scope/skuCount}" level="H3" />
-                    <Text text="SKUs at risk" class="impactLabel" />
+                <VBox class="sapUiMediumMarginEnd">
+                    <Label text="Plants" />
+                    <ObjectNumber number="{disruptions>/result/summary/plants}" />
                 </VBox>
-                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Title text="{disruptions>/scope/supplierCount}" level="H3" />
-                    <Text text="Suppliers affected" class="impactLabel" />
-                </VBox>
-                <VBox class="impactCard sapUiSmallMarginEnd sapUiSmallMarginBottom">
-                    <Title
-                        text="{= ${disruptions>/selectedRisk/riskLevel} || '—' }"
-                        level="H3" />
-                    <Text text="Case priority" class="impactLabel" />
-                </VBox>
-                <VBox class="impactCard sapUiSmallMarginBottom">
-                    <Title text="—" level="H3" />
-                    <Text text="Avg. risk score" class="impactLabel" />
+                <VBox>
+                    <Label text="SKUs" />
+                    <ObjectNumber number="{disruptions>/result/summary/skus}" />
                 </VBox>
             </HBox>
-        </VBox>
+        </Panel>
 
-        <!-- Run agent buttons section -->
-        <VBox class="sapUiSmallMarginTop sapUiSmallMarginBottom">
-            <Text text="Run an agent across every ready PO..." class="sapUiSmallMarginBottom runAgentPrompt" />
-            <HBox wrap="Wrap">
-                <Button text="● Run Early Warning · 3 POs" type="Emphasized" class="agentRunBtn sapUiSmallMarginEnd sapUiTinyMarginBottom" />
-                <Button text="● Run Survival Planner · 3 POs" type="Emphasized" class="agentRunBtn sapUiSmallMarginEnd sapUiTinyMarginBottom" />
-                <Button text="● Run Substitution Checker · 3 POs" type="Emphasized" class="agentRunBtn sapUiTinyMarginBottom" />
-            </HBox>
-        </VBox>
+        <!-- PO table -->
+        <HBox width="100%">
+            <Panel width="68%" class="sapUiSmallMarginEnd">
+                <headerToolbar><Toolbar><Title text="AFFECTED PURCHASE ORDERS" level="H4" /></Toolbar></headerToolbar>
+                <Table items="{disruptions>/result/pos}"
+                       showSeparators="Inner"
+                       noDataText="No POs. Select a risk from Global Risks card and click Investigate.">
+                    <columns>
+                        <Column width="15%"><Text text="PO" /></Column>
+                        <Column width="20%"><Text text="MATERIAL" /></Column>
+                        <Column width="15%"><Text text="PLANT" /></Column>
+                        <Column width="25%"><Text text="AGENTS" /></Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+                                <ObjectIdentifier title="{disruptions>poNumber}" />
+                                <Text text="{disruptions>material}" />
+                                <Text text="{disruptions>plant}" />
+                                <HBox>
+                                    <Button text="Early Warning" press=".onRunEarlyWarningOnPO" type="Transparent" class="sapUiTinyMarginEnd" />
+                                    <Button text="Survival" press=".onRunSurvivalOnPO" type="Transparent" class="sapUiTinyMarginEnd" />
+                                    <Button text="Substitution" press=".onRunSubstitutionOnPO" type="Transparent" class="sapUiTinyMarginEnd" />
+                                    <Button text="Buyer" press=".onRunBuyerOnPO" type="Transparent" />
+                                </HBox>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
+            </Panel>
 
-        <!-- Purchase Orders + Consolidated Recovery Plan two-column layout -->
-        <HBox width="100%" class="sapUiSmallMarginTop">
-            <!-- Left: Purchase Orders table -->
-            <VBox width="68%" class="poTableCard sapUiSmallMarginEnd">
-                <Title text="PURCHASE ORDERS" level="H5" class="poTableTitle sapUiSmallMarginBottom" />
-                <!-- Column headers -->
-                <HBox class="poHeaderRow sapUiTinyMarginBottom" justifyContent="SpaceBetween" alignItems="Center">
-                    <Text text="PO" class="poColHeader poColPO" />
-                    <Text text="EARLY" class="poColHeader poColAgent" />
-                    <Text text="SURVIVAL" class="poColHeader poColAgent" />
-                    <Text text="SUB" class="poColHeader poColAgent" />
-                    <Text text="BUYER" class="poColHeader poColAgent" />
-                </HBox>
-                <!--
-                    Real supplier + PO list, bound to the analyzeImpact
-                    response via disruptions>/result/affected_suppliers.
-                    Each supplier renders as a header row with their POs
-                    listed underneath. Materials/plants/SKUs are shown as
-                    a compact meta line for each PO.
-                -->
+            <!-- Affected Suppliers -->
+            <Panel width="32%">
+                <headerToolbar><Toolbar><Title text="AFFECTED SUPPLIERS" level="H5" /></Toolbar></headerToolbar>
                 <List
                     id="disruptionsSupplierList"
                     items="{disruptions>/result/affected_suppliers}"
                     noDataText="No affected suppliers. Select a risk from the Global Risks card and click Investigate to run an analysis."
                     showSeparators="Inner">
                     <CustomListItem>
-                        <VBox class="poRow">
-                            <!-- Supplier header -->
+                        <VBox class="sapUiTinyMarginTopBottom">
                             <HBox justifyContent="SpaceBetween" alignItems="Center">
                                 <VBox>
-                                    <Text
-                                        text="{disruptions>name} ({disruptions>supplier_id})"
-                                        class="poNumber" />
-                                    <Text text="{disruptions>address}" class="poMaterial" />
+                                    <Text text="{disruptions>name} ({disruptions>supplier_id})" />
+                                    <Text text="{disruptions>address}" />
                                 </VBox>
                                 <ObjectStatus
-                                    text="{= ${disruptions>distance_km} + ' km · ' + ${disruptions>po_count} + ' PO(s)' }"
+                                    text="{= ${disruptions>distance_km} + ' km \u00b7 ' + ${disruptions>po_count} + ' PO(s)' }"
                                     state="{= ${disruptions>po_count} > 0 ? 'Warning' : 'None' }" />
                             </HBox>
-                            <!-- Nested POs table -->
-                            <Table
-                                inset="true"
-                                items="{
-                                    path: 'disruptions>purchase_orders',
-                                    templateShareable: false
-                                }"
+                            <Table inset="true"
+                                items="{ path: 'disruptions>purchase_orders', templateShareable: false }"
                                 noDataText="No POs found in S/4HANA for this supplier.">
                                 <columns>
                                     <Column><Text text="PO Number" /></Column>
@@ -184,11 +130,10 @@
                                     <ColumnListItem>
                                         <cells>
                                             <ObjectIdentifier title="{disruptions>po_number}" />
-                                            <!-- Show first material inline; multi-line items expand naturally -->
-                                            <Text text="{= ${disruptions>materials/0/item_no}  || '—' }" />
-                                            <Text text="{= ${disruptions>materials/0/material} || '—' }" />
-                                            <Text text="{= ${disruptions>materials/0/plant}    || '—' }" />
-                                            <Text text="{= ${disruptions>materials/0/sku}      || '—' }" />
+                                            <Text text="{= ${disruptions>materials/0/item_no} || '\u2014' }" />
+                                            <Text text="{= ${disruptions>materials/0/material} || '\u2014' }" />
+                                            <Text text="{= ${disruptions>materials/0/plant} || '\u2014' }" />
+                                            <Text text="{= ${disruptions>materials/0/sku} || '\u2014' }" />
                                         </cells>
                                     </ColumnListItem>
                                 </items>
@@ -196,14 +141,14 @@
                         </VBox>
                     </CustomListItem>
                 </List>
-            </VBox>
-
-            <!-- Right: Consolidated Recovery Plan -->
-            <VBox width="32%" class="recoveryPlanCard">
-                <Title text="CONSOLIDATED RECOVERY PLAN" level="H5" class="recoveryPlanTitle sapUiSmallMarginBottom" />
-                <Text text="No PO has a Buyer-approved plan yet. Run Survival Planner on at least one PO to generate a recovery recommendation." class="recoveryPlanPlaceholder" />
-            </VBox>
+            </Panel>
         </HBox>
+
+        <!-- Consolidated Recovery Plan -->
+        <Panel class="sapUiSmallMarginTop">
+            <headerToolbar><Toolbar><Title text="CONSOLIDATED RECOVERY PLAN" level="H5" /></Toolbar></headerToolbar>
+            <Text text="No PO has a Buyer-approved plan yet. Run Survival Planner on at least one PO to generate a recovery recommendation." />
+        </Panel>
 
     </VBox>
 </core:FragmentDefinition>

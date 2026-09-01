@@ -1,36 +1,18 @@
 <core:FragmentDefinition
     xmlns="sap.m"
-    xmlns:core="sap.ui.core"
-    xmlns:l="sap.ui.layout">
-    <!--
-        News Feed home landing page (new design).
-        Composes three sub-fragments:
-          1) HeroHeader        – dark greeting banner
-          2) GlobalRisksCard   – left column: Today's Global Supply Chain Risks
-          3) AiAssistantCard   – right column: AI Assistant panel
-    -->
-    <VBox class="ctHome" width="100%">
-         <core:Fragment fragmentName="supplierresilience.view.fragments.HeroHeader" type="XML" /> 
-
-       <HBox
-    width="100%"
-    alignItems="Start"
-    class="ctBodyLayout">
-
-    <!-- Left Side -->
-    <VBox width="65%" class="sapUiSmallMarginEnd">
-        <core:Fragment
-            fragmentName="supplierresilience.view.fragments.GlobalRisksCard"
-            type="XML"/>
-    </VBox>
-
-    <!-- Right Side -->
-    <VBox width="35%">
-        <core:Fragment
-            fragmentName="supplierresilience.view.fragments.AiAssistantCard"
-            type="XML"/>
-    </VBox>
-
-</HBox>
+    xmlns:core="sap.ui.core">
+    <!-- News Feed home landing page — sap_horizon default theme -->
+    <VBox width="100%">
+        <core:Fragment fragmentName="supplierresilience.view.fragments.HeroHeader" type="XML" />
+        <HBox width="100%" alignItems="Start">
+            <!-- Left Side -->
+            <VBox width="65%" class="sapUiSmallMarginEnd">
+                <core:Fragment fragmentName="supplierresilience.view.fragments.GlobalRisksCard" type="XML" />
+            </VBox>
+            <!-- Right Side -->
+            <VBox width="35%">
+                <core:Fragment fragmentName="supplierresilience.view.fragments.AiAssistantCard" type="XML" />
+            </VBox>
+        </HBox>
     </VBox>
 </core:FragmentDefinition>

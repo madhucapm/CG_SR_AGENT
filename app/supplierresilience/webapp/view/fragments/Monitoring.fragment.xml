@@ -1,95 +1,84 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!-- Monitoring — Case Timeline (Static MVP).
-         Data bound from monitoringModel JSONModel. Future: replace with CAP/HANA. -->
-    <VBox class="monitoringPage" width="100%">
+    <!-- Monitoring — Case Timeline (Static MVP). sap_horizon default theme. -->
+    <VBox width="100%">
 
-        <!-- PAGE HEADER -->
-        <VBox class="monitoringHeader">
-            <Title text="Monitoring — Case Timeline" level="H2" class="monitoringPageTitle" />
-            <Text text="Agent actions and completion statuses for the active case." class="monitoringPageSubtitle" />
-            <Text text="Reporting view (multi-case, geographic, multi-supplier) deferred to MVP2." class="monitoringPageDeferred" />
-        </VBox>
+        <Toolbar design="Transparent">
+            <Title text="Monitoring — Case Timeline" level="H2" />
+        </Toolbar>
+        <Text text="Agent actions and completion statuses for the active case." class="sapUiSmallMarginBottom" />
 
-        <!-- CASE HEADER CARD -->
-        <HBox class="monitoringCaseHeader" alignItems="Center" justifyContent="SpaceBetween">
-            <HBox alignItems="Center" class="monitoringCaseHeaderLeft">
-                <VBox class="monitoringCaseHeaderField">
-                    <Text text="CASE ID" class="raKpiLabel" />
-                    <Title text="{monitoringModel>/case/caseId}" level="H3" class="cdHeaderCaseId" />
-                </VBox>
-                <VBox class="monitoringCaseHeaderField">
-                    <Text text="EVENT" class="raKpiLabel" />
-                    <Text text="{monitoringModel>/case/event}" class="cdHeaderEvent" />
-                </VBox>
-                <HBox alignItems="Center" class="monitoringCaseHeaderBadges">
-                    <Text text="{monitoringModel>/case/severity}" class="raClassBadge raClassBadge--critical" />
-                    <Text text="{monitoringModel>/case/classification}" class="raClassBadge raClassBadge--warning" />
-                </HBox>
+        <!-- CASE HEADER -->
+        <Panel class="sapUiSmallMarginBottom">
+            <headerToolbar>
+                <Toolbar>
+                    <Title text="{monitoringModel>/case/caseId}" level="H3" />
+                    <ToolbarSpacer />
+                    <Text text="View Monitoring \u2192" />
+                </Toolbar>
+            </headerToolbar>
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <Label text="EVENT" class="sapUiSmallMarginEnd" />
+                <Text text="{monitoringModel>/case/event}" />
             </HBox>
-            <Text text="View Monitoring →" class="monitoringCaseHeaderAction" />
-        </HBox>
+            <HBox alignItems="Center">
+                <ObjectStatus text="{monitoringModel>/case/severity}" state="Error" class="sapUiSmallMarginEnd" />
+                <ObjectStatus text="{monitoringModel>/case/classification}" state="Warning" />
+            </HBox>
+        </Panel>
 
-        <!-- MAIN CONTENT — Two-Column Layout -->
-        <HBox class="monitoringMainContent" width="100%">
+        <!-- MAIN CONTENT -->
+        <HBox width="100%">
 
             <!-- LEFT: Agent Activity -->
-            <VBox class="monitoringLeftColumn">
-                <VBox class="monitoringActivityCard">
-                    <Title text="AGENT ACTIVITY" level="H4" class="raPanelTitle" />
-                    <VBox class="monitoringTimeline" items="{monitoringModel>/activities}">
-                        <VBox class="monitoringTimelineItem">
-                            <HBox class="monitoringTimelineRow">
-                                <VBox class="monitoringTimelineRail">
-                                    <core:Icon src="sap-icon://circle-task-2"
-                                        class="{= ${monitoringModel>status} === 'completed' ? 'monitoringTimelineDot monitoringTimelineDot--completed' : 'monitoringTimelineDot monitoringTimelineDot--pending' }" />
-                                    <VBox class="monitoringTimelineLine" />
-                                </VBox>
-                                <VBox class="monitoringTimelineContent">
-                                    <HBox alignItems="Center" justifyContent="SpaceBetween" class="monitoringTimelineContentHeader">
-                                        <Text text="{monitoringModel>agent}" class="monitoringActivityAgent" />
-                                        <Text text="{monitoringModel>time}" class="monitoringActivityTime" />
-                                    </HBox>
-                                    <Text text="{monitoringModel>title}" class="monitoringActivityTitle" />
-                                    <Text text="{monitoringModel>description}" class="monitoringActivityDescription" wrapping="true" />
-                                </VBox>
-                            </HBox>
-                        </VBox>
-                    </VBox>
-                </VBox>
-            </VBox>
+            <Panel width="100%" expandable="false">
+                <headerToolbar><Toolbar><Title text="AGENT ACTIVITY" level="H4" /></Toolbar></headerToolbar>
+                <List items="{monitoringModel>/activities}" showSeparators="Inner">
+                    <CustomListItem>
+                        <HBox alignItems="Center" class="sapUiTinyMarginTopBottom">
+                            <ObjectStatus text="\u25cf"
+                                state="{= ${monitoringModel>status} === 'completed' ? 'Success' : 'None' }"
+                                class="sapUiSmallMarginEnd" />
+                            <VBox width="100%">
+                                <HBox alignItems="Center" justifyContent="SpaceBetween">
+                                    <Text text="{monitoringModel>agent}" />
+                                    <Text text="{monitoringModel>time}" />
+                                </HBox>
+                                <Title text="{monitoringModel>title}" level="H5" />
+                                <Text text="{monitoringModel>description}" wrapping="true" />
+                            </VBox>
+                        </HBox>
+                    </CustomListItem>
+                </List>
+            </Panel>
 
             <!-- RIGHT: Case Details + Agent Status -->
-            <VBox class="monitoringRightColumn">
-                <VBox class="monitoringCaseDetails">
-                    <Title text="CASE DETAILS" level="H4" class="raPanelTitle" />
-                    <VBox class="monitoringCaseDetailsList">
-                        <HBox class="monitoringDetailRow"><Text text="Case ID" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/caseId}" class="monitoringDetailValue" /></HBox>
-                        <HBox class="monitoringDetailRow"><Text text="Event" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/event}" class="monitoringDetailValue" wrapping="true" /></HBox>
-                        <HBox class="monitoringDetailRow"><Text text="Severity" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/severity}" class="monitoringDetailValue monitoringDetailValue--critical" /></HBox>
-                        <HBox class="monitoringDetailRow"><Text text="Classification" class="monitoringDetailLabel" /><Text text="{monitoringModel>/case/classification}" class="monitoringDetailValue" /></HBox>
+            <VBox class="sapUiSmallMarginStart" width="20rem">
+                <Panel class="sapUiSmallMarginBottom" expandable="false">
+                    <headerToolbar><Toolbar><Title text="CASE DETAILS" level="H4" /></Toolbar></headerToolbar>
+                    <VBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Case ID" class="sapUiSmallMarginEnd" width="6rem" /><Text text="{monitoringModel>/case/caseId}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Event" class="sapUiSmallMarginEnd" width="6rem" /><Text text="{monitoringModel>/case/event}" wrapping="true" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Severity" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="{monitoringModel>/case/severity}" state="Error" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Classification" class="sapUiSmallMarginEnd" width="6rem" /><Text text="{monitoringModel>/case/classification}" /></HBox>
                     </VBox>
-                </VBox>
+                </Panel>
 
-                <VBox class="monitoringAgentStatusCard">
-                    <Title text="AGENT STATUS" level="H4" class="raPanelTitle" />
-                    <VBox class="monitoringAgentStatusList" items="{monitoringModel>/agentStatuses}">
-                        <HBox class="monitoringAgentStatusRow" alignItems="Center">
-                            <Text text="{monitoringModel>name}" class="monitoringAgentStatusName" />
-                            <core:Icon src="sap-icon://circle-task-2"
-                                class="{= ${monitoringModel>status} === 'completed' ? 'monitoringStatusDot monitoringStatusDot--completed' : 'monitoringStatusDot monitoringStatusDot--pending' }" />
-                        </HBox>
-                    </VBox>
-                </VBox>
+                <Panel class="sapUiSmallMarginBottom" expandable="false">
+                    <headerToolbar><Toolbar><Title text="AGENT STATUS" level="H4" /></Toolbar></headerToolbar>
+                    <List items="{monitoringModel>/agentStatuses}" showSeparators="Inner">
+                        <StandardListItem
+                            title="{monitoringModel>name}"
+                            info="{= ${monitoringModel>status} === 'completed' ? 'Completed' : 'Pending' }"
+                            infoState="{= ${monitoringModel>status} === 'completed' ? 'Success' : 'None' }" />
+                    </List>
+                </Panel>
 
-                <HBox class="monitoringInfoBadge" alignItems="Center" justifyContent="Center">
-                    <Text text="OPEN: AGENT COST DISPLAY IN REPORT" class="monitoringInfoBadgeText" />
-                </HBox>
+                <MessageStrip text="OPEN: AGENT COST DISPLAY IN REPORT" type="Information" showIcon="true" />
             </VBox>
 
         </HBox>
 
     </VBox>
 </core:FragmentDefinition>
-

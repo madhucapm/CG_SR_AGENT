@@ -5,6 +5,7 @@
     "coverage": "3.4 wks",
     "signalsToday": 214,
     "selectedView": "control",
+    "disruptionsEnabled": false,
     "globalRisks": [],
     "globalRisksBusy": false,
     "selectedWorkspace": {

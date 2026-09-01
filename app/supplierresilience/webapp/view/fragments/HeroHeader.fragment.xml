@@ -1,28 +1,9 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-
-    <!--
-        News Feed Home Header
-        Title is displayed in bold.
-        Subtitle is displayed in normal/regular text.
-    -->
-
-    <VBox
-        class="newsFeedHero"
-        width="100%">
-
-        <!-- Bold heading -->
-        <Title
-            text="News Feed — Home"
-            level="H1"
-            class="newsFeedTitle" />
-
-        <!-- Normal subtitle -->
-        <Text
-            text="Real-time supply chain disruption monitoring. Select an event to preview supplier impact; confirm to create a case."
-            class="newsFeedSubtitle" />
-
+    <!-- News Feed Home Header — sap_horizon default theme -->
+    <VBox class="sapUiSmallMarginBottom">
+        <Title text="News Feed \u2014 Home" level="H1" />
+        <Text text="Real-time supply chain disruption monitoring. Select an event to preview supplier impact; confirm to create a case." />
     </VBox>
-
 </core:FragmentDefinition>

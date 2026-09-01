@@ -8,107 +8,79 @@
     height="100%">
     <Page showHeader="false" enableScrolling="false">
         <content>
-            <HBox class="towerShell">
-                <VBox class="sidebarWrap">
-                    <!-- ── Sidebar branding block ── -->
-                    <HBox class="sidebarBrand">
-                        <FlexBox class="brandAvatar" alignItems="Center" justifyContent="Center">
-                            <Text text="SC" class="brandAvatarText" />
-                        </FlexBox>
-                        <VBox class="brandTextWrap">
-                            <Text text="Resilience Copilot" class="brandPrimaryTitle" />
-                            <Text text="Supply Chain MVP1" class="brandSubtitle" />
-                        </VBox>
-                    </HBox>
-
-                    <tnt:SideNavigation expanded="true" itemSelect="onNavSelect" class="towerNav">
-                        <tnt:layoutData>
-                            <FlexItemData growFactor="1" />
-                        </tnt:layoutData>
+            <tnt:ToolPage sideExpanded="true">
+                <tnt:header>
+                    <tnt:ToolHeader>
+                        <Title text="SUPPLIER RESILIENCE" level="H1" />
+                        <ToolbarSpacer />
+                        <Text text="Resilience Copilot" />
+                    </tnt:ToolHeader>
+                </tnt:header>
+                <tnt:sideContent>
+                    <tnt:SideNavigation expanded="true" itemSelect="onNavSelect">
                         <tnt:NavigationList>
                             <!-- MONITOR group -->
-                        <tnt:NavigationListItem text="MONITOR" enabled="false" class="navSectionLabel">
-                        </tnt:NavigationListItem> 
-                      
-
+                            <tnt:NavigationListItem text="MONITOR" enabled="false" />
                             <tnt:NavigationListItem key="control" text="News Feed" icon="sap-icon://home" />
-                            <tnt:NavigationListItem key="caseDashboard" text="Case Dashboard" icon="sap-icon://batch-payments" /> 
-           
-                       
-                        <!-- ASSESS group -->
-                        <tnt:NavigationListItem text="ASSESS" enabled="false" class="navSectionLabel">
-                        </tnt:NavigationListItem>
+                            <tnt:NavigationListItem key="caseDashboard" text="Case Dashboard" icon="sap-icon://batch-payments" />
+                            <tnt:NavigationListItem key="agentDisruptions" text="Disruptions" icon="sap-icon://warning2" enabled="{dashboard>/disruptionsEnabled}" />
+
+                            <!-- ASSESS group -->
+                            <tnt:NavigationListItem text="ASSESS" enabled="false" />
                             <tnt:NavigationListItem key="riskAssessment" text="Risk Assessment" icon="sap-icon://alert" />
                             <tnt:NavigationListItem key="survivalPlanning" text="Survival Planning" icon="sap-icon://activity-items" />
-                        
-                        <!-- ACT group -->
-                        <tnt:NavigationListItem text="ACT" enabled="false" class="navSectionLabel">
-                        </tnt:NavigationListItem>
+
+                            <!-- ACT group -->
+                            <tnt:NavigationListItem text="ACT" enabled="false" />
                             <tnt:NavigationListItem key="approvals" text="Recommendations" icon="sap-icon://approvals" />
                             <tnt:NavigationListItem key="planning" text="Execution" icon="sap-icon://process" />
-                        
-                        <!-- TRACK group -->
-                        <tnt:NavigationListItem text="TRACK" enabled="false" class="navSectionLabel">
-                        </tnt:NavigationListItem>
-                            <tnt:NavigationListItem key="audit" text="Monitoring" icon="sap-icon://history" />
-                        
-                    </tnt:NavigationList>
-                </tnt:SideNavigation>
-                </VBox>
-                <VBox class="workspace" width="100%">
-                    <Toolbar class="topbar">
-                        <Title text="SUPPLIER RESILIENCE" level="H1" class="brandTitle" />
-                        <ToolbarSpacer />
-                      
-                    </Toolbar>
-                    <ScrollContainer vertical="true" height="100%" class="mainScroll">
-                        <VBox class="contentPad">
 
-                            <!--
-                                News Feed home (redesigned).
-                                All previous inline markup for the News Feed
-                                landing page has been removed and replaced by a
-                                single composed fragment for maintainability.
-                                See view/fragments/ControlTowerHome.fragment.xml
-                            -->
-                            <VBox id="dashboardView" visible="true" class="dashboardViewWrap">
+                            <!-- TRACK group -->
+                            <tnt:NavigationListItem text="TRACK" enabled="false" />
+                            <tnt:NavigationListItem key="audit" text="Monitoring" icon="sap-icon://history" />
+                        </tnt:NavigationList>
+                    </tnt:SideNavigation>
+                </tnt:sideContent>
+                <tnt:mainContents>
+                    <ScrollContainer vertical="true" height="100%">
+                        <VBox class="sapUiSmallMargin">
+
+                            <VBox id="dashboardView" visible="true">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.ControlTowerHome" type="XML" />
                             </VBox>
 
-                            <!-- Risk Assessment view (ASSESS → Risk Assessment) -->
-                            <VBox id="riskAssessmentView" visible="false" class="dashboardViewWrap">
+                            <VBox id="riskAssessmentView" visible="false">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.RiskAssessment" type="XML" />
                             </VBox>
 
-                            <!-- Survival Planning view (ASSESS → Survival Planning) -->
-                            <VBox id="survivalPlanningView" visible="false" class="dashboardViewWrap">
+                            <VBox id="survivalPlanningView" visible="false">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.SurvivalPlanning" type="XML" />
                             </VBox>
 
-                            <!-- Case Dashboard view (Impact Case detail) -->
-                            <VBox id="caseDashboardView" visible="false" class="dashboardViewWrap">
+                            <VBox id="caseDashboardView" visible="false">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.CaseDashboard" type="XML" />
                             </VBox>
 
-                            <!-- Recommendations view (ACT → Recommendations) -->
-                            <VBox id="recommendationsView" visible="false" class="dashboardViewWrap">
+                            <VBox id="recommendationsView" visible="false">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.Recommendations" type="XML" />
                             </VBox>
 
-                            <!-- Execution view (ACT → Execution) -->
-                            <VBox id="executionView" visible="false" class="dashboardViewWrap">
+                            <VBox id="executionView" visible="false">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.Execution" type="XML" />
                             </VBox>
 
-                            <!-- Monitoring view (TRACK → Monitoring) -->
-                            <VBox id="monitoringView" visible="false" class="dashboardViewWrap">
+                            <VBox id="monitoringView" visible="false">
                                 <core:Fragment fragmentName="supplierresilience.view.fragments.Monitoring" type="XML" />
+                            </VBox>
+
+                            <VBox id="agentDisruptionsView" visible="false">
+                                <core:Fragment fragmentName="supplierresilience.view.fragments.AgentDisruptions" type="XML" />
                             </VBox>
 
                         </VBox>
                     </ScrollContainer>
-                </VBox>
-            </HBox>
+                </tnt:mainContents>
+            </tnt:ToolPage>
         </content>
     </Page>
 </mvc:View>

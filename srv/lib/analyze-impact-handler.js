@@ -38,6 +38,20 @@ function asStr(v) {
 }
 
 /**
+ * Normalize a S/4HANA Business Partner ID for reliable matching.
+ * `A_Supplier.Supplier` (used by Get_supplier) and `A_PurchaseOrder.Supplier`
+ * (used inside runEarlyWarningWithS4R) are the same field in S/4HANA, but we
+ * defend against subtle drift (Number vs String, missing leading zeros,
+ * whitespace) so the key lookup in Step 4 stays robust.
+ */
+function normalizeSupplierId(id) {
+    if (id === undefined || id === null) { return ''; }
+    const s = String(id).trim();
+    // S/4HANA convention: numeric BP IDs are 10-digit zero-padded.
+    return /^\d+$/.test(s) ? s.padStart(10, '0') : s;
+}
+
+/**
  * Extract a human-readable error message from an SAP Cloud SDK / axios
  * error. The SDK often nests the real cause several levels deep.
  */
@@ -100,6 +114,12 @@ function failureEnvelope({ location, impact_description, assessment_radius_km, e
         affected_supplier_count: 0,
         message: '',
         error: asStr(error),
+        // Aggregate risk metrics — null in the failure path so the response
+        // shape stays consistent with the success envelope (Step 4 output).
+        riskScore: null,
+        maxPossibleScore: null,
+        riskPercentage: null,
+        riskLevel: null,
         affected_suppliers: []
     };
 }
@@ -296,6 +316,119 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
             affected.map((s) => enrichSupplierWithPOs(executeHttpRequest, logger, s))
         );
 
+        // ─── Step 4: risk scoring via runEarlyWarningWithS4R ─────────────
+        // Delegate the actual scoring to the existing CAP action so risk
+        // logic stays in one place (calculateS4RRiskScore lives inside
+        // service.js, closes over service-local helpers). We fan out ONE
+        // multi-mode call for all affected suppliers' POs and then map
+        // each returned supplier back onto our `enriched[]` list.
+        //
+        // TECH DEBT: We invoke another action via srv.send() here for
+        // delivery speed. Long-term consider extracting the multi-mode
+        // handler into `srv/lib/` so it can be called as a plain function
+        // (matches the pattern used by this handler, create-impact-case,
+        // get-case-hierarchy, etc.).
+        let aggRiskScore        = null;
+        let aggMaxPossibleScore = null;
+        let aggRiskPercentage   = null;
+        let aggRiskLevel        = null;
+
+        try {
+            // 4a. Flatten every PO from every affected supplier
+            const allPOs = [];
+            for (const s of enriched) {
+                for (const po of (s.purchase_orders || [])) {
+                    if (po.po_number) allPOs.push(po.po_number);
+                }
+            }
+
+            if (allPOs.length > 0) {
+                logger.info(
+                    `analyzeImpact: Step 4 calling runEarlyWarningWithS4R with ` +
+                    `${allPOs.length} PO(s) across ${enriched.length} supplier(s)`
+                );
+
+                // 4b. Single MULTI-MODE call. Prefer the already-loaded
+                // service singleton (zero-overhead); fall back to
+                // cds.connect.to for cold-start / test scenarios.
+                const cds = require('@sap/cds');
+                const srv = cds.services.SupplierResilienceService
+                         || await cds.connect.to('SupplierResilienceService');
+
+                const ew = await srv.send('runEarlyWarningWithS4R', { poList: allPOs });
+
+                // 4c. Index the response by normalized supplierId
+                const bySupplier = {};
+                for (const s of ((ew && ew.suppliers) || [])) {
+                    bySupplier[normalizeSupplierId(s.supplierId)] = s;
+                }
+
+                // 4d. Attach the 4 risk fields per supplier; track worst
+                //     by riskPercentage to build the top-level aggregate.
+                let matched = 0;
+                let worst   = null;
+                for (const s of enriched) {
+                    const rs = bySupplier[normalizeSupplierId(s.supplier_id)];
+                    if (rs) {
+                        s.risk_score         = (rs.riskScore        !== undefined && rs.riskScore        !== null) ? rs.riskScore        : null;
+                        s.max_possible_score = (rs.maxPossibleScore !== undefined && rs.maxPossibleScore !== null) ? rs.maxPossibleScore : null;
+                        s.risk_percentage    = (rs.riskPercentage   !== undefined && rs.riskPercentage   !== null) ? rs.riskPercentage   : null;
+                        s.risk_level         = rs.riskLevel || null;
+                        matched++;
+
+                        if (typeof s.risk_percentage === 'number' &&
+                            (!worst || s.risk_percentage > worst.risk_percentage)) {
+                            worst = s;
+                        }
+                    } else {
+                        s.risk_score         = null;
+                        s.max_possible_score = null;
+                        s.risk_percentage    = null;
+                        s.risk_level         = null;
+                    }
+                }
+                logger.info(
+                    `analyzeImpact: risk-score matched ${matched}/${enriched.length} supplier(s)`
+                );
+
+                // 4e. Top-level KPIs come from the "worst" supplier
+                //     (highest riskPercentage) — matches the "HIGHEST RISK"
+                //     tile semantics in the UI.
+                if (worst) {
+                    aggRiskScore        = worst.risk_score;
+                    aggMaxPossibleScore = worst.max_possible_score;
+                    aggRiskPercentage   = worst.risk_percentage;
+                    aggRiskLevel        = worst.risk_level;
+                }
+            } else {
+                logger.info(
+                    'analyzeImpact: Step 4 skipped — no POs on any affected supplier'
+                );
+                // Still initialize the per-supplier fields to null so the
+                // response shape is stable.
+                for (const s of enriched) {
+                    s.risk_score         = null;
+                    s.max_possible_score = null;
+                    s.risk_percentage    = null;
+                    s.risk_level         = null;
+                }
+            }
+        } catch (err) {
+            logger.warn(
+                'analyzeImpact: Step 4 (risk scoring) failed, returning null KPIs: ' +
+                extractErrorDetail(err)
+            );
+            // Keep response usable: initialize any missing risk fields to
+            // null so callers see the same shape whether Step 4 succeeded
+            // or not.
+            for (const s of enriched) {
+                if (s.risk_score         === undefined) s.risk_score         = null;
+                if (s.max_possible_score === undefined) s.max_possible_score = null;
+                if (s.risk_percentage    === undefined) s.risk_percentage    = null;
+                if (s.risk_level         === undefined) s.risk_level         = null;
+            }
+        }
+
         // ─── Build the final response ────────────────────────────────────
         return {
             success: true,
@@ -307,6 +440,11 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
             affected_supplier_count: enriched.length,
             message: asStr(geoResponse.message),
             error: '',
+            // Aggregate risk metrics (from runEarlyWarningWithS4R via Step 4)
+            riskScore:        aggRiskScore,
+            maxPossibleScore: aggMaxPossibleScore,
+            riskPercentage:   aggRiskPercentage,
+            riskLevel:        aggRiskLevel,
             affected_suppliers: enriched
         };
     };
@@ -314,6 +452,7 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
 
 // Expose helpers so unit tests can exercise them independently
 module.exports.asStr                 = asStr;
+module.exports.normalizeSupplierId   = normalizeSupplierId;
 module.exports.extractErrorDetail    = extractErrorDetail;
 module.exports.invokeInternalHandler = invokeInternalHandler;
 module.exports.enrichSupplierWithPOs = enrichSupplierWithPOs;

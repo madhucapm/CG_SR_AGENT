@@ -163,16 +163,16 @@
                         <Toolbar><Title text="AGENT EXECUTION" level="H4" /></Toolbar>
                     </headerToolbar>
                     <VBox class="sapUiSmallMarginBottom">
-                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                        <!-- <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                             <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
                             <Text text="Early Warning" class="sapUiSmallMarginEnd" />
                             <Button text="Run" press=".onRunEarlyWarningAgent" type="Transparent" enabled="true" />
-                        </HBox>
-                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                        </HBox> -->
+                        <!-- <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                             <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
                             <Text text="Coordinator" class="sapUiSmallMarginEnd" />
                             <Button text="Run" press=".onRunCoordinatorAgent" type="Transparent" enabled="true" />
-                        </HBox>
+                        </HBox> -->
                         <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                             <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
                             <Text text="Survival Planner" class="sapUiSmallMarginEnd" />

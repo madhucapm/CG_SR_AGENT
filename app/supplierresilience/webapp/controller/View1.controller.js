@@ -1791,8 +1791,13 @@ sap.ui.define([
         _callClaudeForRisks: function () {
             var that = this;
             var sModelName = "anthropic--claude-4.5-opus";
-            // Use empty basePath - xs-app.json routes are relative to app root
-            var sBasePath = "";
+
+            // Compute component base path so URLs resolve correctly in both
+            // standalone approuter (HTML5 repo) and managed approuter (Build Work Zone).
+            // Same pattern used in Component.js _fetchCurrentUser.
+            var oComponent = this.getOwnerComponent();
+            var sComponentName = oComponent.getManifestObject().getComponentName();
+            var sBasePath = sap.ui.require.toUrl(sComponentName.replace(/\./g, "/"));
 
             // Read the currently selected region from the globalRisks model
             var oGlobalRisks = this.getView().getModel("globalRisks");
@@ -1806,7 +1811,7 @@ sap.ui.define([
             console.log("[GlobalRisks] Starting orchestration call for model:", sModelName, "| Region:", sRegion);
 
             // Step 1: Get orchestration deployment ID
-            return this._getOrchestrationDeploymentId(sBasePath).then(function (sDeploymentId) {
+            return this._getOrchestrationDeploymentId().then(function (sDeploymentId) {
                 if (!sDeploymentId) {
                     throw new Error("Orchestration deployment not found or not running");
                 }
@@ -1839,8 +1844,8 @@ sap.ui.define([
                     }
                 };
 
-                // Use relative URL (no leading slash) for managed approuter compatibility
-                var sUrl = "deployments/" + sDeploymentId + "/completion";
+                // Build URL with component base path for managed approuter compatibility
+                var sUrl = sBasePath + "/deployments/" + sDeploymentId + "/completion";
                 console.log("[GlobalRisks] Calling orchestration endpoint:", sUrl);
 
                 // Step 3: Make the orchestration call
@@ -1915,10 +1920,13 @@ sap.ui.define([
          * Get the orchestration deployment ID from AI Core.
          * Caches the deployment ID for subsequent calls.
          *
-         * @param {string} sBasePath - Base path for API calls
+         * Computes the component base path internally using sap.ui.require.toUrl
+         * so the URL resolves correctly in both standalone approuter (HTML5 repo)
+         * and managed approuter (Build Work Zone).
+         *
          * @returns {Promise<string|null>} Orchestration deployment ID or null
          */
-        _getOrchestrationDeploymentId: function (sBasePath) {
+        _getOrchestrationDeploymentId: function () {
             var that = this;
 
             // Return cached deployment ID if available
@@ -1931,9 +1939,14 @@ sap.ui.define([
                 return this._oOrchestrationDeploymentIdPromise;
             }
 
-            // Use relative URL (no leading slash) for managed approuter compatibility
+            // Compute component base path (same pattern as Component.js _fetchCurrentUser)
+            var oComponent = this.getOwnerComponent();
+            var sComponentName = oComponent.getManifestObject().getComponentName();
+            var sBasePath = sap.ui.require.toUrl(sComponentName.replace(/\./g, "/"));
+
+            // Build URL with component base path for managed approuter compatibility
             // Filter by scenarioId and status to avoid 500 errors from unfiltered bulk queries
-            var sUrl = "lm/deployments?scenarioId=orchestration&status=RUNNING&$top=1";
+            var sUrl = sBasePath + "/lm/deployments?scenarioId=orchestration&status=RUNNING&$top=1";
             console.log("[GlobalRisks] Fetching orchestration deployments from:", sUrl);
 
             this._oOrchestrationDeploymentIdPromise = fetch(sUrl, {

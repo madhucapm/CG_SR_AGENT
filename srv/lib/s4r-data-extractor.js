@@ -90,7 +90,39 @@ function extractEarlyWarningData(s4rResponse) {
         result.currency = purchaseOrder.DocumentCurrency || null;
         result.supplierId = purchaseOrder.Supplier || null;
         result.supplierName = purchaseOrder.AddressName || purchaseOrder.SupplierName || purchaseOrder.Supplier || null;
-        const netAmount = parseFloat(purchaseOrder.PurchaseOrderNetAmount);
+
+        // 1. Prefer the S/4HANA header total when present.
+        let netAmount = parseFloat(purchaseOrder.PurchaseOrderNetAmount);
+
+        // 2. FALLBACK: The header PurchaseOrderNetAmount is empty / zero for
+        //    some POs (unreleased, older test data, or restricted
+        //    authorizations). In that case compute the net total from PO
+        //    items using the SAP standard formula:
+        //       Σ (NetPriceAmount × OrderQuantity / NetPriceQuantity)
+        //    Item-level pricing is typically populated even when the header
+        //    is not, so this recovers a real number for downstream
+        //    estimatedRevenueImpact / totalRevenueExposure.
+        if ((!netAmount || isNaN(netAmount) || netAmount <= 0) &&
+            Array.isArray(purchaseOrderItems) && purchaseOrderItems.length > 0) {
+            let sum = 0;
+            for (const item of purchaseOrderItems) {
+                const price    = parseFloat(item.NetPriceAmount);
+                const qty      = parseFloat(item.OrderQuantity);
+                const priceQty = parseFloat(item.NetPriceQuantity) || 1;
+                if (!isNaN(price) && !isNaN(qty) &&
+                    price > 0 && qty > 0 && priceQty > 0) {
+                    sum += (price * qty) / priceQty;
+                }
+            }
+            if (sum > 0) {
+                netAmount = sum;
+                logger.info(
+                    `PO ${result.poNumber}: header PurchaseOrderNetAmount empty; ` +
+                    `computed from items = ${sum} ${result.currency || ''}`
+                );
+            }
+        }
+
         if (!isNaN(netAmount) && netAmount > 0) {
             result.poNetAmount = netAmount;
             result.estimatedRevenueImpact = netAmount;

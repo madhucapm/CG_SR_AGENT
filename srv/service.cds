@@ -1222,6 +1222,13 @@ service SupplierResilienceService {
             risk_percentage     : Integer;    // 0–100
             risk_level          : String;     // LOW / MEDIUM / HIGH
 
+            // ── Per-supplier estimated impact (money at risk) ──
+            // Sourced from runEarlyWarningWithS4R.suppliers[i].totalRevenueExposure,
+            // which is the SUM of estimatedRevenueImpact (= PO net amount) across
+            // that supplier's affected POs. Currency follows the PO's own
+            // DocumentCurrency and is NOT converted.
+            estimated_impact    : Decimal;
+
             purchase_orders : array of {
                 po_number : String;
                 materials : array of {

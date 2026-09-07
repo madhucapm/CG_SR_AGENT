@@ -1821,7 +1821,14 @@ module.exports = cds.service.impl(async function () {
             const purchaseOrderItems = id.map(it => ({
                 Material: asStr(it.Material), Plant: asStr(it.Plant), OrderQuantity: asStr(it.OrderQuantity),
                 PurchaseOrderQuantityUnit: asStr(it.PurchaseOrderQuantityUnit), PurchaseOrderItemText: asStr(it.PurchaseOrderItemText),
-                IsCompletelyDelivered: it.IsCompletelyDelivered === true || it.IsCompletelyDelivered === 'true'
+                IsCompletelyDelivered: it.IsCompletelyDelivered === true || it.IsCompletelyDelivered === 'true',
+                // Pricing fields needed by s4r-data-extractor's fallback that
+                // computes PurchaseOrderNetAmount from items when the S/4HANA
+                // header field is empty. Without these three, parseFloat()
+                // returns NaN and the fallback sum stays at 0.
+                NetPriceAmount:   asStr(it.NetPriceAmount),
+                NetPriceQuantity: asStr(it.NetPriceQuantity),
+                DocumentCurrency: asStr(it.DocumentCurrency)
             }));
 
             let scheduleLines = [];

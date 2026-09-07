@@ -363,8 +363,14 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
                     bySupplier[normalizeSupplierId(s.supplierId)] = s;
                 }
 
-                // 4d. Attach the 4 risk fields per supplier; track worst
-                //     by riskPercentage to build the top-level aggregate.
+                // 4d. Attach the 4 risk fields + estimated_impact per
+                //     supplier; track worst by riskPercentage to build the
+                //     top-level aggregate.
+                //
+                //     estimated_impact is the SUM of PO net amounts for
+                //     that supplier (rs.totalRevenueExposure, already
+                //     summed by runEarlyWarningWithS4R). Currency follows
+                //     the PO's own DocumentCurrency; no FX conversion.
                 let matched = 0;
                 let worst   = null;
                 for (const s of enriched) {
@@ -374,6 +380,9 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
                         s.max_possible_score = (rs.maxPossibleScore !== undefined && rs.maxPossibleScore !== null) ? rs.maxPossibleScore : null;
                         s.risk_percentage    = (rs.riskPercentage   !== undefined && rs.riskPercentage   !== null) ? rs.riskPercentage   : null;
                         s.risk_level         = rs.riskLevel || null;
+                        s.estimated_impact   = (typeof rs.totalRevenueExposure === 'number')
+                                              ? rs.totalRevenueExposure
+                                              : null;
                         matched++;
 
                         if (typeof s.risk_percentage === 'number' &&
@@ -385,6 +394,7 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
                         s.max_possible_score = null;
                         s.risk_percentage    = null;
                         s.risk_level         = null;
+                        s.estimated_impact   = null;
                     }
                 }
                 logger.info(
@@ -411,6 +421,7 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
                     s.max_possible_score = null;
                     s.risk_percentage    = null;
                     s.risk_level         = null;
+                    s.estimated_impact   = null;
                 }
             }
         } catch (err) {
@@ -426,6 +437,7 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
                 if (s.max_possible_score === undefined) s.max_possible_score = null;
                 if (s.risk_percentage    === undefined) s.risk_percentage    = null;
                 if (s.risk_level         === undefined) s.risk_level         = null;
+                if (s.estimated_impact   === undefined) s.estimated_impact   = null;
             }
         }
 

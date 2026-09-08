@@ -148,7 +148,7 @@
 
             <Toolbar design="Transparent"><ToolbarSpacer /></Toolbar>
 
-            <Button text="Open Case Dashboard \u2192" press=".onOpenCaseDashboard"
+            <Button text="Open Case Dashboard" press=".onOpenCaseDashboard"
                     type="Emphasized" width="100%" />
         </VBox>
 

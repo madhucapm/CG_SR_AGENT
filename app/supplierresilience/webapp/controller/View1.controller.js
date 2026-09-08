@@ -85,8 +85,6 @@ sap.ui.define([
                 selectedCaseId: "",
                 caseData: null,
                 agents: {
-                    earlyWarning:    { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
-                    coordinator:     { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
                     survivalPlanner: { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
                     substitution:    { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
                     buyer:           { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" }
@@ -1130,11 +1128,11 @@ sap.ui.define([
             });
         },
 
-        /** Reset all five agent cards to their initial Not Run state. */
+        /** Reset all agent cards to their initial Not Run state. */
         _resetAllAgentDisruptionCards: function () {
             var oAdModel = this.getView().getModel("agentDisruptions");
             if (!oAdModel) { return; }
-            ["earlyWarning", "coordinator", "survivalPlanner", "substitution", "buyer"].forEach(function (sKey) {
+            ["survivalPlanner", "substitution", "buyer"].forEach(function (sKey) {
                 oAdModel.setProperty("/agents/" + sKey, {
                     status: "notRun", busy: false, result: null, error: null,
                     formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue"
@@ -1157,8 +1155,6 @@ sap.ui.define([
         },
 
         /** Disruptions Run handlers — thin wrappers. */
-        onRunDisruptionEarlyWarning:    function () { this._runDisruptionAgent("earlyWarning"); },
-        onRunDisruptionCoordinator:     function () { this._runDisruptionAgent("coordinator"); },
         onRunDisruptionSurvivalPlanner: function () { this._runDisruptionAgent("survivalPlanner"); },
         onRunDisruptionSubstitution:    function () { this._runDisruptionAgent("substitution"); },
         onRunDisruptionBuyer:           function () { this._runDisruptionAgent("buyer"); },
@@ -1173,8 +1169,6 @@ sap.ui.define([
             var oCaseData = oAdModel.getProperty("/caseData");
             if (!sCaseId || !oCaseData) { MessageToast.show("No case selected."); return; }
             var mCfg = {
-                earlyWarning:    { action: "runEarlyWarning",  label: "Early Warning",    payload: { caseId: sCaseId, supplier: "", material: "", plant: "", delayDays: 0 } },
-                coordinator:     { action: "runCoordinator",   label: "Coordinator",      payload: { eventId: oCaseData.eventId || sCaseId, eventType: oCaseData.eventType || "DISRUPTION", eventTime: new Date().toISOString(), po: "", supplier: "", material: "", plant: "", delayDays: 0 } },
                 survivalPlanner: { action: "runSurvival",      label: "Survival Planner", payload: { caseId: sCaseId, material: "", plant: "", supplierRecoveryWeeks: 4 } },
                 substitution:    { action: "runSubstitution",  label: "Substitution",     payload: { caseId: sCaseId } },
                 buyer:           { action: "runBuyer",         label: "Buyer",            payload: { caseId: sCaseId } }

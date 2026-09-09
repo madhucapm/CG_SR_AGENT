@@ -51,8 +51,24 @@
                     <Text text="{dashboard>description}" wrapping="true" class="sapUiTinyMarginBottom" />
                     <HBox alignItems="Center">
                         <Button text="Investigate" press=".onInvestigateRisk" class="sapUiTinyMarginEnd" />
-                        <Text text="{= ${dashboard>poCount} + ' POs \u00b7 ' + ${dashboard>materialCount} + ' Materials \u00b7 ' + ${dashboard>plantCount} + ' Plants' }"
-                              visible="{= !!${dashboard>poCount} }" />
+                        <Label text="{= ${dashboard>poCount} + ' POs' }"
+                               visible="{= !!${dashboard>poCount} }"
+                               tooltip="{dashboard>poTooltip}"
+                               class="sapUiTinyMarginEnd" />
+                        <Label text="&#xB7;" visible="{= !!${dashboard>poCount} }" class="sapUiTinyMarginEnd" />
+                        <Label text="{= ${dashboard>materialCount} + ' Materials' }"
+                               visible="{= !!${dashboard>poCount} }"
+                               tooltip="{dashboard>materialTooltip}"
+                               class="sapUiTinyMarginEnd" />
+                        <Label text="&#xB7;" visible="{= !!${dashboard>poCount} }" class="sapUiTinyMarginEnd" />
+                        <Label text="{= ${dashboard>plantCount} + ' Plants' }"
+                               visible="{= !!${dashboard>poCount} }"
+                               tooltip="{dashboard>plantTooltip}"
+                               class="sapUiTinyMarginEnd" />
+                        <Label text="&#xB7;" visible="{= !!${dashboard>poCount} }" class="sapUiTinyMarginEnd" />
+                        <Label text="{= ${dashboard>supplierCount} + ' Suppliers' }"
+                               visible="{= !!${dashboard>poCount} }"
+                               tooltip="{dashboard>supplierTooltip}" />
                     </HBox>
                 </VBox>
             </CustomListItem>

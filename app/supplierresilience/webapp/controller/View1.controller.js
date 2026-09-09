@@ -1223,11 +1223,21 @@ sap.ui.define([
                 oAdModel.setProperty(sP + "/status", "completed");
                 oAdModel.setProperty(sP + "/statusText", "✓ Completed");
                 oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--success");
-                // Survival Planner: show only narratives; other agents: full response
+                // Survival Planner: show a loading indicator while the LLM
+                // generates a polished executive narrative. If the LLM
+                // fails, fall back to the raw template narrative.
                 if (sAgentKey === "survivalPlanner") {
-                    oAdModel.setProperty(sP + "/formattedResult", that._formatSurvivalPlannerResponse(oData));
                     if (oData && oData.success !== false) {
                         that._populateSurvivalPlanningFromSVP(oData);
+                        // Show loading state while LLM processes
+                        oAdModel.setProperty(sP + "/formattedResult",
+                            "<div class='adResponseWrap'><div class='adRespSection'>" +
+                            "<strong>Survival Planner \u2014 Generating AI Narrative\u2026</strong></div>" +
+                            "<div class='adRespRow'>Analyzing results and composing executive summary.</div></div>");
+                        that._enhanceNarrativeWithLLM(oData, sP);
+                    } else {
+                        // API failure — show raw narrative directly
+                        oAdModel.setProperty(sP + "/formattedResult", that._formatSurvivalPlannerResponse(oData));
                     }
                 } else {
                     oAdModel.setProperty(sP + "/formattedResult", that._formatAgentResponse(oData));
@@ -1347,6 +1357,161 @@ sap.ui.define([
                 }
             });
             return "<div class='adResponseWrap'>" + aL.join("") + "</div>";
+        },
+
+        /**
+         * Enhance the Survival Planner narrative using the LLM.
+         *
+         * Sends the full SVP response to the SAP AI Core orchestration
+         * endpoint and asks the LLM to rewrite it as a clear, executive-
+         * style narrative.  On success the formattedResult is replaced;
+         * on failure the original raw narrative stays (graceful degradation).
+         *
+         * @param {Object} oSvpData  - Full runSurvival response
+         * @param {string} sModelPath - e.g. "/agents/survivalPlanner"
+         */
+        _enhanceNarrativeWithLLM: function (oSvpData, sModelPath) {
+            var that = this;
+            var oAdModel = this.getView().getModel("agentDisruptions");
+            if (!oAdModel) { return; }
+
+            console.log("[SVP-LLM] Starting narrative enhancement\u2026");
+
+            var oCompact = this._buildSvpLLMPayload(oSvpData);
+            var sSystemMessage = this._buildSvpSystemPrompt();
+            var sUserMessage = JSON.stringify(oCompact);
+            // Keep raw narrative for fallback
+            var sRawHtml = that._formatSurvivalPlannerResponse(oSvpData);
+
+            this._getOrchestrationDeploymentId().then(function (sDeploymentId) {
+                if (!sDeploymentId) {
+                    console.warn("[SVP-LLM] No orchestration deployment \u2014 falling back to raw.");
+                    oAdModel.setProperty(sModelPath + "/formattedResult", sRawHtml);
+                    return;
+                }
+                return that._callOrchestrationLLM(sDeploymentId, sSystemMessage, sUserMessage);
+            }).then(function (sContent) {
+                if (!sContent) { return; }
+                console.log("[SVP-LLM] Enhanced (" + sContent.length + " chars).");
+                var sHtml = "<div class='adResponseWrap'>" +
+                    "<div class='adRespSection'><strong>Survival Planner \u2014 AI Narrative</strong></div>" +
+                    "<div class='adRespRow'>" + sContent + "</div></div>";
+                oAdModel.setProperty(sModelPath + "/formattedResult", sHtml);
+            }).catch(function (oErr) {
+                console.warn("[SVP-LLM] Enhancement failed, falling back to raw narrative:", oErr.message || oErr);
+                oAdModel.setProperty(sModelPath + "/formattedResult", sRawHtml);
+            });
+        },
+
+        /** Build a compact JSON payload for the LLM from the SVP response. */
+        _buildSvpLLMPayload: function (oSvpData) {
+            var o = {
+                caseId: oSvpData.incidentId || "",
+                portfolioHeadlineTTS_Weeks: oSvpData.portfolioHeadlineTTS_Weeks,
+                kpis: oSvpData.kpis || {},
+                narratives: oSvpData.narratives || {},
+                recordCount: Array.isArray(oSvpData.records) ? oSvpData.records.length : 0,
+                dataSource: oSvpData.dataSource || "",
+                calculatedAt: oSvpData.calculatedAt || ""
+            };
+            if (Array.isArray(oSvpData.records)) {
+                o.recordSummaries = oSvpData.records.slice(0, 20).map(function (r) {
+                    return {
+                        material: r.material || "", plant: r.plant || "",
+                        ttsWeeks: r.ttsWeeks, ttrWeeks: r.ttrWeeks,
+                        gapWeeks: r.gapWeeks, shortfallQty: r.shortfallQty,
+                        weeklyDemand: r.weeklyDemand, usableInventory: r.usableInventory,
+                        dataFlags: r.dataFlags || []
+                    };
+                });
+            }
+            return o;
+        },
+
+        /**
+         * Generic orchestration LLM call.  Reusable by any feature that
+         * needs a non-streaming completion from SAP AI Core.
+         *
+         * @param {string} sDeploymentId  - Orchestration deployment ID
+         * @param {string} sSystemMessage - System prompt
+         * @param {string} sUserMessage   - User prompt
+         * @returns {Promise<string>} LLM content string
+         */
+        _callOrchestrationLLM: function (sDeploymentId, sSystemMessage, sUserMessage) {
+            var oComponent = this.getOwnerComponent();
+            var sComponentName = oComponent.getManifestObject().getComponentName();
+            var sBasePath = sap.ui.require.toUrl(sComponentName.replace(/\./g, "/"));
+            var sUrl = sBasePath + "/deployments/" + sDeploymentId + "/completion";
+
+            var oPayload = {
+                orchestration_config: {
+                    stream: false,
+                    module_configurations: {
+                        llm_module_config: {
+                            model_name: "anthropic--claude-4.5-opus",
+                            model_params: { max_tokens: 1500, temperature: 0.2 }
+                        },
+                        templating_module_config: {
+                            template: [
+                                { role: "system", content: "{{?system_message}}" },
+                                { role: "user", content: "{{?user_message}}" }
+                            ]
+                        }
+                    }
+                },
+                input_params: {
+                    system_message: sSystemMessage,
+                    user_message: sUserMessage
+                }
+            };
+
+            return fetch(sUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "AI-Resource-Group": "default"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify(oPayload)
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error("LLM HTTP " + response.status);
+                }
+                return response.json();
+            }).then(function (data) {
+                var sContent = "";
+                if (data && data.orchestration_result && data.orchestration_result.choices) {
+                    var choices = data.orchestration_result.choices;
+                    if (choices.length > 0 && choices[0].message) {
+                        sContent = choices[0].message.content || "";
+                    }
+                } else if (data && data.choices && data.choices.length > 0) {
+                    sContent = data.choices[0].message
+                        ? data.choices[0].message.content || ""
+                        : (data.choices[0].text || "");
+                }
+                if (!sContent) { throw new Error("Empty LLM response"); }
+                return sContent;
+            });
+        },
+
+        /** System prompt for the SVP narrative LLM call. */
+        _buildSvpSystemPrompt: function () {
+            return "You are a senior supply chain analyst presenting findings to executive leadership. " +
+                "Rewrite the following Survival Planner JSON output into a clear, concise executive narrative. " +
+                "Structure the narrative with these sections:\n" +
+                "1. **Executive Summary** \u2014 one-sentence headline finding.\n" +
+                "2. **Coverage Analysis** \u2014 summarize TTS (Time-To-Survive) findings.\n" +
+                "3. **Recovery Outlook** \u2014 summarize TTR (Time-To-Recover) and any gaps.\n" +
+                "4. **Risks & Data Gaps** \u2014 highlight data quality issues.\n" +
+                "5. **Recommended Actions** \u2014 2\u20133 bullet points.\n\n" +
+                "Rules:\n" +
+                "- Use ONLY facts from the provided data; do NOT invent numbers.\n" +
+                "- Use bullet points and bold headings for readability.\n" +
+                "- Keep total length under 250 words.\n" +
+                "- Return valid HTML (use <strong>, <ul>, <li>, <p> tags). No markdown.\n" +
+                "- Wrap the entire output in a single <div> tag.";
         },
 
         /**
@@ -1611,8 +1776,14 @@ sap.ui.define([
          * response so the top-row cards in the DisruptionsView can bind to
          * concrete numbers instead of being cosmetically empty.
          *
+         * Also collects detail arrays for the hover tooltip on each
+         * news-feed risk card: supplier names, PO numbers, material
+         * descriptions, and plant codes.
+         *
          * @param {Object} oResult - analyzeImpact response payload
-         * @returns {Object} { poCount, plantCount, skuCount, supplierCount }
+         * @returns {Object} { poCount, plantCount, skuCount, supplierCount,
+         *                     materialCount, supplierDetails, poNumbers,
+         *                     materialDetails, plantCodes }
          */
         _computeDisruptionScope: function (oResult) {
             var aSuppliers = (oResult && Array.isArray(oResult.affected_suppliers))
@@ -1622,18 +1793,49 @@ sap.ui.define([
             var oPlantSet = {};
             var oSkuSet = {};
             var oMaterialSet = {};
+
+            // Detail arrays for hover tooltip
+            var aSupplierDetails = [];   // [{ id, name }]
+            var aPoNumbers = [];         // ["4500000123", …]
+            var oMaterialDetailMap = {}; // keyed by material code → description
+            // oPlantSet already tracks unique plant codes
+
             aSuppliers.forEach(function (s) {
+                // Collect supplier id + name (description)
+                if (s.supplier_id || s.name) {
+                    aSupplierDetails.push({
+                        id:   s.supplier_id || "",
+                        name: s.name || ""
+                    });
+                }
+
                 var aPOs = Array.isArray(s.purchase_orders) ? s.purchase_orders : [];
                 iPoCount += aPOs.length;
                 aPOs.forEach(function (po) {
+                    // Collect PO number
+                    if (po.po_number && aPoNumbers.indexOf(po.po_number) === -1) {
+                        aPoNumbers.push(po.po_number);
+                    }
                     var aMats = Array.isArray(po.materials) ? po.materials : [];
                     aMats.forEach(function (m) {
                         if (m.plant)    { oPlantSet[m.plant]        = true; }
                         if (m.sku)      { oSkuSet[m.sku]            = true; }
-                        if (m.material) { oMaterialSet[m.material]  = true; }
+                        if (m.material) {
+                            oMaterialSet[m.material] = true;
+                            // Store best available description per material
+                            if (!oMaterialDetailMap[m.material]) {
+                                oMaterialDetailMap[m.material] = m.material_description || "";
+                            }
+                        }
                     });
                 });
             });
+
+            // Build material detail array from the map
+            var aMaterialDetails = Object.keys(oMaterialDetailMap).map(function (sCode) {
+                return { code: sCode, description: oMaterialDetailMap[sCode] };
+            });
+
             return {
                 supplierCount: iSupplierCount,
                 poCount:       iPoCount,
@@ -1641,7 +1843,12 @@ sap.ui.define([
                 skuCount:      Object.keys(oSkuSet).length,
                 // Distinct material master count. Fall back to SKU count if
                 // the API didn't return `material` on the item level.
-                materialCount: Object.keys(oMaterialSet).length || Object.keys(oSkuSet).length
+                materialCount: Object.keys(oMaterialSet).length || Object.keys(oSkuSet).length,
+                // Detail arrays for hover tooltip
+                supplierDetails: aSupplierDetails,
+                poNumbers:       aPoNumbers,
+                materialDetails: aMaterialDetails,
+                plantCodes:      Object.keys(oPlantSet)
             };
         },
 
@@ -1675,6 +1882,77 @@ sap.ui.define([
             oDashboard.setProperty(sBasePath + "poCount",       oScope.poCount       || 0);
             oDashboard.setProperty(sBasePath + "materialCount", oScope.materialCount || 0);
             oDashboard.setProperty(sBasePath + "plantCount",    oScope.plantCount    || 0);
+            oDashboard.setProperty(sBasePath + "supplierCount", oScope.supplierCount || 0);
+
+            // Build per-category hover tooltip strings from the detail
+            // arrays so each count chip (POs, Materials, Plants, Suppliers)
+            // has its own tooltip on mouse-over.
+            oDashboard.setProperty(sBasePath + "poTooltip",       this._buildPoTooltip(oScope));
+            oDashboard.setProperty(sBasePath + "materialTooltip", this._buildMaterialTooltip(oScope));
+            oDashboard.setProperty(sBasePath + "plantTooltip",    this._buildPlantTooltip(oScope));
+            oDashboard.setProperty(sBasePath + "supplierTooltip", this._buildSupplierTooltip(oScope));
+        },
+
+        /**
+         * Build tooltip for the POs count chip.
+         * Lists each affected PO number.
+         *
+         * @param {Object} oScope - Output of _computeDisruptionScope
+         * @returns {string} Tooltip text
+         */
+        _buildPoTooltip: function (oScope) {
+            var aPOs = oScope.poNumbers || [];
+            if (aPOs.length === 0) { return ""; }
+            return "Affected POs:\n" + aPOs.join("\n");
+        },
+
+        /**
+         * Build tooltip for the Materials count chip.
+         * Lists each material with its description (when available) and code.
+         *
+         * @param {Object} oScope - Output of _computeDisruptionScope
+         * @returns {string} Tooltip text
+         */
+        _buildMaterialTooltip: function (oScope) {
+            var aMaterials = oScope.materialDetails || [];
+            if (aMaterials.length === 0) { return ""; }
+            var aItems = aMaterials.map(function (m) {
+                return m.description ? m.description + " (" + m.code + ")" : m.code;
+            });
+            return "Affected Materials:\n" + aItems.join("\n");
+        },
+
+        /**
+         * Build tooltip for the Plants count chip.
+         * Lists each plant code. The S/4HANA PO API does not return a
+         * plant description, so we prefix with "Plant" for clarity.
+         *
+         * @param {Object} oScope - Output of _computeDisruptionScope
+         * @returns {string} Tooltip text
+         */
+        _buildPlantTooltip: function (oScope) {
+            var aPlants = oScope.plantCodes || [];
+            if (aPlants.length === 0) { return ""; }
+            var aItems = aPlants.map(function (sCode) {
+                return "Plant " + sCode;
+            });
+            return "Affected Plants:\n" + aItems.join("\n");
+        },
+
+        /**
+         * Build tooltip for the Suppliers count chip.
+         * Lists each supplier with its name/description and ID.
+         *
+         * @param {Object} oScope - Output of _computeDisruptionScope
+         * @returns {string} Tooltip text
+         */
+        _buildSupplierTooltip: function (oScope) {
+            var aSuppliers = oScope.supplierDetails || [];
+            if (aSuppliers.length === 0) { return ""; }
+            var aItems = aSuppliers.map(function (s) {
+                return s.name ? s.name + " (" + s.id + ")" : s.id;
+            });
+            return "Affected Suppliers:\n" + aItems.join("\n");
         },
 
         // ── Case Dropdown + Risk / Survival helpers ────────────────
@@ -2385,7 +2663,15 @@ sap.ui.define([
                     // so it stays hidden until real numbers arrive.
                     poCount: 0,
                     materialCount: 0,
-                    plantCount: 0
+                    plantCount: 0,
+                    supplierCount: 0,
+                    // Per-category hover tooltips showing affected items
+                    // with descriptions. Populated alongside the counts
+                    // by _updateSelectedRiskCounts after Investigate.
+                    poTooltip: "",
+                    materialTooltip: "",
+                    plantTooltip: "",
+                    supplierTooltip: ""
                 };
             });
         }

@@ -46,7 +46,7 @@ module.exports = function buildHandler(logger) {
                 },
                 suppliers: suppliers.map(s => ({ supplierId: s.supplierId, name: s.name, address: s.address, distanceKm: s.distanceKm, poCount: s.poCount })),
                 purchaseOrders: pos.map(p => ({ supplierId: p.supplierId, poNumber: p.poNumber })),
-                materials: mats.map(m => ({ supplierId: m.supplierId, poNumber: m.poNumber, itemNo: m.itemNo, material: m.material, plant: m.plant, sku: m.sku }))
+                materials: mats.map(m => ({ supplierId: m.supplierId, poNumber: m.poNumber, itemNo: m.itemNo, material: m.material, materialDescription: m.materialDescription || '', plant: m.plant, sku: m.sku }))
             };
         } catch (err) {
             logger.error('getCaseHierarchy error: ' + (err.message || err));

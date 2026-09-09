@@ -265,13 +265,14 @@ entity CasePurchaseOrder : cuid, managed {
  * Case → Supplier → PO → Material (plant, sku).
  */
 entity CaseMaterial : cuid, managed {
-    caseId      : String(30) @mandatory;
-    supplierId  : String(30);
-    poNumber    : String(20);
-    itemNo      : String(10);
-    material    : String(60);
-    plant       : String(40);
-    sku         : String(100);
+    caseId              : String(30) @mandatory;
+    supplierId          : String(30);
+    poNumber            : String(20);
+    itemNo              : String(10);
+    material            : String(60);
+    materialDescription : String(200);
+    plant               : String(40);
+    sku                 : String(100);
 }
 
 /**

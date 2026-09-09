@@ -30,6 +30,12 @@ catch (e) { console.warn('[Service] agents/early-warning not loaded:', e.message
 try { ({ SurvivalAgent } = require('./agents/survival')); }
 catch (e) { console.warn('[Service] agents/survival not loaded:', e.message); }
 
+// S/4HANA-integrated Survival Planner — replaces the mock SurvivalAgent for
+// the runSurvival action.  Loaded defensively like other agent modules.
+let runSurvivalPlanner = null;
+try { ({ runSurvivalPlanner } = require('./agents/survival-planner')); }
+catch (e) { console.warn('[Service] agents/survival-planner not loaded:', e.message); }
+
 // SAP Cloud SDK — used to call the S/4HANA `S4R` destination configured in
 // the BTP Destination service. Loaded defensively so the CAP srv still starts
 // locally even if the SDK is not yet installed.
@@ -364,26 +370,63 @@ module.exports = cds.service.impl(async function () {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // ACTION: Run Survival Agent
-    // Equivalent to: POST /api/v1/agents/survival/run
+    // ACTION: Run Survival Planner (S/4HANA-Integrated)
+    //
+    // Replaces the former mock-data-based SurvivalAgent.  Calls real S/4HANA
+    // OData APIs (PO, Inbound Delivery) via the BTP S4R destination and
+    // computes TTS, TTR, Gap, Shortfall per Plant × Material.
     // ═════════════════════════════════════════════════════════════════════════
     this.on('runSurvival', async (req) => {
-        logger.info('runSurvival action called');
+        logger.info('runSurvival action called (S/4HANA Survival Planner)');
 
-        if (!survivalAgent) {
-            return { success: false, error: 'SurvivalAgent module is not available' };
+        const { caseId } = req.data;
+
+        if (!caseId) {
+            return { success: false, error: 'caseId is required' };
         }
 
-        const input = {
-            caseId:                req.data.caseId,
-            material:              req.data.material,
-            plant:                 req.data.plant,
-            supplierRecoveryWeeks: req.data.supplierRecoveryWeeks
-        };
+        if (!runSurvivalPlanner) {
+            return { success: false, error: 'Survival Planner module is not available' };
+        }
+
+        if (!executeHttpRequest) {
+            return { success: false, error: '@sap-cloud-sdk/http-client is not available — cannot call S/4HANA APIs' };
+        }
 
         try {
-            const result = await survivalAgent.run(input);
+            // Load case data to determine affected suppliers and POs
+            const { Case: Cases, CaseSupplier: CS, CasePurchaseOrder: CPO } =
+                cds.entities('supplierresilience');
+
+            const caseRow = await SELECT.one.from(Cases).where({ caseId });
+            if (!caseRow) {
+                return { success: false, error: 'Case not found: ' + caseId };
+            }
+
+            const suppliers      = await SELECT.from(CS).where({ caseId });
+            const purchaseOrders = await SELECT.from(CPO).where({ caseId });
+
+            if (!suppliers.length) {
+                return { success: false, error: 'No suppliers found for case ' + caseId };
+            }
+
+            // Derive disruption date from case eventTime or createdAt
+            const disruptionDate = caseRow.eventTime
+                ? new Date(caseRow.eventTime)
+                : (caseRow.createdAt ? new Date(caseRow.createdAt) : new Date());
+
+            logger.info(`runSurvival: case=${caseId}, suppliers=${suppliers.length}, POs=${purchaseOrders.length}`);
+
+            const result = await runSurvivalPlanner({
+                caseId,
+                suppliers:      suppliers.map(s => ({ supplierId: s.supplierId, name: s.name })),
+                purchaseOrders: purchaseOrders.map(p => ({ poNumber: p.poNumber, supplierId: p.supplierId })),
+                disruptionDate,
+                httpClient: executeHttpRequest
+            });
+
             return result;
+
         } catch (error) {
             logger.error(`runSurvival error: ${error.message}`);
             return { success: false, error: error.message };

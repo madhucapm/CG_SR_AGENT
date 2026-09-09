@@ -7,7 +7,7 @@
         <Toolbar design="Transparent">
             <Title text="Survival Planning" level="H2" />
         </Toolbar>
-        <Text text="Coverage analysis, time-to-survive, recovery gaps and shortfall quantification." class="sapUiSmallMarginBottom" />
+        <Text text="Coverage analysis, time-to-survive, recovery gaps and shortfall quantification.  Data sourced from S/4HANA via Survival Planner agent." class="sapUiSmallMarginBottom" />
 
         <Toolbar design="Solid" class="sapUiSmallMarginBottom">
             <Label text="CASE ID" />
@@ -44,33 +44,36 @@
                 <Toolbar>
                     <Title text="MATERIAL COVERAGE ANALYSIS" level="H4" />
                     <ToolbarSpacer />
-                    <Text text="OPEN: IMPACT CALCULATION INTEGRATION" />
+                    <Text text="S/4HANA Survival Planner (SVP)" />
                 </Toolbar>
             </headerToolbar>
             <Table items="{survivalPlanning>/materials}"
                    showSeparators="Inner" fixedLayout="false"
-                   noDataText="No material coverage data. Select a case to populate.">
+                   noDataText="No material coverage data. Select a case and run the Survival Planner agent to populate.">
                 <columns>
-                    <Column width="16%"><Text text="MATERIAL" /></Column>
-                    <Column width="14%"><Text text="PLANT" /></Column>
-                    <Column width="12%" hAlign="Center"><Text text="COVERAGE" /></Column>
-                    <Column width="14%" hAlign="Center"><Text text="TIME-TO-SURVIVE" /></Column>
-                    <Column width="14%" hAlign="Center"><Text text="RECOVERY" /></Column>
-                    <Column width="12%" hAlign="Center"><Text text="GAP" /></Column>
-                    <Column width="12%" hAlign="Center"><Text text="SHORTFALL" /></Column>
+                    <Column width="14%"><Text text="MATERIAL" /></Column>
+                    <Column width="12%"><Text text="PLANT" /></Column>
+                    <Column width="11%" hAlign="Center"><Text text="TTS (WEEKS)" /></Column>
+                    <Column width="11%" hAlign="Center"><Text text="TTR (WEEKS)" /></Column>
+                    <Column width="11%" hAlign="Center"><Text text="GAP (WEEKS)" /></Column>
+                    <Column width="13%" hAlign="Center"><Text text="SHORTFALL" /></Column>
+                    <Column width="10%" hAlign="Center"><Text text="CONFIDENCE" /></Column>
+                    <Column width="18%"><Text text="DATA FLAGS" /></Column>
                 </columns>
                 <items>
                     <ColumnListItem>
                         <cells>
                             <Text text="{survivalPlanning>material}" />
                             <Text text="{survivalPlanning>plant}" />
-                            <ObjectStatus text="{survivalPlanning>coverage}"
-                                  state="{= parseInt(${survivalPlanning>coverage}) &lt; 10 ? 'Error' : parseInt(${survivalPlanning>coverage}) &lt;= 20 ? 'Warning' : 'Success' }" />
-                            <Text text="{survivalPlanning>timeToSurvive}" />
+                            <ObjectStatus text="{survivalPlanning>timeToSurvive}"
+                                  state="{= ${survivalPlanning>ttsWeeks} &lt; 2 ? 'Error' : ${survivalPlanning>ttsWeeks} &lt; 4 ? 'Warning' : 'Success' }" />
                             <Text text="{survivalPlanning>recovery}" />
                             <ObjectStatus text="{survivalPlanning>gap}"
-                                  state="{= parseInt(${survivalPlanning>gap}) > 10 ? 'Error' : parseInt(${survivalPlanning>gap}) > 0 ? 'Warning' : 'Success' }" />
+                                  state="{= ${survivalPlanning>gapWeeks} > 2 ? 'Error' : ${survivalPlanning>gapWeeks} > 0 ? 'Warning' : 'Success' }" />
                             <Text text="{survivalPlanning>shortfall}" />
+                            <ObjectStatus text="{survivalPlanning>confidence}"
+                                  state="{= ${survivalPlanning>confidence} === 'HIGH' ? 'Success' : ${survivalPlanning>confidence} === 'MEDIUM' ? 'Warning' : 'Error' }" />
+                            <Text text="{survivalPlanning>dataFlags}" wrapping="true" />
                         </cells>
                     </ColumnListItem>
                 </items>

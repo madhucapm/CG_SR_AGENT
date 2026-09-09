@@ -34,7 +34,8 @@ const DataMode = Object.freeze({
 const AgentName = Object.freeze({
     COORDINATOR: 'COORDINATOR',
     EARLY_WARNING: 'EARLY_WARNING',
-    SURVIVAL: 'SURVIVAL'
+    SURVIVAL: 'SURVIVAL',
+    SURVIVAL_PLANNER: 'SVP'
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

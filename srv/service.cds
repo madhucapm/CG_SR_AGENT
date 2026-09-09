@@ -120,12 +120,13 @@ service SupplierResilienceService {
             poNumber    : String;
         };
         materials       : array of {
-            supplierId  : String;
-            poNumber    : String;
-            itemNo      : String;
-            material    : String;
-            plant       : String;
-            sku         : String;
+            supplierId          : String;
+            poNumber            : String;
+            itemNo              : String;
+            material            : String;
+            materialDescription : String;
+            plant               : String;
+            sku                 : String;
         };
     };
 
@@ -173,12 +174,13 @@ service SupplierResilienceService {
             poNumber    : String;
         };
         materials       : array of {
-            supplierId  : String;
-            poNumber    : String;
-            itemNo      : String;
-            material    : String;
-            plant       : String;
-            sku         : String;
+            supplierId          : String;
+            poNumber            : String;
+            itemNo              : String;
+            material            : String;
+            materialDescription : String;
+            plant               : String;
+            sku                 : String;
         };
     };
 
@@ -929,64 +931,78 @@ service SupplierResilienceService {
     };
     
     /**
-     * Run Survival Agent
-     * 
-     * Equivalent to: POST /api/v1/agents/survival/run
-     * 
-     * The Survival Agent:
-     * 1. Loads inventory data for material/plant
-     * 2. Loads demand data for material/plant
-     * 3. Calculates available inventory
-     * 4. Calculates survival period (weeks)
-     * 5. Compares with supplier recovery time
-     * 6. Calculates shortfall if any
-     * 
-     * Formula:
-     * - Available Inventory = Current - Blocked - Reserved + InTransit
-     * - Survival Weeks = Available Inventory / Weekly Demand
-     * - Coverage Gap = Survival Weeks - Recovery Weeks
-     * - Uncovered Weeks = max(0, -Coverage Gap)
-     * - Shortfall Quantity = Uncovered Weeks × Weekly Demand
-     * 
-     * @param caseId - Case identifier
-     * @param material - Material identifier
-     * @param plant - Plant code
-     * @param supplierRecoveryWeeks - Expected weeks for supplier to recover
-     * 
-     * @returns Survival analysis with inventory breakdown and gap assessment
+     * Run Survival Planner (S/4HANA-Integrated)
+     *
+     * Fetches real-time PO, Inbound Delivery and schedule-line data
+     * from S/4HANA via the BTP S4R destination and computes:
+     *   - TTS  (Time-To-Survive) per Plant × Material
+     *   - TTR  (Time-To-Recover)  from earliest confirmed inbound delivery
+     *   - Gap  = TTR − TTS
+     *   - Shortfall = Gap × Weekly_Demand
+     *
+     * Steps:
+     *  3. Fetch Open POs  (API_PURCHASEORDER_PROCESS_SRV)
+     *  4. Fetch Inbound Deliveries (API_INBOUND_DELIVERY_SRV)
+     *  5. Anti-Double-Count Reconciliation
+     *  6. Compute Weekly Demand (unshipped PO qty ÷ 7 × 7)
+     *  7. Compute Eligible Supply (in-transit + confirmed deliveries)
+     *  8. Derive TTR from Inbound Delivery
+     *  9. Compute TTS, Gap, Shortfall per Plant × Material
+     * 10. Aggregate KPIs
+     *
+     * @param caseId - Case identifier (e.g. SC-2026-613)
+     *
+     * @returns SVP output with KPIs, per-record metrics and narratives
      */
     action runSurvival(
-        caseId                  : String,
-        material                : String,
-        plant                   : String,
-        supplierRecoveryWeeks   : Integer
+        caseId                  : String
     ) returns {
-        success                 : Boolean;
-        agent                   : String;
-        caseId                  : String;
-        status                  : String;
-        material                : String;
-        plant                   : String;
-        availableInventory      : Decimal;
-        inventoryBreakdown      : {
-            currentStock        : Decimal;
-            blockedStock        : Decimal;
-            reservedStock       : Decimal;
-            inTransitStock      : Decimal;
-            availableInventory  : Decimal;
-            calculationFormula  : String;
+        success                     : Boolean;
+        incidentId                  : String;
+        agentId                     : String;
+        timestamp                   : String;
+        portfolioHeadlineTTS_Weeks  : Decimal;
+        kpis                        : {
+            criticalItems           : {
+                count               : Integer;
+                thresholdWeeks      : Integer;
+            };
+            averageCoverageWeeks    : Decimal;
+            worstGap                : {
+                weeks               : Decimal;
+                plant               : String;
+                material            : String;
+            };
+            totalShortfall          : array of {
+                uom                 : String;
+                qty                 : Decimal;
+            };
         };
-        weeklyDemand            : Decimal;
-        unit                    : String;
-        survivalWeeks           : Decimal;
-        supplierRecoveryWeeks   : Integer;
-        coverageGapWeeks        : Decimal;
-        uncoveredWeeks          : Decimal;
-        shortfallQuantity       : Decimal;
-        actionRequired          : Boolean;
-        dataSource              : String;
-        calculatedAt            : String;
-        error                   : String;
+        records                     : array of {
+            plant                   : String;
+            material                : String;
+            ttsWeeks                : Decimal;
+            ttrWeeks                : Decimal;
+            ttrSource               : String;
+            ttrConfidence           : String;
+            gapWeeks                : Decimal;
+            shortfallQty            : Decimal;
+            shortfallUoM            : String;
+            confidence              : String;
+            dataFlags               : array of String;
+            weeklyDemand            : Decimal;
+            eligibleSupply          : Decimal;
+            usableInventory         : Decimal;
+            totalSupply             : Decimal;
+        };
+        narratives                  : {
+            ttsSummary              : String;
+            ttrAssumption           : String;
+            dataGaps                : String;
+        };
+        dataSource                  : String;
+        calculatedAt                : String;
+        error                       : String;
     };
     
 

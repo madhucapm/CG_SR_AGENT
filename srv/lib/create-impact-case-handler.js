@@ -53,6 +53,7 @@ module.exports = function buildHandler(logger) {
                 (Array.isArray(po.materials) ? po.materials : []).forEach(m => {
                     mR.push({ ID: generateUUID(), caseId, supplierId: sid, poNumber: pn,
                         itemNo: m.item_no || m.itemNo || '', material: m.material || '',
+                        materialDescription: m.material_description || m.materialDescription || '',
                         plant: m.plant || '', sku: m.sku || '' });
                     if (m.plant) plantSet[m.plant] = true;
                     if (m.sku)   skuSet[m.sku]     = true;
@@ -97,7 +98,7 @@ module.exports = function buildHandler(logger) {
                     region: d.region || '', ...c, status: 'Open', createdAt: now },
                 suppliers: sR.map(r => ({ supplierId: r.supplierId, name: r.name, address: r.address, distanceKm: r.distanceKm, poCount: r.poCount })),
                 purchaseOrders: pR.map(r => ({ supplierId: r.supplierId, poNumber: r.poNumber })),
-                materials: mR.map(r => ({ supplierId: r.supplierId, poNumber: r.poNumber, itemNo: r.itemNo, material: r.material, plant: r.plant, sku: r.sku }))
+                materials: mR.map(r => ({ supplierId: r.supplierId, poNumber: r.poNumber, itemNo: r.itemNo, material: r.material, materialDescription: r.materialDescription, plant: r.plant, sku: r.sku }))
             };
         } catch (err) {
             logger.error('createImpactCase DB error: ' + (err.message || err));

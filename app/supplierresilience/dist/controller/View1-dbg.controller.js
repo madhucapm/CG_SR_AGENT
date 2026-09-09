@@ -800,9 +800,38 @@ sap.ui.define([
             this._enableDisruptionsAndNavigate("Coordinator");
         },
 
-        /** Run Survival Planner Agent — enable Disruptions and navigate. */
+        /**
+         * Run Survival Planner Agent from the Case Dashboard.
+         * Navigates to the Disruptions screen and auto-triggers the
+         * Survival Planner agent once the case data has loaded.
+         * The result populates both the Disruptions agent card AND
+         * the Survival Planning navigation tab.
+         */
         onRunSurvivalPlannerAgent: function () {
+            var that = this;
+            var oView = this.getView();
+            var oDashboard = oView.getModel("dashboard");
+            var sCaseId = oDashboard ? oDashboard.getProperty("/selectedCaseId") : "";
+            if (!sCaseId) {
+                MessageToast.show("No case selected. Please select a case first.");
+                return;
+            }
+            // Navigate to Disruptions first — this loads case data + resets agent cards
             this._enableDisruptionsAndNavigate("Survival Planner");
+
+            // Auto-trigger the Survival Planner agent run after a short delay
+            // to allow the Disruptions case data to load and populate the model.
+            setTimeout(function () {
+                var oAdModel = oView.getModel("agentDisruptions");
+                if (oAdModel && oAdModel.getProperty("/caseData")) {
+                    that._runDisruptionAgent("survivalPlanner");
+                } else {
+                    // Case data hasn't loaded yet — retry once more
+                    setTimeout(function () {
+                        that._runDisruptionAgent("survivalPlanner");
+                    }, 1500);
+                }
+            }, 800);
         },
 
         /** Run Substitution Agent — enable Disruptions and navigate. */
@@ -1169,7 +1198,7 @@ sap.ui.define([
             var oCaseData = oAdModel.getProperty("/caseData");
             if (!sCaseId || !oCaseData) { MessageToast.show("No case selected."); return; }
             var mCfg = {
-                survivalPlanner: { action: "runSurvival",      label: "Survival Planner", payload: { caseId: sCaseId, material: "", plant: "", supplierRecoveryWeeks: 4 } },
+                survivalPlanner: { action: "runSurvival",      label: "Survival Planner", payload: { caseId: sCaseId } },
                 substitution:    { action: "runSubstitution",  label: "Substitution",     payload: { caseId: sCaseId } },
                 buyer:           { action: "runBuyer",         label: "Buyer",            payload: { caseId: sCaseId } }
             };
@@ -1194,7 +1223,15 @@ sap.ui.define([
                 oAdModel.setProperty(sP + "/status", "completed");
                 oAdModel.setProperty(sP + "/statusText", "✓ Completed");
                 oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--success");
-                oAdModel.setProperty(sP + "/formattedResult", that._formatAgentResponse(oData));
+                // Survival Planner: show only narratives; other agents: full response
+                if (sAgentKey === "survivalPlanner") {
+                    oAdModel.setProperty(sP + "/formattedResult", that._formatSurvivalPlannerResponse(oData));
+                    if (oData && oData.success !== false) {
+                        that._populateSurvivalPlanningFromSVP(oData);
+                    }
+                } else {
+                    oAdModel.setProperty(sP + "/formattedResult", that._formatAgentResponse(oData));
+                }
                 MessageToast.show(oC.label + " completed.");
             }).catch(function (oErr) {
                 oAdModel.setProperty(sP + "/busy", false);
@@ -1227,25 +1264,115 @@ sap.ui.define([
                 supplierId:"Supplier ID", supplierName:"Supplier", supplierOtif:"OTIF",
                 materialId:"Material", materialCriticality:"Criticality",
                 dataSource:"Data Source", calculatedAt:"Calculated At",
-                error:"Error" };
+                error:"Error",
+                // SVP-specific labels
+                incidentId:"Incident ID", agentId:"Agent ID", timestamp:"Timestamp",
+                portfolioHeadlineTTS_Weeks:"Portfolio Headline TTS (Weeks)",
+                kpis:"Key Performance Indicators", records:"Plant × Material Records",
+                narratives:"Narratives", ttsWeeks:"TTS (Weeks)", ttrWeeks:"TTR (Weeks)",
+                ttrSource:"TTR Source", ttrConfidence:"TTR Confidence",
+                gapWeeks:"Gap (Weeks)", shortfallQty:"Shortfall Qty",
+                shortfallUoM:"Shortfall UoM", confidence:"Confidence",
+                dataFlags:"Data Flags", eligibleSupply:"Eligible Supply",
+                usableInventory:"Usable Inventory", totalSupply:"Total Supply",
+                criticalItems:"Critical Items", averageCoverageWeeks:"Avg Coverage (Weeks)",
+                worstGap:"Worst Gap", totalShortfall:"Total Shortfall",
+                ttsSummary:"TTS Summary", ttrAssumption:"TTR Assumption", dataGaps:"Data Gaps" };
             Object.keys(oData).forEach(function (k) {
                 var v = oData[k];
                 if (v === null || v === undefined) return;
                 if (k === "@odata.context" || k === "@odata.metadataEtag") return;
                 var lb = mL[k] || k;
-                if (typeof v === "object" && !Array.isArray(v)) {
+                if (Array.isArray(v)) {
+                    // Array of objects → render each as a numbered sub-section
+                    if (v.length === 0) return;
+                    if (typeof v[0] === "object" && v[0] !== null) {
+                        aL.push("<div class='adRespSection'><strong>" + lb + " (" + v.length + ")</strong></div>");
+                        v.forEach(function (item, idx) {
+                            aL.push("<div class='adRespRow' style='margin-left:0.5rem;margin-top:0.25rem'><em>#" + (idx + 1) + "</em></div>");
+                            Object.keys(item).forEach(function (ik) {
+                                var iv = item[ik];
+                                if (iv === null || iv === undefined) return;
+                                var ilb = mL[ik] || ik;
+                                if (Array.isArray(iv)) {
+                                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>" + ilb + ":</span> <span class='adRespVal'>" + that._escapeHtml(iv.join(", ")) + "</span></div>");
+                                } else if (typeof iv === "object") {
+                                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>" + ilb + ":</span> <span class='adRespVal'>" + that._escapeHtml(JSON.stringify(iv)) + "</span></div>");
+                                } else {
+                                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>" + ilb + ":</span> <span class='adRespVal'>" + that._escapeHtml(String(iv)) + "</span></div>");
+                                }
+                            });
+                        });
+                    } else {
+                        // Array of primitives
+                        aL.push("<div class='adRespRow'><span class='adRespKey'>" + lb + ":</span> <span class='adRespVal'>" + that._escapeHtml(v.join(", ")) + "</span></div>");
+                    }
+                } else if (typeof v === "object") {
+                    // Nested object → render each property, recursing one level for sub-objects
                     aL.push("<div class='adRespSection'><strong>" + lb + "</strong></div>");
                     Object.keys(v).forEach(function (sk) {
-                        if (v[sk] !== null && v[sk] !== undefined) {
-                            aL.push("<div class='adRespRow'><span class='adRespKey'>" + (mL[sk]||sk) + ":</span> <span class='adRespVal'>" + that._escapeHtml(String(v[sk])) + "</span></div>");
+                        var sv = v[sk];
+                        if (sv === null || sv === undefined) return;
+                        var slb = mL[sk] || sk;
+                        if (Array.isArray(sv)) {
+                            if (sv.length > 0 && typeof sv[0] === "object") {
+                                aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>" + slb + " (" + sv.length + "):</span></div>");
+                                sv.forEach(function (si, sidx) {
+                                    var parts = [];
+                                    Object.keys(si).forEach(function (sik) {
+                                        if (si[sik] !== null && si[sik] !== undefined) {
+                                            parts.push((mL[sik] || sik) + ": " + String(si[sik]));
+                                        }
+                                    });
+                                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespVal'>#" + (sidx + 1) + " — " + that._escapeHtml(parts.join(", ")) + "</span></div>");
+                                });
+                            } else if (sv.length > 0) {
+                                aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>" + slb + ":</span> <span class='adRespVal'>" + that._escapeHtml(sv.join(", ")) + "</span></div>");
+                            }
+                        } else if (typeof sv === "object") {
+                            // Sub-sub-object: inline its fields
+                            var subParts = [];
+                            Object.keys(sv).forEach(function (ssk) {
+                                if (sv[ssk] !== null && sv[ssk] !== undefined) {
+                                    subParts.push((mL[ssk] || ssk) + ": " + String(sv[ssk]));
+                                }
+                            });
+                            aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>" + slb + ":</span> <span class='adRespVal'>" + that._escapeHtml(subParts.join(", ")) + "</span></div>");
+                        } else {
+                            aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>" + slb + ":</span> <span class='adRespVal'>" + that._escapeHtml(String(sv)) + "</span></div>");
                         }
                     });
-                } else if (Array.isArray(v) && v.length > 0) {
-                    aL.push("<div class='adRespRow'><span class='adRespKey'>" + lb + ":</span> <span class='adRespVal'>" + that._escapeHtml(v.join(", ")) + "</span></div>");
-                } else if (!Array.isArray(v)) {
+                } else {
                     aL.push("<div class='adRespRow'><span class='adRespKey'>" + lb + ":</span> <span class='adRespVal'>" + that._escapeHtml(String(v)) + "</span></div>");
                 }
             });
+            return "<div class='adResponseWrap'>" + aL.join("") + "</div>";
+        },
+
+        /**
+         * Format the Survival Planner (SVP) response to show only the
+         * narratives section — ttsSummary, ttrAssumption, dataGaps.
+         *
+         * @param {Object} oData - runSurvival SVP response
+         * @returns {string} HTML string for the Disruptions agent card
+         */
+        _formatSurvivalPlannerResponse: function (oData) {
+            if (!oData) { return "<div class='adResponseEmpty'>No data.</div>"; }
+            var n = oData.narratives || {};
+            var aL = [];
+            aL.push("<div class='adRespSection'><strong>Survival Planner — Narratives</strong></div>");
+            if (n.ttsSummary) {
+                aL.push("<div class='adRespRow'><span class='adRespKey'>TTS Summary:</span> <span class='adRespVal'>" + this._escapeHtml(n.ttsSummary) + "</span></div>");
+            }
+            if (n.ttrAssumption) {
+                aL.push("<div class='adRespRow'><span class='adRespKey'>TTR Assumption:</span> <span class='adRespVal'>" + this._escapeHtml(n.ttrAssumption) + "</span></div>");
+            }
+            if (n.dataGaps) {
+                aL.push("<div class='adRespRow'><span class='adRespKey'>Data Gaps:</span> <span class='adRespVal'>" + this._escapeHtml(n.dataGaps) + "</span></div>");
+            }
+            if (!n.ttsSummary && !n.ttrAssumption && !n.dataGaps) {
+                aL.push("<div class='adRespRow'><span class='adRespVal'>No narrative data available.</span></div>");
+            }
             return "<div class='adResponseWrap'>" + aL.join("") + "</div>";
         },
 
@@ -1411,9 +1538,11 @@ sap.ui.define([
                     var sFirstSupplier = (aAffSuppliers.length > 0 && aAffSuppliers[0].name)
                         ? aAffSuppliers[0].name : "Unknown";
 
+                    // Use actual risk score from the API response
+                    var iApiRisk = oResult.riskPercentage || oResult.riskScore || 0;
                     oDisruptions.setProperty("/impactPreview", {
                         impactType: (oSelectedRisk.title || oResult.impact_description || "Supply disruption"),
-                        riskScore:  (oScope.supplierCount > 3 ? "92" : oScope.supplierCount > 1 ? "74" : "55") + "/100",
+                        riskScore:  String(iApiRisk) + "/100",
                         estimatedImpact: "$" + (oScope.poCount * 0.6 || 0).toFixed(1) + "M",
                         supplierName: sFirstSupplier +
                             (aAffSuppliers.length > 1 ? " (+" + (aAffSuppliers.length - 1) + " more)" : ""),
@@ -1588,15 +1717,18 @@ sap.ui.define([
             var aRows=aAff.map(function(s){
                 var aPOs=Array.isArray(s.purchase_orders)?s.purchase_orders:[],pl=[],ml=[];
                 aPOs.forEach(function(po){(Array.isArray(po.materials)?po.materials:[]).forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1)pl.push(m.plant);var md=m.material_description||m.material||"";if(md&&ml.indexOf(md)===-1)ml.push(md);});});
-                var d=s.distance_km||999,n=s.po_count||aPOs.length;
-                var sc=d<50?90+Math.min(n,10):d<100?75+Math.min(n*2,15):d<200?60+Math.min(n*2,15):d<400?40+Math.min(n*3,20):20+Math.min(n*3,20);
+                // Use actual risk_score / risk_percentage from the API when available
+                var n=s.po_count||aPOs.length;
+                var sc=s.risk_percentage||s.risk_score||oResult.riskPercentage||oResult.riskScore||0;
                 sc=Math.min(sc,100);if(sc>iMax){iMax=sc;sMaxSup=s.name||s.supplier_id||"";}
                 var sev=sc>=80?"CRITICAL":sc>=60?"HIGH":sc>=40?"MEDIUM":"LOW";
-                var cls=d<50?"COMPLETE INTERRUPTION":d<200?"DELAYED SUPPLY":"PARTIAL DISRUPTION";
+                var rl=(s.risk_level||oResult.riskLevel||"").toUpperCase();
+                if(rl==="CRITICAL"||rl==="HIGH"||rl==="MEDIUM"||rl==="LOW") sev=rl;
+                var cls=sev==="CRITICAL"?"COMPLETE INTERRUPTION":sev==="HIGH"?"DELAYED SUPPLY":"PARTIAL DISRUPTION";
                 return{supplier:s.name||s.supplier_id||"Unknown",supplierId:s.supplier_id||"",classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",materials:ml.join(", ")||"—"};
             });
             aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
-            oRM.setProperty("/kpi",{highestRisk:{value:String(iMax),supplier:sMaxSup},suppliersImpacted:{value:String(oScope.supplierCount),sub:"Affected by event"},posAtRisk:{value:String(oScope.poCount),sub:"At risk"},plants:{value:String(oScope.plantCount),sub:"Affected"}});
+            oRM.setProperty("/kpi",{highestRisk:{value:String(iMax)+"/100",supplier:sMaxSup},suppliersImpacted:{value:String(oScope.supplierCount),sub:"Affected by event"},posAtRisk:{value:String(oScope.poCount),sub:"At risk"},plants:{value:String(oScope.plantCount),sub:"Affected"}});
             oRM.setProperty("/supplierRisks",aRows);
             if(oEW){oEW.setProperty("/result",oResult);oEW.setProperty("/suppliers",aRows);oEW.setProperty("/totalSuppliers",aAff.length);oEW.setProperty("/totalPOs",oScope.poCount||0);oEW.setProperty("/summary/maxRiskScore",iMax);oEW.setProperty("/summary/maxRiskLevel",iMax>=80?"CRITICAL":iMax>=60?"HIGH":iMax>=40?"MEDIUM":"LOW");}
         },
@@ -1608,27 +1740,118 @@ sap.ui.define([
         },
         /** Populate riskAssessment model from getCaseHierarchy response. */
         _populateRAFromHierarchy: function (oH) {
-            var oRM=this.getView().getModel("riskAssessment");if(!oRM)return;
-            var cd=oH.caseData||{},aS=oH.suppliers||[],aPOs=oH.purchaseOrders||[],aM=oH.materials||[];
-            var poBy={},matBy={};
-            aPOs.forEach(function(p){var k=p.supplierId||"";if(!poBy[k])poBy[k]=[];poBy[k].push(p);});
-            aM.forEach(function(m){var k=m.supplierId||"";if(!matBy[k])matBy[k]=[];matBy[k].push(m);});
-            var iMax=cd.riskScore||0,sMax="",tPOs=0,pSet={};
-            var aRows=aS.map(function(s){var sid=s.supplierId||"",sp=poBy[sid]||[],sm=matBy[sid]||[];var pl=[],ml=[];
-                sm.forEach(function(m){if(m.plant&&pl.indexOf(m.plant)===-1){pl.push(m.plant);pSet[m.plant]=1;}var md=m.material||"";if(md&&ml.indexOf(md)===-1)ml.push(md);});
-                var n=s.poCount||sp.length;tPOs+=n;var sc=cd.riskScore||0;
-                if(aS.length>1){sc=Math.round((n/(cd.poCount||aPOs.length||1))*sc);sc=Math.max(sc,20);sc=Math.min(sc,100);}
-                if(sc>=iMax){iMax=sc;sMax=s.name||sid;}var sev=sc>=80?"CRITICAL":sc>=60?"HIGH":sc>=40?"MEDIUM":"LOW";
-                var cls=cd.classification||(sev==="CRITICAL"?"COMPLETE INTERRUPTION":sev==="HIGH"?"DELAYED SUPPLY":"PARTIAL DISRUPTION");
-                return{supplier:s.name||sid,supplierId:sid,classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",materials:ml.join(", ")||"—"};});
-            aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
-            oRM.setProperty("/kpi",{highestRisk:{value:String(iMax),supplier:sMax||"—"},suppliersImpacted:{value:String(aS.length),sub:"Affected by event"},posAtRisk:{value:String(tPOs),sub:"At risk"},plants:{value:String(Object.keys(pSet).length),sub:"Affected"}});
-            oRM.setProperty("/supplierRisks",aRows);
+            var oRM = this.getView().getModel("riskAssessment");
+            if (!oRM) { return; }
+            var cd = oH.caseData || {}, aS = oH.suppliers || [],
+                aPOs = oH.purchaseOrders || [], aM = oH.materials || [];
+
+            // Index POs and materials by supplierId
+            var poBy = {}, matBy = {};
+            aPOs.forEach(function (p) {
+                var k = p.supplierId || "";
+                if (!poBy[k]) { poBy[k] = []; }
+                poBy[k].push(p);
+            });
+            aM.forEach(function (m) {
+                var k = m.supplierId || "";
+                if (!matBy[k]) { matBy[k] = []; }
+                matBy[k].push(m);
+            });
+
+            var caseScore = cd.riskScore || 0;
+            var caseSev = (cd.severity || "").toUpperCase();
+            var iMax = caseScore, sMax = "", tPOs = 0, pSet = {};
+
+            var aRows = aS.map(function (s) {
+                var sid = s.supplierId || "";
+                var sp = poBy[sid] || [], sm = matBy[sid] || [];
+                var pl = [], ml = [];
+                sm.forEach(function (m) {
+                    if (m.plant && pl.indexOf(m.plant) === -1) { pl.push(m.plant); pSet[m.plant] = 1; }
+                    // Use materialDescription when available, fall back to material ID
+                    var md = m.materialDescription || m.material || "";
+                    if (md && ml.indexOf(md) === -1) { ml.push(md); }
+                });
+                var n = s.poCount || sp.length;
+                tPOs += n;
+
+                // Use the case-level riskScore directly for each supplier
+                // (the hierarchy doesn't store per-supplier scores)
+                var sc = caseScore;
+                if (sc > iMax) { iMax = sc; }
+                if (sc >= iMax) { sMax = s.name || sid; }
+
+                // Use the case-level severity when available
+                var sev = caseSev;
+                if (sev !== "CRITICAL" && sev !== "HIGH" && sev !== "MEDIUM" && sev !== "LOW") {
+                    sev = sc >= 80 ? "CRITICAL" : sc >= 60 ? "HIGH" : sc >= 40 ? "MEDIUM" : "LOW";
+                }
+
+                var cls = cd.classification || (sev === "CRITICAL" ? "COMPLETE INTERRUPTION" : sev === "HIGH" ? "DELAYED SUPPLY" : "PARTIAL DISRUPTION");
+                return {
+                    supplier: s.name || sid, supplierId: sid,
+                    classification: cls, riskScore: sc + "/100",
+                    riskScoreRaw: sc, severity: sev,
+                    posAtRisk: String(n),
+                    plants: pl.join(", ") || "—",
+                    materials: ml.join(", ") || "—"
+                };
+            });
+
+            aRows.sort(function (a, b) { return b.riskScoreRaw - a.riskScoreRaw; });
+            oRM.setProperty("/kpi", {
+                highestRisk:      { value: String(iMax) + "/100", supplier: sMax || "—" },
+                suppliersImpacted: { value: String(aS.length), sub: "Affected by event" },
+                posAtRisk:        { value: String(tPOs), sub: "At risk" },
+                plants:           { value: String(Object.keys(pSet).length), sub: "Affected" }
+            });
+            oRM.setProperty("/supplierRisks", aRows);
         },
-        /** Load case data for Survival Planning from getCaseHierarchy. */
+        /**
+         * Load case data for Survival Planning by calling the S/4HANA-
+         * integrated runSurvival action (POST).  Falls back to the
+         * hierarchy-based mapper if the SVP call fails.
+         */
         _loadCaseDataForSurvivalPlanning: function (sId) {
-            var t=this;if(!sId)return;
-            fetch(this._getServiceUrl()+"getCaseHierarchy(caseId='"+encodeURIComponent(sId)+"')",{method:"GET",headers:{"Accept":"application/json"},credentials:"include"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}).then(function(d){if(d&&d.success!==false)t._populateSPFromHierarchy(d);}).catch(function(e){console.error("[SP] Load failed:",e);});
+            var t = this;
+            if (!sId) { return; }
+            fetch(this._getServiceUrl() + "runSurvival", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ caseId: sId })
+            }).then(function (r) {
+                if (!r.ok) {
+                    return r.text().then(function (b) {
+                        throw new Error("HTTP " + r.status + (b ? ": " + b.substring(0, 500) : ""));
+                    });
+                }
+                return r.json();
+            }).then(function (oData) {
+                if (oData && oData.success !== false) {
+                    t._populateSurvivalPlanningFromSVP(oData);
+                } else {
+                    console.warn("[SP] runSurvival returned error, falling back to hierarchy:", oData && oData.error);
+                    t._loadSurvivalPlanningFallback(sId);
+                }
+            }).catch(function (e) {
+                console.warn("[SP] runSurvival call failed, falling back to hierarchy:", e);
+                t._loadSurvivalPlanningFallback(sId);
+            });
+        },
+
+        /** Fallback: populate Survival Planning from getCaseHierarchy when SVP is unavailable. */
+        _loadSurvivalPlanningFallback: function (sId) {
+            var t = this;
+            if (!sId) { return; }
+            fetch(this._getServiceUrl() + "getCaseHierarchy(caseId='" + encodeURIComponent(sId) + "')", {
+                method: "GET", headers: { "Accept": "application/json" }, credentials: "include"
+            }).then(function (r) {
+                if (!r.ok) { throw new Error("HTTP " + r.status); }
+                return r.json();
+            }).then(function (d) {
+                if (d && d.success !== false) { t._populateSPFromHierarchy(d); }
+            }).catch(function (e) { console.error("[SP] Fallback load failed:", e); });
         },
         /** Populate survivalPlanning model from getCaseHierarchy response. */
         _populateSPFromHierarchy: function (oH) {
@@ -1640,6 +1863,76 @@ sap.ui.define([
             var avg=rows.length>0?Math.round(totCov/rows.length):0;
             oSP.setProperty("/kpi",{criticalItems:{value:String(crit),sub:"Coverage < 10 days"},avgCoverage:{value:avg>0?(avg+" days"):"—",sub:"All materials"},worstGap:{value:wGap>0?(wGap+" days"):"—",sub:wGapM||"—"},totalShortfall:{value:totSh>0?(totSh+" MT"):"—",sub:"Needs mitigation"}});
             oSP.setProperty("/materials",rows);
+        },
+
+        /**
+         * Populate the survivalPlanning model from a runSurvival (SVP)
+         * response.  Called after the Survival Planner agent completes
+         * in the Disruptions tab so the Survival Planning navigation
+         * tab is kept in sync with real S/4HANA data.
+         *
+         * @param {Object} oData - runSurvival response (SVP output)
+         */
+        _populateSurvivalPlanningFromSVP: function (oData) {
+            var oSP = this.getView().getModel("survivalPlanning");
+            if (!oSP || !oData) { return; }
+
+            var aRecords = Array.isArray(oData.records) ? oData.records : [];
+            var oKpis    = oData.kpis || {};
+
+            // Build material rows for the table
+            var rows = aRecords.map(function (r) {
+                var ttsDisplay = (r.ttsWeeks !== null && r.ttsWeeks !== undefined)
+                    ? (String(r.ttsWeeks) + " wk") : "—";
+                var ttrDisplay = (r.ttrWeeks > 0)
+                    ? (String(r.ttrWeeks) + " wk") : "—";
+                var gapDisplay = (r.gapWeeks > 0)
+                    ? (String(r.gapWeeks) + " wk") : "0";
+                var sfDisplay  = (r.shortfallQty > 0)
+                    ? (String(Math.round(r.shortfallQty)) + " " + (r.shortfallUoM || "")) : "—";
+                return {
+                    material:      r.material || "—",
+                    plant:         r.plant || "—",
+                    coverage:      ttsDisplay,
+                    timeToSurvive: ttsDisplay,
+                    recovery:      ttrDisplay,
+                    gap:           gapDisplay,
+                    shortfall:     sfDisplay,
+                    ttsWeeks:      r.ttsWeeks || 0,
+                    ttrWeeks:      r.ttrWeeks || 0,
+                    gapWeeks:      r.gapWeeks || 0,
+                    shortfallQty:  r.shortfallQty || 0,
+                    shortfallUoM:  r.shortfallUoM || "",
+                    confidence:    r.confidence || "",
+                    ttrSource:     r.ttrSource || "",
+                    weeklyDemand:  r.weeklyDemand || 0,
+                    totalSupply:   r.totalSupply || 0,
+                    dataFlags:     Array.isArray(r.dataFlags) ? r.dataFlags.join(", ") : ""
+                };
+            });
+
+            // KPI tiles
+            var critItems = (oKpis.criticalItems && oKpis.criticalItems.count) || 0;
+            var avgCov    = oKpis.averageCoverageWeeks || 0;
+            var wg        = oKpis.worstGap || {};
+            var wgWeeks   = wg.weeks || 0;
+            var wgLabel   = (wg.material || "") + (wg.plant ? " — " + wg.plant : "");
+
+            // Total shortfall display
+            var aTotSh = Array.isArray(oKpis.totalShortfall) ? oKpis.totalShortfall : [];
+            var sTotSh = aTotSh.length > 0
+                ? aTotSh.map(function (s) { return Math.round(s.qty) + " " + s.uom; }).join(", ")
+                : "—";
+
+            oSP.setProperty("/kpi", {
+                criticalItems:  { value: String(critItems),             sub: "TTS < 2 weeks" },
+                avgCoverage:    { value: avgCov > 0 ? (avgCov + " wk") : "—", sub: "All materials" },
+                worstGap:       { value: wgWeeks > 0 ? (wgWeeks + " wk") : "—", sub: wgLabel || "—" },
+                totalShortfall: { value: sTotSh,                        sub: "Needs mitigation" }
+            });
+            oSP.setProperty("/materials", rows);
+
+            console.log("[SurvivalPlanning] Populated from SVP:", rows.length, "records");
         },
 
         // ─────────────────────────────────────────────────────────────

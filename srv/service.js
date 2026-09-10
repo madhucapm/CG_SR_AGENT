@@ -36,6 +36,12 @@ let runSurvivalPlanner = null;
 try { ({ runSurvivalPlanner } = require('./agents/survival-planner')); }
 catch (e) { console.warn('[Service] agents/survival-planner not loaded:', e.message); }
 
+// Material Stock Handler — fetches unrestricted stock and safety stock from
+// S/4HANA to calculate dynamic material criticality for Early Warning Agent.
+let getMaterialStockData = null;
+try { ({ getMaterialStockData } = require('./lib/material-stock-handler')); }
+catch (e) { console.warn('[Service] lib/material-stock-handler not loaded:', e.message); }
+
 // SAP Cloud SDK — used to call the S/4HANA `S4R` destination configured in
 // the BTP Destination service. Loaded defensively so the CAP srv still starts
 // locally even if the SDK is not yet installed.
@@ -285,6 +291,8 @@ module.exports = cds.service.impl(async function () {
             const { extractEarlyWarningData } = require('./lib/s4r-data-extractor');
             const s4rData = extractEarlyWarningData(s4rResponse);
             const supplierId = inputSupplierId || s4rData.supplierId;
+            
+            // Fetch supplier OTIF data
             let supplierOtifData = null;
             if (supplierId) {
                 try {
@@ -294,9 +302,29 @@ module.exports = cds.service.impl(async function () {
                     if (supplierOtifData.success) logger.info(`Supplier OTIF: ${supplierOtifData.otifPercentage}%`);
                 } catch (e) { logger.warn(`Could not fetch supplier OTIF: ${e.message}`); }
             }
-            const scoreResult = calculateS4RRiskScore(s4rData, supplierOtifData);
-            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData);
-            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData);
+            
+            // NEW: Fetch material stock data for dynamic criticality calculation
+            let materialStockData = null;
+            if (getMaterialStockData && s4rData.materialId && s4rData.plant) {
+                try {
+                    logger.info(`[SINGLE MODE] Fetching stock data for Material=${s4rData.materialId}, Plant=${s4rData.plant}`);
+                    materialStockData = await getMaterialStockData(executeHttpRequest, s4rData.materialId, s4rData.plant);
+                    if (materialStockData.success) {
+                        logger.info(`Stock data: unrestricted=${materialStockData.unrestrictedStock}, safety=${materialStockData.safetyStock}, critical=${materialStockData.isCritical}`);
+                        // Override material criticality if stock is below safety stock
+                        if (materialStockData.isCritical) {
+                            s4rData.materialCriticality = 'CRITICAL';
+                            logger.info(`Material ${s4rData.materialId} marked CRITICAL due to low stock`);
+                        }
+                    }
+                } catch (e) { 
+                    logger.warn(`Could not fetch material stock data: ${e.message}`); 
+                }
+            }
+            
+            const scoreResult = calculateS4RRiskScore(s4rData, supplierOtifData, materialStockData);
+            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData, materialStockData);
+            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData, materialStockData);
             logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}`);
             return output;
         } catch (error) {
@@ -355,8 +383,55 @@ module.exports = cds.service.impl(async function () {
                 supplierOtifMap[supplierId] = success ? otifData : null;
             }
 
-            // STEP 4: Build Supplier Results
-            const suppliers = buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap);
+            // STEP 3.5: Fetch Material Stock Data for Criticality Calculation (NEW)
+            let materialStockMap = {};
+            if (getMaterialStockData) {
+                // Collect unique material+plant pairs from all POs
+                const materialPlantPairs = [];
+                const seenPairs = new Set();
+                for (const suppId of supplierIds) {
+                    for (const { s4rData } of posBySupplier[suppId]) {
+                        const mat = s4rData.materialId;
+                        const plant = s4rData.plant;
+                        if (mat && plant) {
+                            const key = `${mat}_${plant}`;
+                            if (!seenPairs.has(key)) {
+                                seenPairs.add(key);
+                                materialPlantPairs.push({ materialId: mat, plant });
+                            }
+                        }
+                    }
+                }
+                
+                if (materialPlantPairs.length > 0) {
+                    logger.info(`[STEP 3.5] Fetching stock data for ${materialPlantPairs.length} material/plant combinations`);
+                    
+                    // Fetch stock data in parallel with concurrency limit
+                    const BATCH_SIZE = 5;
+                    for (let i = 0; i < materialPlantPairs.length; i += BATCH_SIZE) {
+                        const batch = materialPlantPairs.slice(i, i + BATCH_SIZE);
+                        const batchResults = await Promise.all(
+                            batch.map(({ materialId, plant }) =>
+                                getMaterialStockData(executeHttpRequest, materialId, plant)
+                                    .then(data => ({ key: `${materialId}_${plant}`, data }))
+                                    .catch(err => {
+                                        logger.warn(`Stock fetch failed for ${materialId}@${plant}: ${err.message}`);
+                                        return { key: `${materialId}_${plant}`, data: null };
+                                    })
+                            )
+                        );
+                        for (const { key, data } of batchResults) {
+                            if (data && data.success) {
+                                materialStockMap[key] = data;
+                            }
+                        }
+                    }
+                    logger.info(`[STEP 3.5] Fetched stock data for ${Object.keys(materialStockMap).length} combinations`);
+                }
+            }
+
+            // STEP 4: Build Supplier Results (now includes stock data)
+            const suppliers = buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap, materialStockMap);
             logger.info(`[STEP 4] Built ${suppliers.length} supplier results`);
 
             return { success: true, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
@@ -1914,8 +1989,8 @@ module.exports = cds.service.impl(async function () {
         return (supplierOtifData.overduePOs || 0) + (supplierOtifData.partiallyDeliveredPOs || 0);
     }
 
-    /** Build supplier results for multi mode */
-    function buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap) {
+    /** Build supplier results for multi mode (with material stock data for criticality) */
+    function buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap, materialStockMap = {}) {
         const results = [];
         for (const suppId of supplierIds) {
             const supplierPOs = posBySupplier[suppId];
@@ -1925,12 +2000,67 @@ module.exports = cds.service.impl(async function () {
             const poDetails = [];
             let totalRevenueExposure = 0, maxDelayDays = 0;
             const affectedPlantsSet = new Set();
+            let worstMaterialStockData = null; // Track worst (most critical) stock data for supplier-level scoring
+            let maxMaterialCriticalityScore = 0;
             
             for (const { poNumber, s4rData } of supplierPOs) {
+                // Look up stock data for this material+plant combination
+                const stockKey = `${s4rData.materialId}_${s4rData.plant}`;
+                const materialStockData = materialStockMap[stockKey] || null;
+                
+                // Determine material criticality for this PO
+                let poMaterialCriticality = null;
+                let poUnrestrictedStock = null;
+                let poSafetyStock = null;
+                let poStockCoverageRatio = null;
+                let poCriticalityReason = null;
+                
+                if (materialStockData && materialStockData.success) {
+                    poUnrestrictedStock = materialStockData.unrestrictedStock;
+                    poSafetyStock = materialStockData.safetyStock;
+                    poStockCoverageRatio = materialStockData.stockCoverageRatio;
+                    poCriticalityReason = materialStockData.criticalityReason;
+                    
+                    if (materialStockData.isCritical) {
+                        poMaterialCriticality = 'CRITICAL';
+                        // Track worst case for supplier-level scoring
+                        if (20 > maxMaterialCriticalityScore) {
+                            maxMaterialCriticalityScore = 20;
+                            worstMaterialStockData = materialStockData;
+                        }
+                    } else if (materialStockData.stockCoverageRatio !== null) {
+                        const coverage = parseFloat(materialStockData.stockCoverageRatio);
+                        if (coverage < 120) {
+                            poMaterialCriticality = 'HIGH';
+                            if (15 > maxMaterialCriticalityScore) {
+                                maxMaterialCriticalityScore = 15;
+                                worstMaterialStockData = materialStockData;
+                            }
+                        } else if (coverage < 150) {
+                            poMaterialCriticality = 'MEDIUM';
+                            if (10 > maxMaterialCriticalityScore) {
+                                maxMaterialCriticalityScore = 10;
+                                worstMaterialStockData = materialStockData;
+                            }
+                        } else if (coverage < 200) {
+                            poMaterialCriticality = 'LOW';
+                            if (5 > maxMaterialCriticalityScore) {
+                                maxMaterialCriticalityScore = 5;
+                                worstMaterialStockData = materialStockData;
+                            }
+                        }
+                    }
+                }
+                
                 poDetails.push({
                     poNumber: s4rData.poNumber, orderDate: s4rData.orderDate,
                     currency: s4rData.currency, poNetAmount: s4rData.poNetAmount,
                     materialId: s4rData.materialId, materialDescription: s4rData.materialDescription,
+                    materialCriticality: poMaterialCriticality,
+                    unrestrictedStock: poUnrestrictedStock,
+                    safetyStock: poSafetyStock,
+                    stockCoverageRatio: poStockCoverageRatio,
+                    criticalityReason: poCriticalityReason,
                     plant: s4rData.plant, expectedDeliveryDate: s4rData.expectedDeliveryDate,
                     actualDeliveryDate: s4rData.actualDeliveryDate, delayDays: s4rData.delayDays,
                     deliveryStatus: s4rData.deliveryStatus, isOnTime: s4rData.isOnTime,
@@ -1948,11 +2078,33 @@ module.exports = cds.service.impl(async function () {
             
             const aggregatedS4RData = { supplierId: suppId, supplierName, delayDays: maxDelayDays,
                 estimatedRevenueImpact: totalRevenueExposure, affectedPlants: Array.from(affectedPlantsSet) };
-            const scoreResult = calculateS4RRiskScore(aggregatedS4RData, supplierOtifData);
-            const topRiskDrivers = buildS4RRiskDrivers(aggregatedS4RData, scoreResult, supplierOtifData);
+            
+            // Use worst material stock data for supplier-level scoring
+            const scoreResult = calculateS4RRiskScore(aggregatedS4RData, supplierOtifData, worstMaterialStockData);
+            const topRiskDrivers = buildS4RRiskDrivers(aggregatedS4RData, scoreResult, supplierOtifData, worstMaterialStockData);
             const supplierTrend = deriveSupplierTrend(supplierOtifData);
             const previousDelays = derivePreviousDelays(supplierOtifData);
             const hasOtifData = supplierOtifData?.success && supplierOtifData.otifPercentage !== null;
+            const hasStockData = worstMaterialStockData?.success === true;
+            
+            // Build scoring note based on available data
+            let scoringNote = '';
+            if (hasOtifData && hasStockData) {
+                scoringNote = 'Score includes supplier historical OTIF and material stock criticality.';
+            } else if (hasOtifData) {
+                scoringNote = 'Score includes supplier historical OTIF from last 6 months.';
+            } else if (hasStockData) {
+                scoringNote = 'Score includes material stock criticality. Supplier OTIF not available.';
+            } else {
+                scoringNote = 'Score based on S4R data only. Supplier OTIF and material stock not available.';
+            }
+            
+            // Build unavailable fields list
+            const unavailableFields = [];
+            if (!hasStockData) {
+                unavailableFields.push('materialCriticality');
+            }
+            unavailableFields.push('affectedSkus'); // Always unavailable from S4R
             
             results.push({
                 supplierId: suppId, supplierName,
@@ -1960,12 +2112,15 @@ module.exports = cds.service.impl(async function () {
                 supplierTrend, previousDelays,
                 riskScore: scoreResult.totalScore, maxPossibleScore: scoreResult.maxPossibleScore,
                 riskPercentage: scoreResult.riskPercentage, riskLevel: scoreResult.riskLevel,
-                scoreBreakdown: { supplierPerformance: scoreResult.breakdown.supplierPerformance || null,
-                    delaySeverity: scoreResult.breakdown.delaySeverity, materialCriticality: null,
+                scoreBreakdown: { 
+                    supplierPerformance: scoreResult.breakdown.supplierPerformance || null,
+                    delaySeverity: scoreResult.breakdown.delaySeverity, 
+                    materialCriticality: scoreResult.breakdown.materialCriticality || null,
                     affectedScope: scoreResult.breakdown.affectedScope,
-                    revenueExposure: scoreResult.breakdown.revenueExposure, total: scoreResult.totalScore },
-                scoringNote: hasOtifData ? 'Score includes supplier historical OTIF from last 6 months.'
-                    : 'Score based on S4R data only. Supplier OTIF not available.',
+                    revenueExposure: scoreResult.breakdown.revenueExposure, 
+                    total: scoreResult.totalScore 
+                },
+                scoringNote,
                 supplierOtifData: hasOtifData ? {
                     otifPercentage: supplierOtifData.otifPercentage, totalPOs: supplierOtifData.totalPOs,
                     deliveredPOs: supplierOtifData.deliveredPOs, otifPOs: supplierOtifData.otifPOs,
@@ -1979,22 +2134,22 @@ module.exports = cds.service.impl(async function () {
                 affectedPlants: Array.from(affectedPlantsSet), affectedPlantsCount: affectedPlantsSet.size,
                 totalRevenueExposure, topRiskDrivers, poCount: poDetails.length, poDetails,
                 dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
-                unavailableFields: ['materialCriticality', 'affectedSkus'], error: null
+                unavailableFields, error: null
             });
-            logger.info(`Supplier ${suppId}: ${poDetails.length} POs, Risk=${scoreResult.totalScore} (${scoreResult.riskLevel})`);
+            logger.info(`Supplier ${suppId}: ${poDetails.length} POs, Risk=${scoreResult.totalScore} (${scoreResult.riskLevel}), MaterialCriticality=${scoreResult.breakdown.materialCriticality || 0}`);
         }
         return results;
     }
 
-    /** Calculate risk score using S4R data and supplier OTIF (enhanced) */
-    function calculateS4RRiskScore(s4rData, supplierOtifData = null) {
-        const breakdown = { supplierPerformance: 0, delaySeverity: 0, affectedScope: 0, revenueExposure: 0 };
+    /** Calculate risk score using S4R data, supplier OTIF, and material stock data (enhanced) */
+    function calculateS4RRiskScore(s4rData, supplierOtifData = null, materialStockData = null) {
+        const breakdown = { supplierPerformance: 0, delaySeverity: 0, materialCriticality: 0, affectedScope: 0, revenueExposure: 0 };
         
-        // Max possible score now includes supplier performance
-        // Supplier: 15, Delay: 25, AffectedScope: 8, Revenue: 10 = 58
-        const maxPossibleScore = 58;
+        // Max possible score now includes supplier performance AND material criticality
+        // Supplier: 15, Delay: 25, MaterialCriticality: 20, AffectedScope: 8, Revenue: 10 = 78
+        const maxPossibleScore = 78;
         
-        // 1. SUPPLIER PERFORMANCE (NEW) - Max 15 points based on historical OTIF
+        // 1. SUPPLIER PERFORMANCE - Max 15 points based on historical OTIF
         if (supplierOtifData?.success && supplierOtifData.otifPercentage !== null) {
             const otif = supplierOtifData.otifPercentage;
             if (otif < 50) breakdown.supplierPerformance = 15;       // Critical
@@ -2011,30 +2166,51 @@ module.exports = cds.service.impl(async function () {
         else if (delayDays >= 8) breakdown.delaySeverity = 12;
         else if (delayDays >= 1) breakdown.delaySeverity = 5;
 
-        // 3. AFFECTED SCOPE - Max 8 points
+        // 3. MATERIAL CRITICALITY - Max 20 points (NEW - based on stock vs safety stock)
+        if (materialStockData?.success) {
+            if (materialStockData.isCritical) {
+                // Stock below safety stock = CRITICAL = max 20 points
+                breakdown.materialCriticality = 20;
+            } else if (materialStockData.stockCoverageRatio !== null) {
+                const coverage = parseFloat(materialStockData.stockCoverageRatio);
+                if (coverage < 120) breakdown.materialCriticality = 15;      // Near safety stock
+                else if (coverage < 150) breakdown.materialCriticality = 10; // Moderate coverage
+                else if (coverage < 200) breakdown.materialCriticality = 5;  // Good coverage
+                // coverage >= 200% = 0 points (excellent coverage)
+            }
+        } else if (s4rData.materialCriticality) {
+            // Fallback to static criticality from master data if stock data unavailable
+            const criticality = (s4rData.materialCriticality || '').toUpperCase();
+            if (criticality === 'CRITICAL') breakdown.materialCriticality = 20;
+            else if (criticality === 'HIGH') breakdown.materialCriticality = 15;
+            else if (criticality === 'MEDIUM') breakdown.materialCriticality = 10;
+            else if (criticality === 'LOW') breakdown.materialCriticality = 5;
+        }
+
+        // 4. AFFECTED SCOPE - Max 8 points
         const plantCount = (s4rData.affectedPlants || []).length;
         if (plantCount >= 4) breakdown.affectedScope = 8;
         else if (plantCount >= 2) breakdown.affectedScope = 5;
         else if (plantCount === 1) breakdown.affectedScope = 2;
 
-        // 4. REVENUE EXPOSURE - Max 10 points
+        // 5. REVENUE EXPOSURE - Max 10 points
         const revenue = s4rData.estimatedRevenueImpact || 0;
         if (revenue >= 1000000) breakdown.revenueExposure = 10;
         else if (revenue >= 500000) breakdown.revenueExposure = 7;
         else if (revenue >= 100000) breakdown.revenueExposure = 4;
         else if (revenue > 0) breakdown.revenueExposure = 2;
 
-        const totalScore = breakdown.supplierPerformance + breakdown.delaySeverity + breakdown.affectedScope + breakdown.revenueExposure;
+        const totalScore = breakdown.supplierPerformance + breakdown.delaySeverity + breakdown.materialCriticality + breakdown.affectedScope + breakdown.revenueExposure;
         const riskPercentage = Math.round((totalScore / maxPossibleScore) * 100);
         let riskLevel = riskPercentage >= 70 ? 'HIGH' : riskPercentage >= 40 ? 'MEDIUM' : 'LOW';
         return { totalScore, maxPossibleScore, riskPercentage, riskLevel, breakdown };
     }
 
-    /** Build risk drivers from S4R data and supplier OTIF (enhanced) */
-    function buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData = null) {
+    /** Build risk drivers from S4R data, supplier OTIF, and material stock data (enhanced) */
+    function buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData = null, materialStockData = null) {
         const drivers = [];
         
-        // 1. SUPPLIER OTIF DRIVERS (NEW)
+        // 1. SUPPLIER OTIF DRIVERS
         if (supplierOtifData?.success && supplierOtifData.otifPercentage !== null) {
             const otif = supplierOtifData.otifPercentage;
             if (otif < 50) {
@@ -2061,17 +2237,33 @@ module.exports = cds.service.impl(async function () {
         else if (delayDays >= 8) drivers.push(`Moderate delay of ${delayDays} days (1-2 weeks)`);
         else if (delayDays >= 1) drivers.push(`Minor delay of ${delayDays} days`);
 
-        // 3. REVENUE EXPOSURE DRIVERS
+        // 3. MATERIAL CRITICALITY DRIVERS (NEW - based on stock vs safety stock)
+        if (materialStockData?.success) {
+            if (materialStockData.isCritical) {
+                drivers.push(`CRITICAL: Unrestricted stock (${materialStockData.unrestrictedStock}) below safety stock (${materialStockData.safetyStock})`);
+            } else if (materialStockData.stockCoverageRatio !== null) {
+                const coverage = parseFloat(materialStockData.stockCoverageRatio);
+                if (coverage < 120) {
+                    drivers.push(`Material stock at ${coverage}% of safety stock - near critical level`);
+                } else if (coverage < 150) {
+                    drivers.push(`Material stock at ${coverage}% of safety stock - moderate coverage`);
+                }
+            }
+        } else if (s4rData.materialCriticality === 'CRITICAL') {
+            drivers.push('Material is marked as CRITICAL for production');
+        }
+
+        // 4. REVENUE EXPOSURE DRIVERS
         const revenue = s4rData.estimatedRevenueImpact || 0;
         if (revenue >= 1000000) drivers.push(`High revenue exposure: ${(revenue/100000).toFixed(1)}L at risk`);
         else if (revenue >= 500000) drivers.push(`Significant revenue exposure: ${(revenue/100000).toFixed(1)}L at risk`);
 
-        // 4. AFFECTED SCOPE DRIVERS
+        // 5. AFFECTED SCOPE DRIVERS
         const plantCount = (s4rData.affectedPlants || []).length;
         if (plantCount >= 4) drivers.push(`Disruption affects ${plantCount} plants (widespread impact)`);
         else if (plantCount >= 2) drivers.push(`Disruption affects ${plantCount} plants`);
 
-        // 5. PO-SPECIFIC DELIVERY DRIVERS
+        // 6. PO-SPECIFIC DELIVERY DRIVERS
         if (s4rData.otifForThisPO === 0) drivers.push(`OTIF for this PO: 0% (${s4rData.otifReason})`);
         if (s4rData.deliveryStatus === 'OVERDUE') drivers.push('Delivery is overdue - no goods receipt yet');
         else if (s4rData.deliveryStatus === 'PARTIALLY_DELIVERED') drivers.push(`Partial delivery: ${s4rData.deliveryCompletion}% complete`);
@@ -2079,10 +2271,11 @@ module.exports = cds.service.impl(async function () {
         return drivers;
     }
 
-    /** Build the complete S4R output response (enhanced with supplier OTIF) */
-    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData = null) {
+    /** Build the complete S4R output response (enhanced with supplier OTIF and material stock data) */
+    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData = null, materialStockData = null) {
         // Calculate derived supplier metrics from OTIF data
         const hasOtifData = supplierOtifData?.success && supplierOtifData.otifPercentage !== null;
+        const hasStockData = materialStockData?.success;
         
         // Calculate previousDelays from OTIF data
         const previousDelays = hasOtifData
@@ -2115,15 +2308,32 @@ module.exports = cds.service.impl(async function () {
             toDate: supplierOtifData.toDate
         } : null;
         
+        // Determine material criticality - use computed value if stock data available
+        const materialCriticality = hasStockData && materialStockData.isCritical 
+            ? 'CRITICAL' 
+            : (s4rData.materialCriticality || null);
+        
         // Determine unavailable fields based on what data we have
-        const unavailableFields = hasOtifData
-            ? ['materialCriticality', 'affectedSkus']
-            : ['supplierOtif', 'supplierTrend', 'previousDelays', 'materialCriticality', 'affectedSkus'];
+        const unavailableFields = [];
+        if (!hasOtifData) {
+            unavailableFields.push('supplierOtif', 'supplierTrend', 'previousDelays');
+        }
+        if (!hasStockData) {
+            unavailableFields.push('unrestrictedStock', 'safetyStock', 'stockCoverageRatio');
+        }
+        unavailableFields.push('affectedSkus'); // Always unavailable from S4R
         
         // Build scoring note
-        const scoringNote = hasOtifData
-            ? 'Score includes supplier historical OTIF performance from last 6 months. Material criticality not available.'
-            : 'Score based on available S4R data only. Supplier performance and material criticality not available.';
+        let scoringNote = '';
+        if (hasOtifData && hasStockData) {
+            scoringNote = 'Score includes supplier historical OTIF and material stock criticality.';
+        } else if (hasOtifData) {
+            scoringNote = 'Score includes supplier historical OTIF. Material stock data not available.';
+        } else if (hasStockData) {
+            scoringNote = 'Score includes material stock criticality. Supplier OTIF not available.';
+        } else {
+            scoringNote = 'Score based on available S4R data only. Supplier OTIF and material stock not available.';
+        }
         
         return {
             success: true, agent: 'EARLY_WARNING', caseId, caseIdGenerated, status: 'COMPLETED',
@@ -2132,7 +2342,7 @@ module.exports = cds.service.impl(async function () {
             scoreBreakdown: {
                 supplierPerformance: scoreResult.breakdown.supplierPerformance || null,
                 delaySeverity: scoreResult.breakdown.delaySeverity,
-                materialCriticality: null,
+                materialCriticality: scoreResult.breakdown.materialCriticality || null,
                 affectedScope: scoreResult.breakdown.affectedScope,
                 revenueExposure: scoreResult.breakdown.revenueExposure,
                 total: scoreResult.totalScore
@@ -2143,7 +2353,14 @@ module.exports = cds.service.impl(async function () {
             supplierTrend,
             previousDelays,
             supplierOtifData: supplierOtifDataOutput,
-            materialId: s4rData.materialId, materialDescription: s4rData.materialDescription, materialCriticality: null,
+            materialId: s4rData.materialId, materialDescription: s4rData.materialDescription, 
+            materialCriticality,
+            // NEW: Material stock data fields for criticality calculation
+            unrestrictedStock: hasStockData ? materialStockData.unrestrictedStock : null,
+            safetyStock: hasStockData ? materialStockData.safetyStock : null,
+            stockCoverageRatio: hasStockData ? materialStockData.stockCoverageRatio : null,
+            criticalityReason: hasStockData ? materialStockData.criticalityReason : null,
+            stockUnit: hasStockData ? materialStockData.unit : null,
             poNumber: s4rData.poNumber, orderDate: s4rData.orderDate, currency: s4rData.currency, poNetAmount: s4rData.poNetAmount,
             expectedDeliveryDate: s4rData.expectedDeliveryDate, actualDeliveryDate: s4rData.actualDeliveryDate,
             delayDays: s4rData.delayDays, deliveryStatus: s4rData.deliveryStatus,
@@ -2153,7 +2370,11 @@ module.exports = cds.service.impl(async function () {
             affectedPlants: s4rData.affectedPlants, affectedPlantsCount: s4rData.affectedPlants.length, affectedSkus: null,
             estimatedRevenueImpact: s4rData.estimatedRevenueImpact, topRiskDrivers,
             dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
-            availableData: s4rData.dataAvailability,
+            availableData: {
+                ...(s4rData.dataAvailability || {}),
+                stockApi: hasStockData ? materialStockData.dataAvailability?.stockApi : false,
+                safetyStockApi: hasStockData ? materialStockData.dataAvailability?.safetyStockApi : false
+            },
             unavailableFields,
             error: null
         };

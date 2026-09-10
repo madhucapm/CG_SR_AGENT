@@ -884,6 +884,13 @@ service SupplierResilienceService {
         materialDescription     : String;
         materialCriticality     : String;
         
+        // NEW: Material Stock Data for Criticality Calculation
+        unrestrictedStock       : Decimal;
+        safetyStock             : Decimal;
+        stockCoverageRatio      : String;
+        criticalityReason       : String;
+        stockUnit               : String;
+        
         // PO Header Data
         poNumber                : String;
         orderDate               : String;

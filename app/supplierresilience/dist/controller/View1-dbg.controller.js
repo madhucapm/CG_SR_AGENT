@@ -1633,7 +1633,7 @@ sap.ui.define([
             // Python agent directly. CAP fans out Get_supplier → Python
             // /analyze → GET_SupplierDetails in a single round-trip.
             var sServiceUrl = this._getServiceUrl();
-            var nRadius = 500;
+            var nRadius = 2000;
             var sUrl = sServiceUrl +
                 "analyzeImpact(" +
                 "location='"           + encodeURIComponent(sLocation)          + "'," +
@@ -1728,7 +1728,12 @@ sap.ui.define([
                         suppliers: oScope.supplierCount,
                         pos:       oScope.poCount,
                         plants:    oScope.plantCount,
-                        materials: oScope.materialCount
+                        materials: oScope.materialCount,
+                        // Hover tooltips for IMPACT METRICS (same style as news feed)
+                        supplierTooltip: that._buildSupplierTooltip(oScope),
+                        poTooltip:       that._buildPoTooltip(oScope),
+                        plantTooltip:    that._buildPlantTooltip(oScope),
+                        materialTooltip: that._buildMaterialTooltip(oScope)
                     });
 
                     // Populate the classified disruption type shown in the

@@ -2,14 +2,16 @@
  * Get Supplier Handler
  * 
  * Handler for Get_supplier CAP function.
- * Fetches all suppliers from S/4HANA via API_BUSINESS_PARTNER, then retrieves
- * their addresses and returns a flat array of { Supplier, SupplierName, Address } objects.
+ * Fetches all suppliers from S/4HANA via API_BUSINESS_PARTNER, resolves
+ * their Business Partner IDs, then retrieves their addresses and returns
+ * a flat array of { Supplier, SupplierName, Address } objects.
  * 
  * Steps:
- * 1. Fetch all suppliers from A_Supplier
- * 2. For each supplier, fetch addresses from A_BusinessPartnerAddress
- * 3. Combine AddressID, CityName, Country, Region into a single Address string
- * 4. Return array with one entry per supplier-address combination
+ * 1. Fetch A_Supplier and A_BusinessPartner in parallel (single call each)
+ * 2. Build Supplier → BP lookup map from the parallel results
+ * 3. For each resolved BP, fetch addresses from A_BusinessPartnerAddress
+ * 4. Combine AddressID, CityName, Country, Region into a single Address string
+ * 5. Return array with one entry per supplier-address combination
  */
 
 'use strict';
@@ -33,12 +35,26 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
 
     try {
         // ─────────────────────────────────────────────────────────────────────
-        // STEP 1: Fetch all suppliers from A_Supplier
+        // STEP 1: Fetch A_Supplier and A_BusinessPartner in PARALLEL.
+        // Both are independent single GET calls — running them concurrently
+        // saves ~1-2 seconds versus the previous serial execution.
         // ─────────────────────────────────────────────────────────────────────
         const supplierUrl = `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_Supplier?$select=Supplier,SupplierName&$format=json`;
+        const bpUrl =
+            `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner` +
+            `?$filter=Supplier ne ''` +
+            `&$select=BusinessPartner,Supplier,BusinessPartnerFullName` +
+            `&$format=json`;
 
-        logger.info('Fetching suppliers from A_Supplier');
-        const supplierResp = await executeHttpRequest(destination, { ...opts, url: supplierUrl });
+        logger.info('Fetching A_Supplier and A_BusinessPartner in parallel');
+        const [supplierResp, bpResp] = await Promise.all([
+            executeHttpRequest(destination, { ...opts, url: supplierUrl }),
+            executeHttpRequest(destination, { ...opts, url: bpUrl })
+                .catch(bpErr => {
+                    logger.warn(`Bulk BP resolution failed: ${bpErr?.message || bpErr}. Falling back to Supplier IDs as BP IDs`);
+                    return null; // graceful fallback — will use Supplier IDs
+                })
+        ]);
 
         const supplierData = supplierResp?.data?.d?.results
             || supplierResp?.data?.value
@@ -55,12 +71,42 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
         supplierData.forEach(s => {
             supplierNameMap[s.Supplier] = s.SupplierName || '';
         });
-        logger.info(`Found ${supplierIds.length} supplier(s). Fetching addresses...`);
+        logger.info(`Found ${supplierIds.length} supplier(s)`);
 
         // ─────────────────────────────────────────────────────────────────────
-        // STEP 2 & 3: For each supplier, fetch addresses from
-        // A_BusinessPartnerAddress (the Supplier ID is the BusinessPartner key)
-        // Process in batches of 10 to avoid overloading the backend
+        // STEP 2: Build the Supplier → Business Partner lookup map from the
+        // parallel BP response. The Supplier ID and Business Partner ID are
+        // not always the same in S/4HANA.
+        // ─────────────────────────────────────────────────────────────────────
+        const supplierToBpMap = {}; // Supplier ID → Business Partner ID
+
+        if (bpResp) {
+            const bpData = bpResp?.data?.d?.results
+                || bpResp?.data?.value
+                || [];
+
+            bpData.forEach(bp => {
+                if (bp.Supplier && bp.BusinessPartner) {
+                    supplierToBpMap[bp.Supplier] = bp.BusinessPartner;
+                }
+            });
+
+            logger.info(`Bulk BP fetch returned ${bpData.length} record(s), mapped ${Object.keys(supplierToBpMap).length} supplier(s) to BP IDs`);
+        }
+
+        // For any supplier not found in the bulk response, fall back to using the Supplier ID itself
+        supplierIds.forEach(supplierId => {
+            if (!supplierToBpMap[supplierId]) {
+                supplierToBpMap[supplierId] = supplierId;
+            }
+        });
+
+        logger.info(`Resolved ${Object.keys(supplierToBpMap).length} Business Partner ID(s). Fetching addresses...`);
+
+        // ─────────────────────────────────────────────────────────────────────
+        // STEP 3 & 4: For each supplier, fetch addresses from
+        // A_BusinessPartnerAddress using the resolved Business Partner ID.
+        // Process in batches of 10 to avoid overloading the backend.
         // ─────────────────────────────────────────────────────────────────────
         const BATCH_SIZE = 10;
         const results = [];
@@ -70,9 +116,10 @@ async function handleGetSupplier(executeHttpRequest, logger, req) {
 
             const batchPromises = batch.map(async (supplierId) => {
                 try {
+                    const bpId = supplierToBpMap[supplierId] || supplierId;
                     const addressUrl =
                         `/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartnerAddress` +
-                        `?$filter=BusinessPartner eq '${encodeURIComponent(supplierId)}'` +
+                        `?$filter=BusinessPartner eq '${encodeURIComponent(bpId)}'` +
                         `&$select=AddressID,CityName,Country,Region` +
                         `&$format=json`;
 

@@ -12,10 +12,14 @@
  *           supplier_resilience_agent    Python geo-agent (which now
  *           destination                  requires this list; there is no
  *                                        fallback in the Python service)
- *   Step 3: GET_SupplierDetails(id)    → for each affected supplier, fetch
- *                                        POs + items from
- *                                        API_PURCHASEORDER_PROCESS_SRV
- *                                        in parallel via Promise.all
+ *   Step 3a: PO-number prefetch        → lightweight parallel fetch of PO
+ *                                        numbers per affected supplier
+ *   Step 3b (parallel):
+ *     - GET_SupplierDetails(id)        → full enrichment (PO items +
+ *                                        material descriptions)
+ *     - runEarlyWarningWithS4R         → risk scoring (PO header, items,
+ *                                        schedule lines, OTIF) — runs
+ *                                        concurrently with enrichment
  *
  * Step 3 failures per supplier are captured but do NOT sink the batch;
  * step 2 empty-supplier / bad-request errors are surfaced verbatim with
@@ -309,114 +313,90 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
         const affected = geoResponse.affected_suppliers;
         logger.info(`analyzeImpact: /analyze returned ${affected.length} affected supplier(s)`);
 
-        // ─── Step 3: enrich each affected supplier with S/4HANA PO data ──
-        // Parallel fan-out. Per-supplier failure is captured in
-        // enrichSupplierWithPOs, so a bad supplier never sinks the batch.
-        const enriched = await Promise.all(
+        // ─── Steps 3 + 4 PARALLEL: enrich suppliers AND risk-score ───────
+        //
+        // Previously Steps 3 and 4 ran serially. Now we pre-fetch PO
+        // numbers (lightweight) so both steps can run concurrently:
+        //   3a. Quick parallel PO-number fetch per affected supplier
+        //   3b. Run Step 3 (full enrichment) + Step 4 (risk scoring)
+        //       concurrently via Promise.all — saves ~3-5 seconds.
+        // ─────────────────────────────────────────────────────────────────
+
+        // 3a. Quick PO-number fetch per affected supplier (parallel)
+        const destination = { destinationName: 'S4R' };
+        const httpOpts = { method: 'GET', headers: { Accept: 'application/json' } };
+
+        await Promise.all(affected.map(async (s) => {
+            try {
+                const poListUrl =
+                    `/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV/A_PurchaseOrder` +
+                    `?$filter=Supplier eq '${encodeURIComponent(s.supplier_id)}'` +
+                    `&$select=PurchaseOrder&$format=json`;
+                const resp = await executeHttpRequest(destination, { ...httpOpts, url: poListUrl });
+                s._poNumbers = (resp?.data?.d?.results || resp?.data?.value || [])
+                    .map(po => po.PurchaseOrder);
+            } catch (err) {
+                logger.warn(`analyzeImpact: PO-number prefetch failed for '${s.supplier_id}': ${extractErrorDetail(err)}`);
+                s._poNumbers = [];
+            }
+        }));
+
+        const allPOs = [];
+        for (const s of affected) {
+            for (const poNum of (s._poNumbers || [])) { if (poNum) allPOs.push(poNum); }
+        }
+        logger.info(`analyzeImpact: PO-number prefetch found ${allPOs.length} PO(s) across ${affected.length} supplier(s)`);
+
+        // 3b. Run Step 3 + Step 4 in PARALLEL
+        const step3Promise = Promise.all(
             affected.map((s) => enrichSupplierWithPOs(executeHttpRequest, logger, s))
         );
+        const step4Promise = (async () => {
+            if (allPOs.length === 0) return null;
+            try {
+                logger.info(`analyzeImpact: Step 4 calling runEarlyWarningWithS4R with ${allPOs.length} PO(s)`);
+                const cds = require('@sap/cds');
+                const srv = cds.services.SupplierResilienceService
+                         || await cds.connect.to('SupplierResilienceService');
+                return await srv.send('runEarlyWarningWithS4R', { poList: allPOs });
+            } catch (err) {
+                logger.warn('analyzeImpact: Step 4 (risk scoring) failed: ' + extractErrorDetail(err));
+                return null;
+            }
+        })();
 
-        // ─── Step 4: risk scoring via runEarlyWarningWithS4R ─────────────
-        // Delegate the actual scoring to the existing CAP action so risk
-        // logic stays in one place (calculateS4RRiskScore lives inside
-        // service.js, closes over service-local helpers). We fan out ONE
-        // multi-mode call for all affected suppliers' POs and then map
-        // each returned supplier back onto our `enriched[]` list.
-        //
-        // TECH DEBT: We invoke another action via srv.send() here for
-        // delivery speed. Long-term consider extracting the multi-mode
-        // handler into `srv/lib/` so it can be called as a plain function
-        // (matches the pattern used by this handler, create-impact-case,
-        // get-case-hierarchy, etc.).
+        const [enriched, ew] = await Promise.all([step3Promise, step4Promise]);
+
+        // ─── Merge Step 4 risk results onto enriched suppliers ────────────
         let aggRiskScore        = null;
         let aggMaxPossibleScore = null;
         let aggRiskPercentage   = null;
         let aggRiskLevel        = null;
 
-        try {
-            // 4a. Flatten every PO from every affected supplier
-            const allPOs = [];
-            for (const s of enriched) {
-                for (const po of (s.purchase_orders || [])) {
-                    if (po.po_number) allPOs.push(po.po_number);
-                }
+        if (ew && Array.isArray(ew.suppliers) && ew.suppliers.length > 0) {
+            // Index the response by normalized supplierId
+            const bySupplier = {};
+            for (const s of ew.suppliers) {
+                bySupplier[normalizeSupplierId(s.supplierId)] = s;
             }
 
-            if (allPOs.length > 0) {
-                logger.info(
-                    `analyzeImpact: Step 4 calling runEarlyWarningWithS4R with ` +
-                    `${allPOs.length} PO(s) across ${enriched.length} supplier(s)`
-                );
-
-                // 4b. Single MULTI-MODE call. Prefer the already-loaded
-                // service singleton (zero-overhead); fall back to
-                // cds.connect.to for cold-start / test scenarios.
-                const cds = require('@sap/cds');
-                const srv = cds.services.SupplierResilienceService
-                         || await cds.connect.to('SupplierResilienceService');
-
-                const ew = await srv.send('runEarlyWarningWithS4R', { poList: allPOs });
-
-                // 4c. Index the response by normalized supplierId
-                const bySupplier = {};
-                for (const s of ((ew && ew.suppliers) || [])) {
-                    bySupplier[normalizeSupplierId(s.supplierId)] = s;
-                }
-
-                // 4d. Attach the 4 risk fields + estimated_impact per
-                //     supplier; track worst by riskPercentage to build the
-                //     top-level aggregate.
-                //
-                //     estimated_impact is the SUM of PO net amounts for
-                //     that supplier (rs.totalRevenueExposure, already
-                //     summed by runEarlyWarningWithS4R). Currency follows
-                //     the PO's own DocumentCurrency; no FX conversion.
-                let matched = 0;
-                let worst   = null;
-                for (const s of enriched) {
-                    const rs = bySupplier[normalizeSupplierId(s.supplier_id)];
-                    if (rs) {
-                        s.risk_score         = (rs.riskScore        !== undefined && rs.riskScore        !== null) ? rs.riskScore        : null;
-                        s.max_possible_score = (rs.maxPossibleScore !== undefined && rs.maxPossibleScore !== null) ? rs.maxPossibleScore : null;
-                        s.risk_percentage    = (rs.riskPercentage   !== undefined && rs.riskPercentage   !== null) ? rs.riskPercentage   : null;
-                        s.risk_level         = rs.riskLevel || null;
-                        s.estimated_impact   = (typeof rs.totalRevenueExposure === 'number')
-                                              ? rs.totalRevenueExposure
-                                              : null;
-                        matched++;
-
-                        if (typeof s.risk_percentage === 'number' &&
-                            (!worst || s.risk_percentage > worst.risk_percentage)) {
-                            worst = s;
-                        }
-                    } else {
-                        s.risk_score         = null;
-                        s.max_possible_score = null;
-                        s.risk_percentage    = null;
-                        s.risk_level         = null;
-                        s.estimated_impact   = null;
+            // Attach risk fields + estimated_impact per supplier;
+            // track worst by riskPercentage for aggregate KPIs.
+            let matched = 0;
+            let worst   = null;
+            for (const s of enriched) {
+                const rs = bySupplier[normalizeSupplierId(s.supplier_id)];
+                if (rs) {
+                    s.risk_score         = (rs.riskScore        !== undefined && rs.riskScore        !== null) ? rs.riskScore         : null;
+                    s.max_possible_score = (rs.maxPossibleScore !== undefined && rs.maxPossibleScore !== null) ? rs.maxPossibleScore  : null;
+                    s.risk_percentage    = (rs.riskPercentage   !== undefined && rs.riskPercentage   !== null) ? rs.riskPercentage    : null;
+                    s.risk_level         = rs.riskLevel         || null;
+                    s.estimated_impact   = (rs.totalRevenueExposure !== undefined && rs.totalRevenueExposure !== null) ? rs.totalRevenueExposure : null;
+                    matched++;
+                    if (s.risk_percentage !== null && (!worst || s.risk_percentage > worst.risk_percentage)) {
+                        worst = s;
                     }
-                }
-                logger.info(
-                    `analyzeImpact: risk-score matched ${matched}/${enriched.length} supplier(s)`
-                );
-
-                // 4e. Top-level KPIs come from the "worst" supplier
-                //     (highest riskPercentage) — matches the "HIGHEST RISK"
-                //     tile semantics in the UI.
-                if (worst) {
-                    aggRiskScore        = worst.risk_score;
-                    aggMaxPossibleScore = worst.max_possible_score;
-                    aggRiskPercentage   = worst.risk_percentage;
-                    aggRiskLevel        = worst.risk_level;
-                }
-            } else {
-                logger.info(
-                    'analyzeImpact: Step 4 skipped — no POs on any affected supplier'
-                );
-                // Still initialize the per-supplier fields to null so the
-                // response shape is stable.
-                for (const s of enriched) {
+                } else {
                     s.risk_score         = null;
                     s.max_possible_score = null;
                     s.risk_percentage    = null;
@@ -424,14 +404,22 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
                     s.estimated_impact   = null;
                 }
             }
-        } catch (err) {
-            logger.warn(
-                'analyzeImpact: Step 4 (risk scoring) failed, returning null KPIs: ' +
-                extractErrorDetail(err)
+            logger.info(
+                `analyzeImpact: risk-score matched ${matched}/${enriched.length} supplier(s)`
             );
-            // Keep response usable: initialize any missing risk fields to
-            // null so callers see the same shape whether Step 4 succeeded
-            // or not.
+
+            // Top-level KPIs from the "worst" supplier (highest riskPercentage)
+            if (worst) {
+                aggRiskScore        = worst.risk_score;
+                aggMaxPossibleScore = worst.max_possible_score;
+                aggRiskPercentage   = worst.risk_percentage;
+                aggRiskLevel        = worst.risk_level;
+            }
+        } else {
+            // No risk data — initialize per-supplier fields to null
+            if (allPOs.length === 0) {
+                logger.info('analyzeImpact: Step 4 skipped — no POs on any affected supplier');
+            }
             for (const s of enriched) {
                 if (s.risk_score         === undefined) s.risk_score         = null;
                 if (s.max_possible_score === undefined) s.max_possible_score = null;

@@ -68,19 +68,23 @@
             <HBox class="sapUiSmallMarginBottom">
                 <VBox class="sapUiSmallMarginEnd">
                     <Label text="Suppliers" />
-                    <ObjectNumber number="{disruptions>/earlyWarningOutput/suppliers}" state="Error" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/suppliers}" state="Error"
+                                  tooltip="{disruptions>/earlyWarningOutput/supplierTooltip}" />
                 </VBox>
                 <VBox class="sapUiSmallMarginEnd">
                     <Label text="POs" />
-                    <ObjectNumber number="{disruptions>/earlyWarningOutput/pos}" state="Warning" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/pos}" state="Warning"
+                                  tooltip="{disruptions>/earlyWarningOutput/poTooltip}" />
                 </VBox>
                 <VBox class="sapUiSmallMarginEnd">
                     <Label text="Plants" />
-                    <ObjectNumber number="{disruptions>/earlyWarningOutput/plants}" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/plants}"
+                                  tooltip="{disruptions>/earlyWarningOutput/plantTooltip}" />
                 </VBox>
                 <VBox>
                     <Label text="Materials" />
-                    <ObjectNumber number="{disruptions>/earlyWarningOutput/materials}" />
+                    <ObjectNumber number="{disruptions>/earlyWarningOutput/materials}"
+                                  tooltip="{disruptions>/earlyWarningOutput/materialTooltip}" />
                 </VBox>
             </HBox>
 

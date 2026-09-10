@@ -50,6 +50,7 @@
       "destination": "SupplierResilience-srv-api",
       "authenticationType": "xsuaa",
       "csrfProtection": false
+     
     },
     {
       "source": "^/resources/(.*)$",

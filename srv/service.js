@@ -1322,6 +1322,22 @@ module.exports = cds.service.impl(async function () {
     this.on('GET_SupplierDetails', require('./lib/get-supplier-details-handler').bind(this, executeHttpRequest, logger));
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // GET ALT SOURCE DATA — Scenario & Recommendation Agent data-fetch tool
+    //
+    // Returns approved alternate suppliers for (material, plant) from the real
+    // SAP Source List (API_PURCHASING_SOURCE_SRV / A_PurchasingSource — same
+    // data as SAP tx ME03), enriched with unit price + planned lead-time from
+    // API_INFORECORD_PROCESS_SRV, and HIGH/MEDIUM/LOW historicalReliability
+    // derived from the existing supplier OTIF handler.
+    //
+    // Consumed by the SCN agent's Alt Source lever (Dev Spec v1.5 §5B.4).
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('getAltSourceData', async (req) => {
+        const altSourceHandler = require('./lib/alt-source-data-handler');
+        return await altSourceHandler(executeHttpRequest, getCurrentTimestamp, logger, req);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // ANALYZE IMPACT - Enriched Disruption Analysis (Path B orchestrator)
     //
     // Orchestrates:

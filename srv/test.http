@@ -768,5 +768,75 @@ Content-Type: application/json
 ###
 
 ### ═══════════════════════════════════════════════════════════════════════════════
+### SCENARIO & RECOMMENDATION AGENT — DATA-FETCH TOOLS
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### The function uses TWO S/4HANA APIs:
+###   1. API_PURCHASING_SOURCE_SRV / A_PurchasingSource     (real Source List — ME03)
+###   2. API_INFORECORD_PROCESS_SRV / A_PurgInfoRecdOrgPlantData  (pricing + lead time)
+###
+### NOTE (OData v4 URL syntax): arrays must be passed via parameter alias.
+### The array is JSON-encoded and passed as ?@alias=[...] in the query string.
+### %22 is URL-encoded double-quote (used inside the JSON array).
+
+### ------------------------------------------
+### getAltSourceData — HEADLINE test case (matches ME03 screenshot)
+###
+### Material '1122', Plant 'DE01'
+### Source List (per ME03) has 2 approved suppliers:
+###   - Record 1: Supplier 100075
+###   - Record 2: Supplier 100080
+### Both are within validity window and NOT blocked.
+###
+### Expected candidateSuppliers array: 100075, 100080
+### (unitPrice / leadTimeDays may be null if no info records exist)
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='1122',plant='DE01',excludedSuppliers=@excluded)?@excluded=[]
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### getAltSourceData — same material/plant, excluding the disrupted supplier
+###
+### Simulates: supplier 100075 is disrupted; find alternates.
+### Expected: only 100080 in candidateSuppliers.
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='1122',plant='DE01',excludedSuppliers=@excluded)?@excluded=[%22100075%22]
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### getAltSourceData — material 'RM001' at plant 'DE01'
+### Source List has 1 record: Supplier 100075 (valid 2026 — 2026).
+### Expected: candidateSuppliers = [ { supplier: '100075', ... } ]
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='RM001',plant='DE01',excludedSuppliers=@excluded)?@excluded=[]
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### getAltSourceData — material '4' at plant 'DC01' (validity test — expired entries)
+### Source List has records but they may have expired (validity end 2020).
+### Kept here to verify the validity filter works.
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='4',plant='DC01',excludedSuppliers=@excluded)?@excluded=[]
+Content-Type: application/json
+
+###
+
+### ------------------------------------------
+### getAltSourceData — material '51' at plant 'ST01'
+### Source List has 1 record: Supplier PCS-V331 (valid 2019 — 2030+).
+### Expected: candidateSuppliers = [ { supplier: 'PCS-V331', ... } ]
+### ------------------------------------------
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='51',plant='ST01',excludedSuppliers=@excluded)?@excluded=[]
+Content-Type: application/json
+
+###
+
+### ═══════════════════════════════════════════════════════════════════════════════
 ### END OF TEST SUITE
 ### ═══════════════════════════════════════════════════════════════════════════════

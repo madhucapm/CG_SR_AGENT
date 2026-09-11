@@ -1422,4 +1422,59 @@ service SupplierResilienceService {
             };
         };
     };
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SCENARIO & RECOMMENDATION AGENT — DATA-FETCH TOOLS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get Alternate Source Data
+     *
+     * One of the 5 data-fetch tools consumed by the Scenario & Recommendation
+     * Agent (SCN) per Dev Spec v1.5 §5B.4.
+     *
+     * Returns the list of APPROVED alternate suppliers for a given
+     * (material, plant), enriched with unit price, planned lead time in
+     * days, and a HIGH / MEDIUM / LOW historical reliability bucket
+     * derived from the supplier's OTIF track record.
+     *
+     * This is a RAW data pipe — no ranking, scoring, or cost math is
+     * performed here.  The downstream LLM in the SCN agent consumes this
+     * payload and produces the mitigation recommendation.
+     *
+     * S/4HANA APIs consumed:
+     *   1. API_PURCHASING_SOURCE_SRV / A_PurchasingSource  [PRIMARY]
+     *        Real Source List (SAP tx ME03) — the authoritative list of
+     *        approved suppliers per (material, plant).
+     *   2. API_INFORECORD_PROCESS_SRV / A_PurgInfoRecdOrgPlantData
+     *        Provides unit price + planned delivery duration per supplier.
+     *
+     * @param material          - Affected material code (e.g. "1122")
+     * @param plant             - Target plant code (e.g. "DE01")
+     * @param excludedSuppliers - Suppliers to exclude (typically the disrupted one)
+     *
+     * @returns Raw candidate-supplier list for LLM consumption
+     */
+    function getAltSourceData(
+        material            : String,
+        plant               : String,
+        excludedSuppliers   : array of String
+    ) returns {
+        success             : Boolean;
+        toolName            : String;
+        material            : String;
+        plant               : String;
+        excludedSuppliers   : array of String;
+        candidateSuppliers  : array of {
+            supplier                : String;
+            unitPrice               : Decimal;
+            leadTimeDays            : Integer;
+            historicalReliability   : String;   // HIGH / MEDIUM / LOW / UNKNOWN
+        };
+        sourcedFromApis     : array of String;
+        dataSource          : String;
+        calculatedAt        : String;
+        error               : String;
+    };
 }

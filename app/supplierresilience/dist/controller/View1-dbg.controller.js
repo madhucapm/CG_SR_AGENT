@@ -84,10 +84,11 @@ sap.ui.define([
             var oAgentDisruptionsModel = new JSONModel({
                 selectedCaseId: "",
                 caseData: null,
+                suppliers: [],
                 agents: {
-                    survivalPlanner: { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
-                    substitution:    { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
-                    buyer:           { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" }
+                    survivalPlanner:  { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
+                    buyer:            { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
+                    recommendation:   { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" }
                 }
             });
             this.getView().setModel(oAgentDisruptionsModel, "agentDisruptions");
@@ -224,6 +225,25 @@ sap.ui.define([
                 ]
             });
             this.getView().setModel(oSurvivalPlanningModel, "survivalPlanning");
+
+            // Recommendation Result JSON model — populated when the user
+            // runs the Recommendation Agent. Drives the Recommendations
+            // navigation view with real data from the Python agent endpoint.
+            var oRecommendationResultModel = new JSONModel({
+                busy: false,
+                hasResult: false,
+                caseId: null,
+                incidentId: null,
+                topRecommendation: null,
+                rankedOptionList: [],
+                weightMatrix: null,
+                portfolioHeadlineTts: null,
+                gapMagnitudeWeeks: null,
+                agentId: null,
+                timestamp: null,
+                aiNarrative: null
+            });
+            this.getView().setModel(oRecommendationResultModel, "recommendationResult");
 
             // User model powering the News Feed hero header greeting.
             // The "user" model is set at the Component level (Component.js)
@@ -834,14 +854,43 @@ sap.ui.define([
             }, 800);
         },
 
-        /** Run Substitution Agent — enable Disruptions and navigate. */
-        onRunSubstitutionAgent: function () {
-            this._enableDisruptionsAndNavigate("Substitution");
-        },
-
         /** Run Buyer Agent — enable Disruptions and navigate. */
         onRunBuyerAgent: function () {
             this._enableDisruptionsAndNavigate("Buyer");
+        },
+
+        /**
+         * Run Recommendation Agent from the Case Dashboard.
+         * Navigates to the Disruptions screen and auto-triggers the
+         * Recommendation agent once the case data has loaded.
+         * The result populates both the Disruptions agent card AND
+         * the Recommendations navigation tab.
+         */
+        onRunRecommendationAgent: function () {
+            var that = this;
+            var oView = this.getView();
+            var oDashboard = oView.getModel("dashboard");
+            var sCaseId = oDashboard ? oDashboard.getProperty("/selectedCaseId") : "";
+            if (!sCaseId) {
+                MessageToast.show("No case selected. Please select a case first.");
+                return;
+            }
+            // Navigate to Disruptions first — this loads case data + resets agent cards
+            this._enableDisruptionsAndNavigate("Recommendation");
+
+            // Auto-trigger the Recommendation agent run after a short delay
+            // to allow the Disruptions case data to load and populate the model.
+            setTimeout(function () {
+                var oAdModel = oView.getModel("agentDisruptions");
+                if (oAdModel && oAdModel.getProperty("/caseData")) {
+                    that._runDisruptionAgent("recommendation");
+                } else {
+                    // Case data hasn't loaded yet — retry once more
+                    setTimeout(function () {
+                        that._runDisruptionAgent("recommendation");
+                    }, 1500);
+                }
+            }, 800);
         },
 
         /** Run All Agents — enable Disruptions and navigate. */
@@ -1148,8 +1197,10 @@ sap.ui.define([
             }).then(function (oData) {
                 if (oData && oData.success !== false) {
                     oAdModel.setProperty("/caseData", oData.caseData || null);
+                    oAdModel.setProperty("/suppliers", Array.isArray(oData.suppliers) ? oData.suppliers : []);
                 } else {
                     oAdModel.setProperty("/caseData", null);
+                    oAdModel.setProperty("/suppliers", []);
                 }
             }).catch(function (oErr) {
                 console.error("[AgentDisruptions] Load case failed:", oErr);
@@ -1161,7 +1212,7 @@ sap.ui.define([
         _resetAllAgentDisruptionCards: function () {
             var oAdModel = this.getView().getModel("agentDisruptions");
             if (!oAdModel) { return; }
-            ["survivalPlanner", "substitution", "buyer"].forEach(function (sKey) {
+            ["survivalPlanner", "buyer", "recommendation"].forEach(function (sKey) {
                 oAdModel.setProperty("/agents/" + sKey, {
                     status: "notRun", busy: false, result: null, error: null,
                     formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue"
@@ -1185,8 +1236,8 @@ sap.ui.define([
 
         /** Disruptions Run handlers — thin wrappers. */
         onRunDisruptionSurvivalPlanner: function () { this._runDisruptionAgent("survivalPlanner"); },
-        onRunDisruptionSubstitution:    function () { this._runDisruptionAgent("substitution"); },
         onRunDisruptionBuyer:           function () { this._runDisruptionAgent("buyer"); },
+        onRunDisruptionRecommendation:  function () { this._runDisruptionAgent("recommendation"); },
 
         /**
          * Generic agent execution for the Disruptions screen.
@@ -1197,9 +1248,16 @@ sap.ui.define([
             var sCaseId = oAdModel.getProperty("/selectedCaseId");
             var oCaseData = oAdModel.getProperty("/caseData");
             if (!sCaseId || !oCaseData) { MessageToast.show("No case selected."); return; }
+
+            // Recommendation agent uses a different endpoint (Python agent)
+            // so delegate to a dedicated method.
+            if (sAgentKey === "recommendation") {
+                this._runRecommendationAgent();
+                return;
+            }
+
             var mCfg = {
                 survivalPlanner: { action: "runSurvival",      label: "Survival Planner", payload: { caseId: sCaseId } },
-                substitution:    { action: "runSubstitution",  label: "Substitution",     payload: { caseId: sCaseId } },
                 buyer:           { action: "runBuyer",         label: "Buyer",            payload: { caseId: sCaseId } }
             };
             var oC = mCfg[sAgentKey]; if (!oC) { return; }
@@ -1541,6 +1599,304 @@ sap.ui.define([
             return "<div class='adResponseWrap'>" + aL.join("") + "</div>";
         },
 
+        // ═══════════════════════════════════════════════════════════════
+        // RECOMMENDATION AGENT — Python endpoint integration
+        // POST /supplier-resilience-agent/recommend-scenario
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Run the Recommendation Agent by calling the Python agent
+         * endpoint /supplier-resilience-agent/recommend-scenario.
+         *
+         * Builds payload from the Survival Planner data, calls the
+         * external endpoint via the supplier_resilience_agent destination,
+         * and on success populates both the Disruptions agent card and
+         * the Recommendations navigation view.
+         */
+        _runRecommendationAgent: function () {
+            var that = this;
+            var oView = this.getView();
+            var oAdModel = oView.getModel("agentDisruptions");
+            var sCaseId = oAdModel.getProperty("/selectedCaseId");
+            var oCaseData = oAdModel.getProperty("/caseData");
+            var sP = "/agents/recommendation";
+
+            oAdModel.setProperty(sP + "/busy", true);
+            oAdModel.setProperty(sP + "/status", "running");
+            oAdModel.setProperty(sP + "/statusText", "\u23F3 Running...");
+            oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--running");
+            oAdModel.setProperty(sP + "/error", null);
+            oAdModel.setProperty(sP + "/formattedResult", "");
+            MessageToast.show("Running Recommendation Agent for " + sCaseId + "\u2026");
+
+            var oPayload = this._buildRecommendationPayload(sCaseId, oCaseData);
+
+            var oComponent = this.getOwnerComponent();
+            var sComponentName = oComponent.getManifestObject().getComponentName();
+            var sBasePath = sap.ui.require.toUrl(sComponentName.replace(/\./g, "/"));
+            var sUrl = sBasePath + "/supplier-resilience-agent/recommend-scenario";
+
+            console.log("[Recommendation] POST", sUrl, oPayload);
+
+            var oRecModel = oView.getModel("recommendationResult");
+            if (oRecModel) { oRecModel.setProperty("/busy", true); }
+
+            fetch(sUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify(oPayload)
+            }).then(function (r) {
+                if (!r.ok) {
+                    return r.text().then(function (b) {
+                        throw new Error("HTTP " + r.status + (b ? ": " + b.substring(0, 500) : ""));
+                    });
+                }
+                return r.json();
+            }).then(function (oData) {
+                console.log("[Recommendation] Response:", oData);
+                oAdModel.setProperty(sP + "/busy", false);
+                oAdModel.setProperty(sP + "/result", oData);
+                oAdModel.setProperty(sP + "/status", "completed");
+                oAdModel.setProperty(sP + "/statusText", "\u2713 Completed");
+                oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--success");
+
+                that._populateRecommendationsFromAgent(oData, sCaseId);
+
+                oAdModel.setProperty(sP + "/formattedResult",
+                    "<div class='adResponseWrap'><div class='adRespSection'>" +
+                    "<strong>Recommendation Agent \u2014 Generating AI Narrative\u2026</strong></div>" +
+                    "<div class='adRespRow'>Analyzing ranked scenarios and composing executive summary.</div></div>");
+                that._enhanceRecommendationWithLLM(oData, sP);
+
+                MessageToast.show("Recommendation Agent completed.");
+            }).catch(function (oErr) {
+                console.error("[Recommendation] Error:", oErr);
+                oAdModel.setProperty(sP + "/busy", false);
+                oAdModel.setProperty(sP + "/status", "failed");
+                oAdModel.setProperty(sP + "/statusText", "\u2715 Failed");
+                oAdModel.setProperty(sP + "/statusClass", "adAgentStatusValue adAgentStatusValue--error");
+                oAdModel.setProperty(sP + "/error", oErr.message || "Unknown error");
+                oAdModel.setProperty(sP + "/formattedResult", "");
+                if (oRecModel) { oRecModel.setProperty("/busy", false); }
+                MessageToast.show("Recommendation Agent error: " + (oErr.message || "Unknown error"));
+            });
+        },
+
+        /**
+         * Build the payload for the recommend-scenario endpoint from
+         * Survival Planner data (SVP result or survivalPlanning model).
+         *
+         * @param {string} sCaseId   - Active case ID
+         * @param {Object} oCaseData - Case data from agentDisruptions model
+         * @returns {Object} Payload for /recommend-scenario
+         */
+        _buildRecommendationPayload: function (sCaseId, oCaseData) {
+            var oView = this.getView();
+            var oAdModel = oView.getModel("agentDisruptions");
+            var oSP = oView.getModel("survivalPlanning");
+            var oSvpResult = oAdModel ? oAdModel.getProperty("/agents/survivalPlanner/result") : null;
+
+            var aRecords = [], nPortfolioTts = 2, nGapWeeks = 5;
+            var sAffectedMaterial = "", sAffectedPlant = "";
+
+            if (oSvpResult && Array.isArray(oSvpResult.records) && oSvpResult.records.length > 0) {
+                aRecords = oSvpResult.records;
+                nPortfolioTts = oSvpResult.portfolioHeadlineTTS_Weeks || 2;
+                var oKpis = oSvpResult.kpis || {};
+                var oWorstGap = oKpis.worstGap || {};
+                nGapWeeks = oWorstGap.weeks || (aRecords[0] && aRecords[0].gapWeeks) || 5;
+                sAffectedMaterial = aRecords[0].material || "";
+                sAffectedPlant = aRecords[0].plant || "";
+            } else if (oSP) {
+                var aSPMaterials = oSP.getProperty("/materials") || [];
+                if (aSPMaterials.length > 0) {
+                    sAffectedMaterial = aSPMaterials[0].material || "";
+                    sAffectedPlant = aSPMaterials[0].plant || "";
+                    nPortfolioTts = aSPMaterials[0].ttsWeeks || 2;
+                    nGapWeeks = aSPMaterials[0].gapWeeks || 5;
+                    aRecords = aSPMaterials;
+                }
+            }
+
+            // Read suppliers from the agentDisruptions model (stored separately
+            // from caseData by _loadCaseDataForAgentDisruptions from the
+            // getCaseHierarchy response's top-level suppliers array).
+            var sDisruptedSupplier = "";
+            var aSuppliers = oAdModel ? oAdModel.getProperty("/suppliers") || [] : [];
+            if (aSuppliers.length > 0) {
+                sDisruptedSupplier = aSuppliers[0].supplierId || aSuppliers[0].name || "";
+            }
+
+            var aTtsPerPM = [];
+            var aSource = (oSvpResult && Array.isArray(oSvpResult.records)) ? oSvpResult.records : aRecords;
+            for (var i = 0; i < aSource.length; i++) {
+                var r = aSource[i];
+                aTtsPerPM.push({
+                    plant: r.plant || sAffectedPlant || "DC01",
+                    material: r.material || sAffectedMaterial || "",
+                    ttsWeeks: r.ttsWeeks || nPortfolioTts || 2
+                });
+            }
+            if (aTtsPerPM.length === 0) {
+                aTtsPerPM.push({ plant: sAffectedPlant || "DC01", material: sAffectedMaterial || "", ttsWeeks: nPortfolioTts });
+            }
+
+            return {
+                incidentId: sCaseId,
+                affectedMaterial: sAffectedMaterial,
+                affectedPlant: sAffectedPlant,
+                disruptedSupplier: sDisruptedSupplier,
+                gapMagnitudeWeeks: nGapWeeks,
+                portfolioHeadlineTts: nPortfolioTts,
+                ttsPerPlantMaterial: aTtsPerPM
+            };
+        },
+
+        /**
+         * Populate the recommendationResult model from the
+         * recommend-scenario API response for the Recommendations nav view.
+         */
+        _populateRecommendationsFromAgent: function (oData, sCaseId) {
+            var oRecModel = this.getView().getModel("recommendationResult");
+            if (!oRecModel || !oData) { return; }
+            var aRanked = Array.isArray(oData.rankedOptionList) ? oData.rankedOptionList : [];
+            aRanked.forEach(function (opt) {
+                var sRisk = (opt.risk || "").toUpperCase();
+                opt.riskState = sRisk === "LOW" ? "Success" : sRisk === "MEDIUM" ? "Warning" : sRisk === "HIGH" ? "Error" : "None";
+                opt.isTopRecommendation = (opt.rank === 1);
+            });
+            oRecModel.setData({
+                busy: false, hasResult: true, caseId: sCaseId,
+                incidentId: oData.incidentId || sCaseId,
+                topRecommendation: oData.topRecommendation || (aRanked.length > 0 ? { rank: 1, lever: aRanked[0].lever } : null),
+                rankedOptionList: aRanked,
+                weightMatrix: oData.weightMatrix || null,
+                portfolioHeadlineTts: oData.portfolioHeadlineTts || null,
+                gapMagnitudeWeeks: oData.gapMagnitudeWeeks || null,
+                agentId: oData.agentId || "SCN",
+                timestamp: oData.timestamp || null,
+                aiNarrative: null
+            });
+            console.log("[Recommendations] Populated from agent:", aRanked.length, "ranked options");
+        },
+
+        /**
+         * Enhance the Recommendation Agent response using the LLM.
+         * @param {Object} oData      - recommend-scenario response
+         * @param {string} sModelPath - e.g. "/agents/recommendation"
+         */
+        _enhanceRecommendationWithLLM: function (oData, sModelPath) {
+            var that = this;
+            var oAdModel = this.getView().getModel("agentDisruptions");
+            var oRecModel = this.getView().getModel("recommendationResult");
+            if (!oAdModel) { return; }
+            console.log("[REC-LLM] Starting recommendation narrative enhancement\u2026");
+            var oCompact = this._buildRecommendationLLMPayload(oData);
+            var sSystemMessage = this._buildRecommendationSystemPrompt();
+            var sUserMessage = JSON.stringify(oCompact);
+            var sRawHtml = that._formatRecommendationResponse(oData);
+            this._getOrchestrationDeploymentId().then(function (sDeploymentId) {
+                if (!sDeploymentId) {
+                    console.warn("[REC-LLM] No orchestration deployment \u2014 falling back to raw.");
+                    oAdModel.setProperty(sModelPath + "/formattedResult", sRawHtml);
+                    return;
+                }
+                return that._callOrchestrationLLM(sDeploymentId, sSystemMessage, sUserMessage);
+            }).then(function (sContent) {
+                if (!sContent) { return; }
+                console.log("[REC-LLM] Enhanced (" + sContent.length + " chars).");
+                var sHtml = "<div class='adResponseWrap'>" +
+                    "<div class='adRespSection'><strong>Recommendation Agent \u2014 AI Narrative</strong></div>" +
+                    "<div class='adRespRow'>" + sContent + "</div></div>";
+                oAdModel.setProperty(sModelPath + "/formattedResult", sHtml);
+                if (oRecModel) { oRecModel.setProperty("/aiNarrative", sContent); }
+            }).catch(function (oErr) {
+                console.warn("[REC-LLM] Enhancement failed, falling back to raw:", oErr.message || oErr);
+                oAdModel.setProperty(sModelPath + "/formattedResult", sRawHtml);
+            });
+        },
+
+        /** Build a compact JSON payload for the LLM from the recommendation response. */
+        _buildRecommendationLLMPayload: function (oData) {
+            var aRanked = Array.isArray(oData.rankedOptionList) ? oData.rankedOptionList : [];
+            return {
+                incidentId: oData.incidentId || "",
+                gapMagnitudeWeeks: oData.gapMagnitudeWeeks || 0,
+                portfolioHeadlineTts: oData.portfolioHeadlineTts || 0,
+                weightMatrix: oData.weightMatrix || {},
+                topRecommendation: oData.topRecommendation || {},
+                optionCount: aRanked.length,
+                rankedOptions: aRanked.map(function (o) {
+                    return { rank: o.rank, lever: o.lever, coverage: o.coverage,
+                        cost: o.cost, risk: o.risk, rationale: o.rationale,
+                        goScenario: o.goScenario, noGo: o.noGo };
+                })
+            };
+        },
+
+        /** System prompt for the Recommendation narrative LLM call. */
+        _buildRecommendationSystemPrompt: function () {
+            return "You are a senior supply chain strategist presenting scenario recommendations to executive leadership. " +
+                "Rewrite the following Recommendation Agent JSON output into a clear, concise executive narrative. " +
+                "Structure the narrative with these sections:\n" +
+                "1. **Executive Summary** \u2014 one-sentence headline finding with the top recommendation.\n" +
+                "2. **Top Recommendation** \u2014 detail the #1 ranked option (coverage, cost, risk, rationale).\n" +
+                "3. **Alternative Options** \u2014 briefly summarize remaining ranked options.\n" +
+                "4. **Weight Matrix** \u2014 explain how options were scored (coverage/cost/risk weights).\n" +
+                "5. **Recommended Next Steps** \u2014 2\u20133 bullet points.\n\n" +
+                "Rules:\n" +
+                "- Use ONLY facts from the provided data; do NOT invent numbers.\n" +
+                "- Use bullet points and bold headings for readability.\n" +
+                "- Keep total length under 300 words.\n" +
+                "- Return valid HTML (use <strong>, <ul>, <li>, <p> tags). No markdown.\n" +
+                "- Wrap the entire output in a single <div> tag.";
+        },
+
+        /**
+         * Format the Recommendation Agent response into readable HTML
+         * for the Disruptions agent card (raw fallback).
+         * @param {Object} oData - recommend-scenario response
+         * @returns {string} HTML string
+         */
+        _formatRecommendationResponse: function (oData) {
+            if (!oData) { return "<div class='adResponseEmpty'>No data.</div>"; }
+            var that = this, aL = [];
+            aL.push("<div class='adRespSection'><strong>Recommendation Agent \u2014 Scenario Analysis</strong></div>");
+            var oTop = oData.topRecommendation;
+            if (oTop) {
+                aL.push("<div class='adRespRow'><span class='adRespKey'>Top Recommendation:</span> <span class='adRespVal'>#" +
+                    that._escapeHtml(String(oTop.rank || 1)) + " \u2014 " + that._escapeHtml(oTop.lever || "") + "</span></div>");
+            }
+            if (oData.gapMagnitudeWeeks) {
+                aL.push("<div class='adRespRow'><span class='adRespKey'>Gap Magnitude:</span> <span class='adRespVal'>" +
+                    that._escapeHtml(String(oData.gapMagnitudeWeeks)) + " weeks</span></div>");
+            }
+            if (oData.portfolioHeadlineTts) {
+                aL.push("<div class='adRespRow'><span class='adRespKey'>Portfolio Headline TTS:</span> <span class='adRespVal'>" +
+                    that._escapeHtml(String(oData.portfolioHeadlineTts)) + " weeks</span></div>");
+            }
+            var oWM = oData.weightMatrix;
+            if (oWM) {
+                aL.push("<div class='adRespSection'><strong>Weight Matrix</strong></div>");
+                aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>Coverage:</span> <span class='adRespVal'>" + (oWM.coverage || 0) + "</span></div>");
+                aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>Cost:</span> <span class='adRespVal'>" + (oWM.cost || 0) + "</span></div>");
+                aL.push("<div class='adRespRow' style='margin-left:0.5rem'><span class='adRespKey'>Risk:</span> <span class='adRespVal'>" + (oWM.risk || 0) + "</span></div>");
+            }
+            var aRanked = Array.isArray(oData.rankedOptionList) ? oData.rankedOptionList : [];
+            if (aRanked.length > 0) {
+                aL.push("<div class='adRespSection'><strong>Ranked Options (" + aRanked.length + ")</strong></div>");
+                aRanked.forEach(function (opt) {
+                    aL.push("<div class='adRespRow' style='margin-left:0.5rem;margin-top:0.25rem'><em>#" + (opt.rank || "") + " \u2014 " + that._escapeHtml(opt.lever || "") + "</em></div>");
+                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>Coverage:</span> <span class='adRespVal'>" + that._escapeHtml(opt.coverage || "") + "</span></div>");
+                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>Cost:</span> <span class='adRespVal'>" + that._escapeHtml(opt.cost || "") + "</span></div>");
+                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>Risk:</span> <span class='adRespVal'>" + that._escapeHtml(opt.risk || "") + "</span></div>");
+                    aL.push("<div class='adRespRow' style='margin-left:1rem'><span class='adRespKey'>Rationale:</span> <span class='adRespVal'>" + that._escapeHtml(opt.rationale || "") + "</span></div>");
+                });
+            }
+            return "<div class='adResponseWrap'>" + aL.join("") + "</div>";
+        },
+
         /**
          * Reset the earlyWarningResult model to its clean initial state.
          * Called on error / failure to ensure no stale data persists.
@@ -1633,7 +1989,7 @@ sap.ui.define([
             // Python agent directly. CAP fans out Get_supplier → Python
             // /analyze → GET_SupplierDetails in a single round-trip.
             var sServiceUrl = this._getServiceUrl();
-            var nRadius = 2000;
+            var nRadius = 500;
             var sUrl = sServiceUrl +
                 "analyzeImpact(" +
                 "location='"           + encodeURIComponent(sLocation)          + "'," +

@@ -64,6 +64,7 @@ modules:
               TokenServiceKeyName: SupplierResilience-auth-key
               sap.cloud.service: com.capgemini.supplierresilience
               HTML5.DynamicDestination: true
+              HTML5.Timeout: 300000
           existing_destinations_policy: update
     build-parameters:
       no-source: true

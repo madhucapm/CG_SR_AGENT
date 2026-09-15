@@ -1422,4 +1422,37 @@ service SupplierResilienceService {
             };
         };
     };
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RUN RECOMMENDATION — Backend proxy for Python agent /recommend-scenario
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Run Recommendation Agent (via CAP backend proxy)
+     *
+     * Proxies the request to the Python supplier_resilience_agent's
+     * /recommend-scenario endpoint through the CAP server, bypassing the
+     * SAP Launchpad managed approuter which has a ~30-second HTTP timeout
+     * that cannot be configured.
+     *
+     * The payload is passed as a JSON string so the schema remains flexible
+     * and matches whatever the Python agent expects (incidentId,
+     * affectedMaterial, affectedPlant, disruptedSupplier, gapMagnitudeWeeks,
+     * portfolioHeadlineTts, ttsPerPlantMaterial[]).
+     *
+     * The Python agent's response is returned as a JSON string in the
+     * `result` field; the UI JSON.parse()s it.
+     *
+     * @param payload - JSON string with the recommend-scenario request body
+     *
+     * @returns Success flag, JSON-stringified result, and optional error
+     */
+    action runRecommendation(
+        payload     : String
+    ) returns {
+        success     : Boolean;
+        result      : LargeString;
+        error       : String;
+    };
 }

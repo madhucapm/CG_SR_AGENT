@@ -1337,6 +1337,18 @@ module.exports = cds.service.impl(async function () {
         require('./lib/analyze-impact-handler')(executeHttpRequest, logger)
     );
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RUN RECOMMENDATION — Backend proxy for Python agent /recommend-scenario
+    //
+    // Routes the recommend-scenario call through the CAP server instead of
+    // the managed approuter, bypassing its ~30s HTTP timeout. Uses the
+    // same supplier_resilience_agent destination as analyzeImpact.
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on(
+        'runRecommendation',
+        require('./lib/recommend-handler')(executeHttpRequest, logger)
+    );
+
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CREATE IMPACT CASE — transactional case creation from analyzeImpact result

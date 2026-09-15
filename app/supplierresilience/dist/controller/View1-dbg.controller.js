@@ -1600,18 +1600,16 @@ sap.ui.define([
         },
 
         // ═══════════════════════════════════════════════════════════════
-        // RECOMMENDATION AGENT — Python endpoint integration
-        // POST /supplier-resilience-agent/recommend-scenario
+        // RECOMMENDATION AGENT — CAP backend proxy to Python agent
+        // POST /odata/v4/supplier-resilience/runRecommendation
+        //   → server-to-server → POST /recommend-scenario on Python agent
         // ═══════════════════════════════════════════════════════════════
-
         /**
-         * Run the Recommendation Agent by calling the Python agent
-         * endpoint /supplier-resilience-agent/recommend-scenario.
-         *
-         * Builds payload from the Survival Planner data, calls the
-         * external endpoint via the supplier_resilience_agent destination,
-         * and on success populates both the Disruptions agent card and
-         * the Recommendations navigation view.
+         * Run the Recommendation Agent via the CAP backend proxy action
+         * `runRecommendation`.  This routes the call server-to-server
+         * (CAP → Python agent) using the @sap-cloud-sdk/http-client,
+         * bypassing the SAP Launchpad managed approuter's ~30-second
+         * HTTP timeout that previously caused 504 Gateway Timeout errors.
          */
         _runRecommendationAgent: function () {
             var that = this;
@@ -1631,12 +1629,11 @@ sap.ui.define([
 
             var oPayload = this._buildRecommendationPayload(sCaseId, oCaseData);
 
-            var oComponent = this.getOwnerComponent();
-            var sComponentName = oComponent.getManifestObject().getComponentName();
-            var sBasePath = sap.ui.require.toUrl(sComponentName.replace(/\./g, "/"));
-            var sUrl = sBasePath + "/supplier-resilience-agent/recommend-scenario";
+            // Route through the CAP backend action instead of the managed
+            // approuter destination to avoid the ~30s Launchpad timeout.
+            var sUrl = this._getServiceUrl() + "runRecommendation";
 
-            console.log("[Recommendation] POST", sUrl, oPayload);
+            console.log("[Recommendation] POST (via CAP proxy)", sUrl, oPayload);
 
             var oRecModel = oView.getModel("recommendationResult");
             if (oRecModel) { oRecModel.setProperty("/busy", true); }
@@ -1644,8 +1641,8 @@ sap.ui.define([
             fetch(sUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                credentials: "same-origin",
-                body: JSON.stringify(oPayload)
+                credentials: "include",
+                body: JSON.stringify({ payload: JSON.stringify(oPayload) })
             }).then(function (r) {
                 if (!r.ok) {
                     return r.text().then(function (b) {
@@ -1653,7 +1650,20 @@ sap.ui.define([
                     });
                 }
                 return r.json();
-            }).then(function (oData) {
+            }).then(function (oWrapper) {
+                // The CAP action returns { success, result (JSON string), error }
+                if (!oWrapper.success) {
+                    throw new Error(oWrapper.error || "Recommendation Agent returned an error");
+                }
+
+                // Parse the JSON-stringified Python agent response
+                var oData;
+                try {
+                    oData = JSON.parse(oWrapper.result);
+                } catch (e) {
+                    throw new Error("Failed to parse recommendation result: " + e.message);
+                }
+
                 console.log("[Recommendation] Response:", oData);
                 oAdModel.setProperty(sP + "/busy", false);
                 oAdModel.setProperty(sP + "/result", oData);

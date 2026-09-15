@@ -1455,4 +1455,88 @@ service SupplierResilienceService {
         result      : LargeString;
         error       : String;
     };
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SCENARIO & RECOMMENDATION AGENT — DATA-FETCH TOOLS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Get Alternate Source Data
+     *
+     * SCN agent data-fetch tool per Dev Spec v1.5 §5B.4.
+     * Returns approved alternate suppliers for (material, plant) from the real
+     * SAP Source List (API_PURCHASING_SOURCE_SRV — same data as tx ME03),
+     * enriched with unit price + planned delivery duration + historical
+     * reliability bucket (HIGH / MEDIUM / LOW / UNKNOWN).
+     *
+     * @param material          - Affected material code (e.g. "1122")
+     * @param plant             - Target plant code (e.g. "DE01")
+     * @param excludedSuppliers - Suppliers to exclude (typically the disrupted one)
+     */
+    function getAltSourceData(
+        material            : String,
+        plant               : String,
+        excludedSuppliers   : array of String
+    ) returns {
+        success             : Boolean;
+        toolName            : String;
+        material            : String;
+        plant               : String;
+        excludedSuppliers   : array of String;
+        candidateSuppliers  : array of {
+            supplier                : String;
+            unitPrice               : Decimal;
+            leadTimeDays            : Integer;
+            historicalReliability   : String;   // HIGH / MEDIUM / LOW / UNKNOWN
+        };
+        sourcedFromApis     : array of String;
+        dataSource          : String;
+        calculatedAt        : String;
+        error               : String;
+    };
+
+
+    /**
+     * Get Alternate Plant Source
+     *
+     * SCN agent data-fetch tool — Plant Transfer lever.
+     * When a plant's supplier is disrupted, find another plant in the
+     * network that stocks the SAME material and recommend a stock transfer.
+     * requiredQty is computed at runtime from open POs at the affected plant.
+     *
+     * @param affectedMaterial - Material code (e.g. "1122")
+     * @param affectedPlant    - Disrupted plant code (e.g. "DE01")
+     */
+    function getAlternatePlantSource(
+        affectedMaterial    : String,
+        affectedPlant       : String
+    ) returns {
+        success             : Boolean;
+        toolName            : String;
+        affectedMaterial    : String;
+        affectedPlant       : String;
+        requiredQty         : Decimal;
+        requiredQtyUnit     : String;
+        requiredQtySource   : String;
+        requiredQtyBreakdown: array of {
+            poNumber            : String;
+            poItem              : String;
+            outstandingQty      : Decimal;
+            unit                : String;
+        };
+        sourcePlantCount    : Integer;
+        sourcePlants        : array of {
+            plant               : String;
+            availableStock      : Decimal;
+            stockUnit           : String;
+            coversDemand        : Boolean;
+            shortfallQty        : Decimal;
+        };
+        recommendation      : String;
+        sourcedFromApis     : array of String;
+        dataSource          : String;
+        calculatedAt        : String;
+        error               : String;
+    };
 }

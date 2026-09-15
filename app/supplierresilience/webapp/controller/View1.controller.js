@@ -177,7 +177,7 @@ sap.ui.define([
             // impact results when a real case is active.
             var oRiskAssessmentModel = new JSONModel({
                 kpi: {
-                    highestRisk:      { value: "92", supplier: "ABC Metals" },
+                    highestRisk:      { value: 92, supplier: "ABC Metals" },
                     suppliersImpacted:{ value: "4",  sub: "Primary metric" },
                     posAtRisk:        { value: "8",  sub: "Primary metric" },
                     plants:           { value: "7",  sub: "Affected" }
@@ -1135,7 +1135,7 @@ sap.ui.define([
             if (oAdView)    { oAdView.setVisible(sKey === "agentDisruptions"); }
 
             // Refresh the case dropdown list when entering a screen that has it
-            if (sKey === "caseDashboard" || sKey === "riskAssessment" || sKey === "survivalPlanning" || sKey === "agentDisruptions") {
+            if (sKey === "caseDashboard" || sKey === "riskAssessment" || sKey === "survivalPlanning" || sKey === "agentDisruptions" || sKey === "approvals" || sKey === "planning" || sKey === "audit") {
                 this._loadAvailableCases();
             }
 
@@ -2069,8 +2069,27 @@ sap.ui.define([
                     var sFirstSupplier = (aAffSuppliers.length > 0 && aAffSuppliers[0].name)
                         ? aAffSuppliers[0].name : "Unknown";
 
-                    // Use actual risk score from the API response
-                    var iApiRisk = oResult.riskPercentage || oResult.riskScore || 0;
+                    // Use actual risk score from the API response when available.
+                    // The analyzeImpact backend intentionally defers risk scoring
+                    // (all per-supplier risk_percentage / risk_score fields are null),
+                    // so we first check top-level + per-supplier fields, then fall
+                    // back to a proxy score derived from the disruption scope
+                    // (affected suppliers, POs, materials).
+                    var iApiRisk = oResult.riskPercentage || oResult.riskScore || oResult.risk_score || 0;
+                    if (!iApiRisk && aAffSuppliers.length > 0) {
+                        aAffSuppliers.forEach(function (s) {
+                            var sp = s.risk_percentage || s.riskPercentage || s.risk_score || 0;
+                            if (sp > iApiRisk) { iApiRisk = sp; }
+                        });
+                    }
+                    // Proxy score from disruption scope when all API risk fields are null/0
+                    if (!iApiRisk) {
+                        var iSupFactor  = Math.min(aAffSuppliers.length * 20, 60);
+                        var iPoFactor   = Math.min((oScope.poCount || 0) * 5, 30);
+                        var iMatFactor  = Math.min((oScope.materialCount || 0) * 2, 10);
+                        iApiRisk = Math.min(iSupFactor + iPoFactor + iMatFactor, 100);
+                        if (iApiRisk === 0 && aAffSuppliers.length > 0) { iApiRisk = 10; }
+                    }
                     oDisruptions.setProperty("/impactPreview", {
                         impactType: (oSelectedRisk.title || oResult.impact_description || "Supply disruption"),
                         riskScore:  String(iApiRisk) + "/100",
@@ -2377,7 +2396,7 @@ sap.ui.define([
                 return{supplier:s.name||s.supplier_id||"Unknown",supplierId:s.supplier_id||"",classification:cls,riskScore:sc+"/100",riskScoreRaw:sc,severity:sev,posAtRisk:String(n),plants:pl.join(", ")||"—",materials:ml.join(", ")||"—"};
             });
             aRows.sort(function(a,b){return b.riskScoreRaw-a.riskScoreRaw;});
-            oRM.setProperty("/kpi",{highestRisk:{value:String(iMax)+"/100",supplier:sMaxSup},suppliersImpacted:{value:String(oScope.supplierCount),sub:"Affected by event"},posAtRisk:{value:String(oScope.poCount),sub:"At risk"},plants:{value:String(oScope.plantCount),sub:"Affected"}});
+            oRM.setProperty("/kpi",{highestRisk:{value:iMax,supplier:sMaxSup},suppliersImpacted:{value:String(oScope.supplierCount),sub:"Affected by event"},posAtRisk:{value:String(oScope.poCount),sub:"At risk"},plants:{value:String(oScope.plantCount),sub:"Affected"}});
             oRM.setProperty("/supplierRisks",aRows);
             if(oEW){oEW.setProperty("/result",oResult);oEW.setProperty("/suppliers",aRows);oEW.setProperty("/totalSuppliers",aAff.length);oEW.setProperty("/totalPOs",oScope.poCount||0);oEW.setProperty("/summary/maxRiskScore",iMax);oEW.setProperty("/summary/maxRiskLevel",iMax>=80?"CRITICAL":iMax>=60?"HIGH":iMax>=40?"MEDIUM":"LOW");}
         },
@@ -2449,7 +2468,7 @@ sap.ui.define([
 
             aRows.sort(function (a, b) { return b.riskScoreRaw - a.riskScoreRaw; });
             oRM.setProperty("/kpi", {
-                highestRisk:      { value: String(iMax) + "/100", supplier: sMax || "—" },
+                highestRisk:      { value: iMax, supplier: sMax || "—" },
                 suppliersImpacted: { value: String(aS.length), sub: "Affected by event" },
                 posAtRisk:        { value: String(tPOs), sub: "At risk" },
                 plants:           { value: String(Object.keys(pSet).length), sub: "Affected" }

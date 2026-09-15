@@ -768,5 +768,40 @@ Content-Type: application/json
 ###
 
 ### ═══════════════════════════════════════════════════════════════════════════════
+### SCENARIO & RECOMMENDATION AGENT — DATA-FETCH TOOLS
+### ═══════════════════════════════════════════════════════════════════════════════
+### NOTE: OData v4 URL syntax requires arrays to be passed via parameter alias.
+### The array is JSON-encoded and passed as ?@alias=[...] in the query string.
+### %22 is URL-encoded double-quote (used inside the JSON array).
+
+### getAltSourceData — HEADLINE test case (matches ME03 screenshot: material 1122 at DE01)
+### Expected: 2 suppliers (100075, 100080) with pricing + reliability
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='1122',plant='DE01',excludedSuppliers=@excluded)?@excluded=[]
+Content-Type: application/json
+
+###
+
+### getAltSourceData — same case, excluding the disrupted supplier
+### Expected: only supplier 100080 remains
+GET http://localhost:4004/odata/v4/supplier-resilience/getAltSourceData(material='1122',plant='DE01',excludedSuppliers=@excluded)?@excluded=[%22100075%22]
+Content-Type: application/json
+
+###
+
+### getAlternatePlantSource — real data (DE01 → DE02)
+### Expected: requiredQty=9300 PC from 15 open POs, DE02 has 10000 PC, coversDemand=true
+GET http://localhost:4004/odata/v4/supplier-resilience/getAlternatePlantSource(affectedMaterial='1122',affectedPlant='DE01')
+Content-Type: application/json
+
+###
+
+### getAlternatePlantSource — plant with no fallback mapping
+### Expected: success=true, sourcePlantCount=0, recommendation about missing mapping
+GET http://localhost:4004/odata/v4/supplier-resilience/getAlternatePlantSource(affectedMaterial='1122',affectedPlant='US01')
+Content-Type: application/json
+
+###
+
+### ═══════════════════════════════════════════════════════════════════════════════
 ### END OF TEST SUITE
 ### ═══════════════════════════════════════════════════════════════════════════════

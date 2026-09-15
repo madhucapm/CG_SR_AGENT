@@ -12,9 +12,17 @@
 
         <Toolbar design="Solid" class="sapUiSmallMarginBottom">
             <Label text="CASE ID" />
-            <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '— none active —' }" />
-            <Text text="Run the Recommendation agent from the Case Dashboard to populate this view."
-                  visible="{= !${recommendationResult>/hasResult} }" />
+            <Select
+                selectedKey="{dashboard>/selectedCaseId}"
+                change=".onCaseDropdownChange"
+                forceSelection="false"
+                autoAdjustWidth="true"
+                items="{caseHierarchy>/availableCases}">
+                <core:Item key="{caseHierarchy>caseId}"
+                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+            </Select>
+            <Text text="No cases available. Investigate an event in News Feed to create a case."
+                  visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
         </Toolbar>
 
         <!-- EMPTY STATE -->

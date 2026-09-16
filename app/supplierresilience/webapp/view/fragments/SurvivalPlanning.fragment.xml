@@ -58,7 +58,6 @@
                     <Column width="11%" hAlign="Center"><Text text="GAP (WEEKS)" /></Column>
                     <Column width="13%" hAlign="Center"><Text text="SHORTFALL" /></Column>
                     <Column width="10%" hAlign="Center"><Text text="CONFIDENCE" /></Column>
-                    <Column width="18%"><Text text="DATA FLAGS" /></Column>
                 </columns>
                 <items>
                     <ColumnListItem>
@@ -73,7 +72,6 @@
                             <Text text="{survivalPlanning>shortfall}" />
                             <ObjectStatus text="{survivalPlanning>confidence}"
                                   state="{= ${survivalPlanning>confidence} === 'HIGH' ? 'Success' : ${survivalPlanning>confidence} === 'MEDIUM' ? 'Warning' : 'Error' }" />
-                            <Text text="{survivalPlanning>dataFlags}" wrapping="true" />
                         </cells>
                     </ColumnListItem>
                 </items>

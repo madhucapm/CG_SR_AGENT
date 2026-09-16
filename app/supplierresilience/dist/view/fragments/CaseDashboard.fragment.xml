@@ -178,16 +178,17 @@
                             <Text text="Survival Planner" class="sapUiSmallMarginEnd" />
                             <Button text="Run" press=".onRunSurvivalPlannerAgent" type="Transparent" enabled="true" />
                         </HBox>
-                        <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                         <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                             <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
-                            <Text text="Substitution" class="sapUiSmallMarginEnd" />
-                            <Button text="Run" press=".onRunSubstitutionAgent" type="Transparent" enabled="true" />
+                            <Text text="Recommendation" class="sapUiSmallMarginEnd" />
+                            <Button text="Run" press=".onRunRecommendationAgent" type="Transparent" enabled="true" />
                         </HBox>
                         <HBox alignItems="Center" class="sapUiTinyMarginBottom">
                             <core:Icon src="sap-icon://circle-task-2" class="sapUiSmallMarginEnd" />
                             <Text text="Buyer" class="sapUiSmallMarginEnd" />
                             <Button text="Run" press=".onRunBuyerAgent" type="Transparent" enabled="true" />
                         </HBox>
+                       
                     </VBox>
                     <Button text="Run All Agents" press=".onRunAllAgents" type="Emphasized" width="100%" enabled="true" />
 

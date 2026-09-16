@@ -26,7 +26,7 @@
 
         <HBox width="100%" class="sapUiSmallMarginBottom">
             <GenericTile header="HIGHEST RISK" subheader="{riskAssessment>/kpi/highestRisk/supplier}" frameType="OneByOne" class="sapUiTinyMarginEnd">
-                <TileContent><NumericContent value="{riskAssessment>/kpi/highestRisk/value}" valueColor="Error" /></TileContent>
+                <TileContent><NumericContent value="{riskAssessment>/kpi/highestRisk/value}" scale="/100" valueColor="Error" /></TileContent>
             </GenericTile>
             <GenericTile header="SUPPLIERS IMPACTED" subheader="{riskAssessment>/kpi/suppliersImpacted/sub}" frameType="OneByOne" class="sapUiTinyMarginEnd">
                 <TileContent><NumericContent value="{riskAssessment>/kpi/suppliersImpacted/value}" valueColor="Critical" /></TileContent>

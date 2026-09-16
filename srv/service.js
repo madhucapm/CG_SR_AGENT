@@ -1329,12 +1329,23 @@ module.exports = cds.service.impl(async function () {
     // data as SAP tx ME03), enriched with unit price + planned lead-time from
     // API_INFORECORD_PROCESS_SRV, and HIGH/MEDIUM/LOW historicalReliability
     // derived from the existing supplier OTIF handler.
-    //
-    // Consumed by the SCN agent's Alt Source lever (Dev Spec v1.5 §5B.4).
     // ═══════════════════════════════════════════════════════════════════════════
     this.on('getAltSourceData', async (req) => {
         const altSourceHandler = require('./lib/alt-source-data-handler');
         return await altSourceHandler(executeHttpRequest, getCurrentTimestamp, logger, req);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET ALTERNATE PLANT SOURCE — Scenario & Recommendation Agent data-fetch tool
+    //
+    // When a plant's supplier is disrupted, find another plant in the network
+    // that stocks the SAME material and recommend a stock transfer.
+    // requiredQty is computed at runtime from open POs (API_PURCHASEORDER_PROCESS_SRV),
+    // stock is read from API_MATERIAL_STOCK_SRV at the fallback plant(s).
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('getAlternatePlantSource', async (req) => {
+        const altPlantHandler = require('./lib/alternate-plant-source-handler');
+        return await altPlantHandler(executeHttpRequest, getCurrentTimestamp, logger, req);
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1351,6 +1362,18 @@ module.exports = cds.service.impl(async function () {
     this.on(
         'analyzeImpact',
         require('./lib/analyze-impact-handler')(executeHttpRequest, logger)
+    );
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RUN RECOMMENDATION — Backend proxy for Python agent /recommend-scenario
+    //
+    // Routes the recommend-scenario call through the CAP server instead of
+    // the managed approuter, bypassing its ~30s HTTP timeout. Uses the
+    // same supplier_resilience_agent destination as analyzeImpact.
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on(
+        'runRecommendation',
+        require('./lib/recommend-handler')(executeHttpRequest, logger)
     );
 
 

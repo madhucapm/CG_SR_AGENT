@@ -1425,36 +1425,54 @@ service SupplierResilienceService {
 
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // RUN RECOMMENDATION — Backend proxy for Python agent /recommend-scenario
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Run Recommendation Agent (via CAP backend proxy)
+     *
+     * Proxies the request to the Python supplier_resilience_agent's
+     * /recommend-scenario endpoint through the CAP server, bypassing the
+     * SAP Launchpad managed approuter which has a ~30-second HTTP timeout
+     * that cannot be configured.
+     *
+     * The payload is passed as a JSON string so the schema remains flexible
+     * and matches whatever the Python agent expects (incidentId,
+     * affectedMaterial, affectedPlant, disruptedSupplier, gapMagnitudeWeeks,
+     * portfolioHeadlineTts, ttsPerPlantMaterial[]).
+     *
+     * The Python agent's response is returned as a JSON string in the
+     * `result` field; the UI JSON.parse()s it.
+     *
+     * @param payload - JSON string with the recommend-scenario request body
+     *
+     * @returns Success flag, JSON-stringified result, and optional error
+     */
+    action runRecommendation(
+        payload     : String
+    ) returns {
+        success     : Boolean;
+        result      : LargeString;
+        error       : String;
+    };
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // SCENARIO & RECOMMENDATION AGENT — DATA-FETCH TOOLS
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
      * Get Alternate Source Data
      *
-     * One of the 5 data-fetch tools consumed by the Scenario & Recommendation
-     * Agent (SCN) per Dev Spec v1.5 §5B.4.
-     *
-     * Returns the list of APPROVED alternate suppliers for a given
-     * (material, plant), enriched with unit price, planned lead time in
-     * days, and a HIGH / MEDIUM / LOW historical reliability bucket
-     * derived from the supplier's OTIF track record.
-     *
-     * This is a RAW data pipe — no ranking, scoring, or cost math is
-     * performed here.  The downstream LLM in the SCN agent consumes this
-     * payload and produces the mitigation recommendation.
-     *
-     * S/4HANA APIs consumed:
-     *   1. API_PURCHASING_SOURCE_SRV / A_PurchasingSource  [PRIMARY]
-     *        Real Source List (SAP tx ME03) — the authoritative list of
-     *        approved suppliers per (material, plant).
-     *   2. API_INFORECORD_PROCESS_SRV / A_PurgInfoRecdOrgPlantData
-     *        Provides unit price + planned delivery duration per supplier.
+     * SCN agent data-fetch tool per Dev Spec v1.5 §5B.4.
+     * Returns approved alternate suppliers for (material, plant) from the real
+     * SAP Source List (API_PURCHASING_SOURCE_SRV — same data as tx ME03),
+     * enriched with unit price + planned delivery duration + historical
+     * reliability bucket (HIGH / MEDIUM / LOW / UNKNOWN).
      *
      * @param material          - Affected material code (e.g. "1122")
      * @param plant             - Target plant code (e.g. "DE01")
      * @param excludedSuppliers - Suppliers to exclude (typically the disrupted one)
-     *
-     * @returns Raw candidate-supplier list for LLM consumption
      */
     function getAltSourceData(
         material            : String,
@@ -1472,6 +1490,50 @@ service SupplierResilienceService {
             leadTimeDays            : Integer;
             historicalReliability   : String;   // HIGH / MEDIUM / LOW / UNKNOWN
         };
+        sourcedFromApis     : array of String;
+        dataSource          : String;
+        calculatedAt        : String;
+        error               : String;
+    };
+
+
+    /**
+     * Get Alternate Plant Source
+     *
+     * SCN agent data-fetch tool — Plant Transfer lever.
+     * When a plant's supplier is disrupted, find another plant in the
+     * network that stocks the SAME material and recommend a stock transfer.
+     * requiredQty is computed at runtime from open POs at the affected plant.
+     *
+     * @param affectedMaterial - Material code (e.g. "1122")
+     * @param affectedPlant    - Disrupted plant code (e.g. "DE01")
+     */
+    function getAlternatePlantSource(
+        affectedMaterial    : String,
+        affectedPlant       : String
+    ) returns {
+        success             : Boolean;
+        toolName            : String;
+        affectedMaterial    : String;
+        affectedPlant       : String;
+        requiredQty         : Decimal;
+        requiredQtyUnit     : String;
+        requiredQtySource   : String;
+        requiredQtyBreakdown: array of {
+            poNumber            : String;
+            poItem              : String;
+            outstandingQty      : Decimal;
+            unit                : String;
+        };
+        sourcePlantCount    : Integer;
+        sourcePlants        : array of {
+            plant               : String;
+            availableStock      : Decimal;
+            stockUnit           : String;
+            coversDemand        : Boolean;
+            shortfallQty        : Decimal;
+        };
+        recommendation      : String;
         sourcedFromApis     : array of String;
         dataSource          : String;
         calculatedAt        : String;

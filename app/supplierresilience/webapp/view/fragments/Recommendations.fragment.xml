@@ -1,139 +1,165 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!-- Recommendations & Approval — Static prototype (MVP1). sap_horizon default theme. -->
-    <VBox width="100%">
+    <!-- Recommendations and Approval — Data-driven from Recommendation Agent. sap_horizon default theme. -->
+    <VBox width="100%"
+          busy="{recommendationResult>/busy}" busyIndicatorDelay="0">
 
         <Toolbar design="Transparent">
             <Title text="Recommendations &amp; Approval" level="H2" />
         </Toolbar>
-        <Text text="Substitution Agent recommendations with scenario comparison. Approve or reject for execution." class="sapUiSmallMarginBottom" />
+        <Text text="Scenario &amp; Recommendation Agent output — ranked mitigation levers with Go / No-Go scenarios." class="sapUiSmallMarginBottom" />
 
         <Toolbar design="Solid" class="sapUiSmallMarginBottom">
             <Label text="CASE ID" />
-            <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '\u2014 none active \u2014' }" />
-            <Text text="Preview and confirm an event in News Feed to create a case."
-                  visible="{= !${dashboard>/selectedCaseId} }" />
+            <Select
+                selectedKey="{dashboard>/selectedCaseId}"
+                change=".onCaseDropdownChange"
+                forceSelection="false"
+                autoAdjustWidth="true"
+                items="{caseHierarchy>/availableCases}">
+                <core:Item key="{caseHierarchy>caseId}"
+                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+            </Select>
+            <Text text="No cases available. Investigate an event in News Feed to create a case."
+                  visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
         </Toolbar>
 
-        <!-- SCENARIO COMPARISON -->
-        <Panel class="sapUiSmallMarginBottom">
-            <headerToolbar>
-                <Toolbar>
-                    <Title text="SCENARIO COMPARISON (LITE)" level="H4" />
-                    <ToolbarSpacer />
-                    <Text text="OPEN: BUSINESS KPI + COST DISPLAY" />
-                </Toolbar>
-            </headerToolbar>
+        <!-- EMPTY STATE -->
+        <VBox visible="{= !${recommendationResult>/hasResult} &amp;&amp; !${recommendationResult>/busy} }"
+              alignItems="Center" justifyContent="Center" class="sapUiLargeMarginTopBottom">
+            <core:Icon src="sap-icon://lightbulb" size="3rem" color="Default" />
+            <Text text="No recommendation data available." class="sapUiSmallMarginTop" />
+            <Text text="Run the Recommendation agent from the Case Dashboard or Disruptions screen to generate scenario analysis." />
+        </VBox>
 
-            <HBox class="sapUiSmallMarginBottom">
-                <Panel class="sapUiTinyMarginEnd" width="33%">
-                    <headerToolbar><Toolbar><ObjectStatus text="RECOMMENDED" state="Success" /><ToolbarSpacer /><Title text="Alt Supplier + Stock Transfer" level="H5" /></Toolbar></headerToolbar>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Cost Impact" class="sapUiSmallMarginEnd" width="6rem" /><Text text="+8%" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Lead Time" class="sapUiSmallMarginEnd" width="6rem" /><Text text="12 days" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Risk Level" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="Low" state="Success" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Coverage" class="sapUiSmallMarginEnd" width="6rem" /><Text text="100%" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="OTIF Recovery" class="sapUiSmallMarginEnd" width="6rem" /><Text text="-8% \u2192 -1%" /></HBox>
-                    <ObjectStatus text="\u2713 AI Recommended" state="Success" />
-                </Panel>
-                <Panel class="sapUiTinyMarginEnd" width="33%">
-                    <headerToolbar><Toolbar><Text text="OPTION B" /><ToolbarSpacer /><Title text="Alt Material (Aluminium 3003)" level="H5" /></Toolbar></headerToolbar>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Cost Impact" class="sapUiSmallMarginEnd" width="6rem" /><Text text="+12%" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Lead Time" class="sapUiSmallMarginEnd" width="6rem" /><Text text="18 days" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Risk Level" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="Medium" state="Warning" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Coverage" class="sapUiSmallMarginEnd" width="6rem" /><Text text="85%" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="OTIF Recovery" class="sapUiSmallMarginEnd" width="6rem" /><Text text="-8% \u2192 -3%" /></HBox>
-                </Panel>
-                <Panel width="33%">
-                    <headerToolbar><Toolbar><Text text="OPTION C" /><ToolbarSpacer /><Title text="Wait for Recovery" level="H5" /></Toolbar></headerToolbar>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Cost Impact" class="sapUiSmallMarginEnd" width="6rem" /><Text text="$0" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Lead Time" class="sapUiSmallMarginEnd" width="6rem" /><Text text="45+ days" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Risk Level" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="High" state="Error" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="Coverage" class="sapUiSmallMarginEnd" width="6rem" /><Text text="0%" /></HBox>
-                    <HBox class="sapUiTinyMarginBottom"><Label text="OTIF Recovery" class="sapUiSmallMarginEnd" width="6rem" /><Text text="-8% maintained" /></HBox>
-                </Panel>
+        <!-- DATA-DRIVEN CONTENT (visible when hasResult) -->
+        <VBox visible="{= !!${recommendationResult>/hasResult} }" width="100%">
+
+            <!-- KPI ROW -->
+            <HBox width="100%" class="sapUiSmallMarginBottom">
+                <GenericTile header="GAP" subheader="Supply gap magnitude" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                    <TileContent><NumericContent value="{recommendationResult>/gapMagnitudeWeeks}" scale="wk" valueColor="Error" /></TileContent>
+                </GenericTile>
+                <GenericTile header="TTS" subheader="Portfolio headline" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                    <TileContent><NumericContent value="{recommendationResult>/portfolioHeadlineTts}" scale="wk" valueColor="Critical" /></TileContent>
+                </GenericTile>
+                <GenericTile header="OPTIONS" subheader="Ranked mitigation levers" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                    <TileContent><NumericContent value="{= ${recommendationResult>/rankedOptionList}.length }" valueColor="Neutral" /></TileContent>
+                </GenericTile>
+                <GenericTile header="TOP PICK" subheader="{recommendationResult>/topRecommendation/lever}" frameType="OneByOne">
+                    <TileContent><NumericContent value="#1" valueColor="Good" /></TileContent>
+                </GenericTile>
             </HBox>
-        </Panel>
 
-        <!-- RECOMMENDATION CARDS -->
-        <Panel class="sapUiSmallMarginBottom">
-            <headerToolbar><Toolbar><Title text="RECOMMENDATIONS" level="H4" /></Toolbar></headerToolbar>
+            <!-- WEIGHT MATRIX -->
+            <Panel class="sapUiSmallMarginBottom" visible="{= !!${recommendationResult>/weightMatrix} }">
+                <headerToolbar>
+                    <Toolbar>
+                        <Title text="WEIGHT MATRIX" level="H4" />
+                        <ToolbarSpacer />
+                        <Text text="Agent ID: {recommendationResult>/agentId}" />
+                    </Toolbar>
+                </headerToolbar>
+                <HBox class="sapUiSmallMarginBottom">
+                    <VBox class="sapUiMediumMarginEnd"><Label text="Coverage" /><ObjectNumber number="{recommendationResult>/weightMatrix/coverage}" /></VBox>
+                    <VBox class="sapUiMediumMarginEnd"><Label text="Cost" /><ObjectNumber number="{recommendationResult>/weightMatrix/cost}" /></VBox>
+                    <VBox class="sapUiMediumMarginEnd"><Label text="Risk" /><ObjectNumber number="{recommendationResult>/weightMatrix/risk}" /></VBox>
+                    <VBox><Label text="Verified" /><ObjectStatus text="{= ${recommendationResult>/weightMatrix/weightsSumTo1Verified} ? 'Yes' : 'No' }" state="{= ${recommendationResult>/weightMatrix/weightsSumTo1Verified} ? 'Success' : 'Error' }" /></VBox>
+                </HBox>
+                <Text text="{recommendationResult>/weightMatrix/weightRationale}" wrapping="true" />
+            </Panel>
 
-            <!-- Recommendation 1 -->
+            <!-- RANKED OPTIONS TABLE -->
             <Panel class="sapUiSmallMarginBottom">
                 <headerToolbar>
                     <Toolbar>
-                        <Title text="Switch to Indorama Ventures (qualified)" level="H5" />
+                        <Title text="RANKED MITIGATION OPTIONS" level="H4" />
                         <ToolbarSpacer />
-                        <ObjectStatus text="Alt Supplier" state="Information" />
+                        <Text text="{= ${recommendationResult>/rankedOptionList}.length + ' option(s) ranked' }" />
                     </Toolbar>
                 </headerToolbar>
-                <HBox class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Supplier" /><Text text="Indorama Ventures" /></VBox>
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Material" /><Text text="PET Resin" /></VBox>
-                    <VBox><Label text="Qty" /><Text text="200 MT" /></VBox>
-                </HBox>
-                <HBox class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Projected OTIF Impact" /><Text text="-8% \u2192 -2%" /></VBox>
-                    <VBox><Label text="Cost / KPI Impact Avoided" /><ObjectStatus text="$1.2M avoided" state="Success" /></VBox>
-                </HBox>
-                <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
-                <HBox>
-                    <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
-                    <Button text="Reject" press=".onRecommendationAction" type="Reject" />
-                </HBox>
+                <Table items="{recommendationResult>/rankedOptionList}"
+                       showSeparators="Inner" fixedLayout="false"
+                       noDataText="No ranked options available.">
+                    <columns>
+                        <Column width="5%" hAlign="Center"><Text text="RANK" /></Column>
+                        <Column width="22%"><Text text="LEVER" /></Column>
+                        <Column width="10%" hAlign="Center"><Text text="COVERAGE" /></Column>
+                        <Column width="10%" hAlign="Center"><Text text="COST" /></Column>
+                        <Column width="8%" hAlign="Center"><Text text="RISK" /></Column>
+                        <Column width="45%"><Text text="RATIONALE" /></Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem highlight="{= ${recommendationResult>isTopRecommendation} ? 'Success' : 'None' }">
+                            <cells>
+                                <ObjectNumber number="{recommendationResult>rank}" />
+                                <Text text="{recommendationResult>lever}" wrapping="true" />
+                                <Text text="{recommendationResult>coverage}" />
+                                <Text text="{recommendationResult>cost}" />
+                                <ObjectStatus text="{recommendationResult>risk}" state="{recommendationResult>riskState}" />
+                                <Text text="{recommendationResult>rationale}" wrapping="true" />
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
             </Panel>
 
-            <!-- Recommendation 2 -->
+            <!-- SCENARIO DETAIL CARDS -->
             <Panel class="sapUiSmallMarginBottom">
                 <headerToolbar>
                     <Toolbar>
-                        <Title text="Transfer from Pune Safety Stock" level="H5" />
+                        <Title text="SCENARIO DETAILS" level="H4" />
                         <ToolbarSpacer />
-                        <ObjectStatus text="Stock Transfer" state="Information" />
+                        <Text text="Go / No-Go analysis per option" />
                     </Toolbar>
                 </headerToolbar>
-                <HBox class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Source" /><Text text="Pune Plant" /></VBox>
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Dest" /><Text text="Mumbai Plant" /></VBox>
-                    <VBox><Label text="Qty" /><Text text="80 MT" /></VBox>
-                </HBox>
-                <HBox class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Projected OTIF Impact" /><Text text="-8% \u2192 -4%" /></VBox>
-                    <VBox><Label text="Cost / KPI Impact Avoided" /><ObjectStatus text="$0.5M avoided" state="Success" /></VBox>
-                </HBox>
-                <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
-                <HBox>
-                    <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
-                    <Button text="Reject" press=".onRecommendationAction" type="Reject" />
-                </HBox>
+                <List items="{recommendationResult>/rankedOptionList}" showSeparators="None">
+                    <CustomListItem>
+                        <Panel class="sapUiSmallMarginBottom">
+                            <headerToolbar>
+                                <Toolbar>
+                                    <Title text="#{recommendationResult>rank} \u2014 {recommendationResult>lever}" level="H5" />
+                                    <ToolbarSpacer />
+                                    <ObjectStatus text="{recommendationResult>risk}" state="{recommendationResult>riskState}" />
+                                    <ObjectStatus text="\u2713 AI Recommended" state="Success" visible="{recommendationResult>isTopRecommendation}" class="sapUiSmallMarginStart" />
+                                </Toolbar>
+                            </headerToolbar>
+                            <HBox class="sapUiSmallMarginBottom">
+                                <VBox class="sapUiMediumMarginEnd"><Label text="Coverage" /><Text text="{recommendationResult>coverage}" /></VBox>
+                                <VBox class="sapUiMediumMarginEnd"><Label text="Cost" /><Text text="{recommendationResult>cost}" /></VBox>
+                                <VBox><Label text="Risk" /><ObjectStatus text="{recommendationResult>risk}" state="{recommendationResult>riskState}" /></VBox>
+                            </HBox>
+                            <VBox class="sapUiSmallMarginBottom">
+                                <Label text="Go Scenario" />
+                                <Text text="{recommendationResult>goScenario}" wrapping="true" />
+                            </VBox>
+                            <VBox class="sapUiSmallMarginBottom">
+                                <Label text="No-Go Fallback" />
+                                <Text text="{recommendationResult>noGo}" wrapping="true" />
+                            </VBox>
+                            <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
+                            <HBox>
+                                <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
+                                <Button text="Reject" press=".onRecommendationAction" type="Reject" />
+                            </HBox>
+                        </Panel>
+                    </CustomListItem>
+                </List>
             </Panel>
 
-            <!-- Recommendation 3 -->
-            <Panel>
+            <!-- AI NARRATIVE OVERVIEW -->
+            <Panel class="sapUiSmallMarginBottom" visible="{= !!${recommendationResult>/aiNarrative} }">
                 <headerToolbar>
                     <Toolbar>
-                        <Title text="Use Al Alloy 3003 (qualified)" level="H5" />
+                        <Title text="AI NARRATIVE OVERVIEW" level="H4" />
                         <ToolbarSpacer />
-                        <ObjectStatus text="Alt Material" state="Information" />
+                        <Text text="Generated by Orchestration LLM" />
                     </Toolbar>
                 </headerToolbar>
-                <HBox class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Material" /><Text text="Al Alloy 3003" /></VBox>
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Supplier" /><Text text="ABC alt line" /></VBox>
-                    <VBox><Label text="Compliance" /><ObjectStatus text="Approved" state="Success" /></VBox>
-                </HBox>
-                <HBox class="sapUiSmallMarginBottom">
-                    <VBox class="sapUiSmallMarginEnd"><Label text="Projected OTIF Impact" /><Text text="-8% \u2192 -3%" /></VBox>
-                    <VBox><Label text="Cost / KPI Impact Avoided" /><ObjectStatus text="$0.7M avoided" state="Success" /></VBox>
-                </HBox>
-                <Input placeholder="Comment (optional)..." class="sapUiSmallMarginBottom" />
-                <HBox>
-                    <Button text="Approve" press=".onRecommendationAction" type="Accept" class="sapUiTinyMarginEnd" />
-                    <Button text="Reject" press=".onRecommendationAction" type="Reject" />
-                </HBox>
+                <core:HTML content="{= '&lt;div>' + ${recommendationResult>/aiNarrative} + '&lt;/div>' }" />
             </Panel>
-        </Panel>
 
+        </VBox>
     </VBox>
 </core:FragmentDefinition>

@@ -11,9 +11,17 @@
 
         <Toolbar design="Solid" class="sapUiSmallMarginBottom">
             <Label text="CASE ID" />
-            <Text text="{= ${dashboard>/selectedCaseId} ? ${dashboard>/selectedCaseId} : '\u2014 none active \u2014' }" />
-            <Text text="Preview and confirm an event in News Feed to create a case."
-                  visible="{= !${dashboard>/selectedCaseId} }" />
+            <Select
+                selectedKey="{dashboard>/selectedCaseId}"
+                change=".onCaseDropdownChange"
+                forceSelection="false"
+                autoAdjustWidth="true"
+                items="{caseHierarchy>/availableCases}">
+                <core:Item key="{caseHierarchy>caseId}"
+                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+            </Select>
+            <Text text="No cases available. Investigate an event in News Feed to create a case."
+                  visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
         </Toolbar>
 
         <HBox width="100%" class="sapUiSmallMarginBottom">

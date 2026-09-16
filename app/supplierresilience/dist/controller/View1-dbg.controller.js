@@ -85,6 +85,7 @@ sap.ui.define([
                 selectedCaseId: "",
                 caseData: null,
                 suppliers: [],
+                materials: [],
                 agents: {
                     survivalPlanner:  { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
                     buyer:            { status: "notRun", busy: false, result: null, error: null, formattedResult: "", statusText: "Not Run", statusClass: "adAgentStatusValue" },
@@ -93,81 +94,16 @@ sap.ui.define([
             });
             this.getView().setModel(oAgentDisruptionsModel, "agentDisruptions");
 
-            // Monitoring JSON model — static MVP data for the Case Timeline.
-            // In a future phase this model will be replaced with live
-            // CAP/HANA AgentExecutionHistory data without redesigning the XML.
+            // Monitoring JSON model — drives the Case Timeline / Audit tab.
+            // Populated dynamically from getCaseHistory + getCaseHierarchy +
+            // in-memory agentDisruptions state when the user selects a case.
             var oMonitoringModel = new JSONModel({
-                case: {
-                    caseId: "#SC-2024-613",
-                    event: "Fire at ABC Metals Plant",
-                    severity: "CRITICAL",
-                    classification: "COMPLETE INTERRUPTION"
-                },
-                activities: [
-                    {
-                        agent: "Coordinator Agent",
-                        title: "Case Created",
-                        description: "Case created after human confirmation. 1 supplier, 2 materials, 2 plants, 3 POs at risk.",
-                        time: "14:00",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Early Warning Agent",
-                        title: "Risk Assessment Complete",
-                        description: "Risk Score: 92/100 (Critical). ABC Metals sole supplier for Al Sheet to India plants.",
-                        time: "14:03",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Survival Planner",
-                        title: "Coverage Analysis Complete",
-                        description: "Mumbai: 8 days coverage. Pune: 12 days. Gap: 14/10 days. Total shortfall: 370 MT.",
-                        time: "14:05",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Substitution Agent",
-                        title: "Recommendations Generated",
-                        description: "3 options: Delta Metals alt supplier, Pune stock transfer, Al Alloy 3003 substitution.",
-                        time: "14:08",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Approval Workflow",
-                        title: "Approved via Mock SBPA",
-                        description: "All recommendations approved. Triggering Buyer Agent.",
-                        time: "14:22",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Buyer Agent",
-                        title: "PO Created - Delta Metals (EXC-001)",
-                        description: "EXC-001: 200 MT Aluminium Sheet. Confirmed by Mock S/4HANA. Agent cost: $12.",
-                        time: "14:32",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Buyer Agent",
-                        title: "Stock Transfer Created (EXC-002)",
-                        description: "EXC-002: 80 MT Pune to Mumbai. Confirmed. Agent cost: $8.",
-                        time: "14:35",
-                        status: "completed"
-                    },
-                    {
-                        agent: "Buyer Agent",
-                        title: "PO Submitted - PolyAsia (EXC-003)",
-                        description: "EXC-003: 50 MT PET Resin. Awaiting confirmation. Agent cost: $11.",
-                        time: "15:01",
-                        status: "pending"
-                    }
-                ],
+                case: { caseId: "", event: "", severity: "", classification: "" },
+                activities: [],
                 agentStatuses: [
-                    { name: "Coordinator", status: "completed" },
-                    { name: "Early Warning", status: "completed" },
-                    { name: "Survival Planner", status: "completed" },
-                    { name: "Substitution", status: "completed" },
-                    { name: "Approval", status: "completed" },
-                    { name: "Buyer Agent", status: "pending" }
+                    { name: "Survival Planner", status: "notRun" },
+                    { name: "Buyer Agent", status: "notRun" },
+                    { name: "Recommendation Agent", status: "notRun" }
                 ]
             });
             this.getView().setModel(oMonitoringModel, "monitoringModel");
@@ -1152,6 +1088,9 @@ sap.ui.define([
             if (sKey === "agentDisruptions" && sExistingCaseId) {
                 this._loadCaseDataForAgentDisruptions(sExistingCaseId);
             }
+            if (sKey === "audit" && sExistingCaseId) {
+                this._loadCaseDataForMonitoring(sExistingCaseId);
+            }
         },
 
         // ═══════════════════════════════════════════════════════════════
@@ -1198,13 +1137,91 @@ sap.ui.define([
                 if (oData && oData.success !== false) {
                     oAdModel.setProperty("/caseData", oData.caseData || null);
                     oAdModel.setProperty("/suppliers", Array.isArray(oData.suppliers) ? oData.suppliers : []);
+                    oAdModel.setProperty("/materials", Array.isArray(oData.materials) ? oData.materials : []);
                 } else {
                     oAdModel.setProperty("/caseData", null);
                     oAdModel.setProperty("/suppliers", []);
+                    oAdModel.setProperty("/materials", []);
                 }
             }).catch(function (oErr) {
                 console.error("[AgentDisruptions] Load case failed:", oErr);
                 oAdModel.setProperty("/caseData", null);
+                oAdModel.setProperty("/materials", []);
+            });
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // MONITORING — Load case data for the Case Timeline / Audit tab
+        // ═══════════════════════════════════════════════════════════════
+        /**
+         * Load case data for Monitoring / Audit tab.
+         * @param {string} sCaseId - The case identifier.
+         */
+        _loadCaseDataForMonitoring: function (sCaseId) {
+            var that = this;
+            var oMon = this.getView().getModel("monitoringModel");
+            if (!oMon || !sCaseId) { return; }
+            oMon.setProperty("/case", { caseId: sCaseId, event: "", severity: "", classification: "" });
+            oMon.setProperty("/activities", []);
+            oMon.setProperty("/agentStatuses", [
+                { name: "Survival Planner", status: "notRun" },
+                { name: "Buyer Agent", status: "notRun" },
+                { name: "Recommendation Agent", status: "notRun" }
+            ]);
+            var sUrl = this._getServiceUrl();
+            // 1. Case header
+            fetch(sUrl + "getCaseHierarchy(caseId='" + encodeURIComponent(sCaseId) + "')", {
+                method: "GET", headers: { "Accept": "application/json" }, credentials: "include"
+            }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+              .then(function (o) {
+                if (o && o.caseData) {
+                    var cd = o.caseData, sv = cd.severity || cd.priority || "";
+                    var cl = sv === "CRITICAL" ? "COMPLETE INTERRUPTION" : sv === "HIGH" ? "DELAYED SUPPLY" : "PARTIAL DISRUPTION";
+                    oMon.setProperty("/case", { caseId: cd.caseId || sCaseId, event: cd.eventTitle || cd.eventDescription || "", severity: sv, classification: cd.classification || cl });
+                }
+            }).catch(function (e) { console.warn("[Monitoring] getCaseHierarchy failed:", e); });
+            // 2. History + in-memory merge
+            fetch(sUrl + "getCaseHistory(caseId='" + encodeURIComponent(sCaseId) + "')", {
+                method: "GET", headers: { "Accept": "application/json" }, credentials: "include"
+            }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+              .then(function (o) { that._buildMonitoringActivities(o, sCaseId); })
+              .catch(function (e) { console.warn("[Monitoring] getCaseHistory failed:", e); that._buildMonitoringActivities(null, sCaseId); });
+        },
+
+        /** @private Build activities + agent statuses from DB history + in-memory. */
+        _buildMonitoringActivities: function (oData, sCaseId) {
+            var oMon = this.getView().getModel("monitoringModel");
+            if (!oMon) { return; }
+            var aH = (oData && Array.isArray(oData.history)) ? oData.history : [];
+            var aAct = [], mSt = {};
+            for (var i = 0; i < aH.length; i++) {
+                var h = aH[i], sT = "";
+                if (h.timestamp) { try { var d = new Date(h.timestamp); sT = String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); } catch(e){} }
+                aAct.push({ agent: h.agent || "System", title: h.action || "", description: h.details || "", time: sT, status: "completed" });
+                if (h.agent) { mSt[h.agent] = "completed"; }
+            }
+            this._mergeInMemoryAgentStates(aAct, mSt, sCaseId);
+            oMon.setProperty("/activities", aAct);
+            var aSt = [
+                { name: "Survival Planner", status: mSt["Survival Planner"] || "notRun" },
+                { name: "Buyer Agent", status: mSt["Buyer Agent"] || "notRun" },
+                { name: "Recommendation Agent", status: mSt["Recommendation Agent"] || "notRun" }
+            ];
+            if (mSt["Coordinator Agent"]) { aSt.unshift({ name: "Coordinator", status: "completed" }); }
+            oMon.setProperty("/agentStatuses", aSt);
+        },
+
+        /** @private Merge in-memory agentDisruptions states into activities. */
+        _mergeInMemoryAgentStates: function (aAct, mSt, sCaseId) {
+            var oAd = this.getView().getModel("agentDisruptions");
+            if (!oAd || oAd.getProperty("/selectedCaseId") !== sCaseId) { return; }
+            var mC = { survivalPlanner: { l: "Survival Planner", r: "Running Coverage Analysis…" }, buyer: { l: "Buyer Agent", r: "Running Procurement…" }, recommendation: { l: "Recommendation Agent", r: "Generating Recommendations…" } };
+            ["survivalPlanner","buyer","recommendation"].forEach(function(k){
+                var o = oAd.getProperty("/agents/" + k); if (!o) return;
+                var lb = mC[k].l; if (mSt[lb]) return;
+                if (o.status === "completed") { aAct.push({ agent: lb, title: lb + " Completed", description: "Completed during current session.", time: "Now", status: "completed" }); mSt[lb] = "completed"; }
+                else if (o.status === "running") { aAct.push({ agent: lb, title: mC[k].r, description: "Agent is currently executing.", time: "Now", status: "pending" }); mSt[lb] = "pending"; }
+                else if (o.status === "failed") { aAct.push({ agent: lb, title: lb + " Failed", description: o.error || "Unknown error.", time: "Now", status: "pending" }); mSt[lb] = "pending"; }
             });
         },
 
@@ -1229,6 +1246,7 @@ sap.ui.define([
             var oDashboard = this.getView().getModel("dashboard");
             oAdModel.setProperty("/selectedCaseId", sCaseId);
             oAdModel.setProperty("/caseData", null);
+            oAdModel.setProperty("/materials", []);
             if (oDashboard) { oDashboard.setProperty("/selectedCaseId", sCaseId); }
             this._resetAllAgentDisruptionCards();
             this._loadCaseDataForAgentDisruptions(sCaseId);
@@ -1695,7 +1713,15 @@ sap.ui.define([
 
         /**
          * Build the payload for the recommend-scenario endpoint from
-         * Survival Planner data (SVP result or survivalPlanning model).
+         * Survival Execution output (SVP result), case-specific materials
+         * from getCaseHierarchy, or the survivalPlanning model as a final
+         * fallback.
+         *
+         * Priority:
+         *   1. Survival Planner agent result (real SVP execution output)
+         *   2. Case-specific materials from getCaseHierarchy (stored in
+         *      agentDisruptions /materials)
+         *   3. survivalPlanning model (fallback / mock data)
          *
          * @param {string} sCaseId   - Active case ID
          * @param {Object} oCaseData - Case data from agentDisruptions model
@@ -1710,6 +1736,9 @@ sap.ui.define([
             var aRecords = [], nPortfolioTts = 2, nGapWeeks = 5;
             var sAffectedMaterial = "", sAffectedPlant = "";
 
+            // ── Source 1: Survival Planner agent execution output ─────────
+            // Best source — contains computed TTS, TTR, gap and shortfall
+            // per plant × material from real S/4HANA data.
             if (oSvpResult && Array.isArray(oSvpResult.records) && oSvpResult.records.length > 0) {
                 aRecords = oSvpResult.records;
                 nPortfolioTts = oSvpResult.portfolioHeadlineTTS_Weeks || 2;
@@ -1718,14 +1747,36 @@ sap.ui.define([
                 nGapWeeks = oWorstGap.weeks || (aRecords[0] && aRecords[0].gapWeeks) || 5;
                 sAffectedMaterial = aRecords[0].material || "";
                 sAffectedPlant = aRecords[0].plant || "";
-            } else if (oSP) {
+            }
+
+            // ── Source 2: Case-specific materials from getCaseHierarchy ───
+            // If SVP hasn't been run (or had no records), use the case's
+            // actual material/plant data loaded from the DB via
+            // getCaseHierarchy and stored in the agentDisruptions model.
+            if (!sAffectedMaterial && !sAffectedPlant && oAdModel) {
+                var aCaseMaterials = oAdModel.getProperty("/materials") || [];
+                if (aCaseMaterials.length > 0) {
+                    sAffectedMaterial = aCaseMaterials[0].material || "";
+                    sAffectedPlant = aCaseMaterials[0].plant || "";
+                    if (aRecords.length === 0) {
+                        aRecords = aCaseMaterials;
+                    }
+                }
+            }
+
+            // ── Source 3: survivalPlanning model (final fallback) ─────────
+            // Only used when neither SVP results nor case hierarchy
+            // materials are available.
+            if (!sAffectedMaterial && !sAffectedPlant && oSP) {
                 var aSPMaterials = oSP.getProperty("/materials") || [];
                 if (aSPMaterials.length > 0) {
                     sAffectedMaterial = aSPMaterials[0].material || "";
                     sAffectedPlant = aSPMaterials[0].plant || "";
                     nPortfolioTts = aSPMaterials[0].ttsWeeks || 2;
                     nGapWeeks = aSPMaterials[0].gapWeeks || 5;
-                    aRecords = aSPMaterials;
+                    if (aRecords.length === 0) {
+                        aRecords = aSPMaterials;
+                    }
                 }
             }
 
@@ -2372,6 +2423,7 @@ sap.ui.define([
             if (sV === "caseDashboard") this._loadCaseHierarchy(sC);
             if (sV === "riskAssessment") this._loadCaseDataForRiskAssessment(sC);
             if (sV === "survivalPlanning") this._loadCaseDataForSurvivalPlanning(sC);
+            if (sV === "audit") this._loadCaseDataForMonitoring(sC);
             MessageToast.show("Switched to case: " + sC);
         },
 

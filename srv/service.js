@@ -500,6 +500,34 @@ module.exports = cds.service.impl(async function () {
                 httpClient: executeHttpRequest
             });
 
+            // ── Write CaseHistory entry for Survival Planner completion ──
+            try {
+                const { CaseHistory: CH } = cds.entities('supplierresilience');
+                if (CH) {
+                    const now = new Date().toISOString();
+                    const isOk = result && result.success !== false;
+                    const recCount = (result && Array.isArray(result.records)) ? result.records.length : 0;
+                    const kpis = (result && result.kpis) || {};
+                    const wg = kpis.worstGap || {};
+                    const detailMsg = isOk
+                        ? `Coverage analysis complete. ${recCount} plant-material record(s). Worst gap: ${wg.weeks || 0} wk (${wg.material || '—'} — ${wg.plant || '—'}).`
+                        : `Survival Planner failed: ${(result && result.error) || 'Unknown error'}`;
+                    await INSERT.into(CH).entries({
+                        ID: require('./lib/utils').generateUUID(),
+                        caseId,
+                        timestamp: now,
+                        previousStatus: null,
+                        newStatus: isOk ? 'ANALYSIS_COMPLETE' : 'FAILED',
+                        action: isOk ? 'Coverage Analysis Complete' : 'Coverage Analysis Failed',
+                        agent: 'Survival Planner',
+                        details: detailMsg,
+                        userId: 'System'
+                    });
+                }
+            } catch (histErr) {
+                logger.warn('CaseHistory insert (runSurvival) failed (non-fatal): ' + (histErr.message || histErr));
+            }
+
             return result;
 
         } catch (error) {
@@ -586,7 +614,7 @@ module.exports = cds.service.impl(async function () {
 
             const sTotalAmt = oCase && oCase.estimatedImpact ? oCase.estimatedImpact : 'N/A';
 
-            return {
+            const buyerResult = {
                 success: true,
                 agent: 'BUYER',
                 caseId: caseId,
@@ -602,6 +630,31 @@ module.exports = cds.service.impl(async function () {
                 calculatedAt: new Date().toISOString(),
                 error: null
             };
+
+            // ── Write CaseHistory entry for Buyer Agent completion ────────
+            try {
+                const { CaseHistory: CH } = cds.entities('supplierresilience');
+                if (CH) {
+                    const { generateUUID } = require('./lib/utils');
+                    await INSERT.into(CH).entries({
+                        ID: generateUUID(),
+                        caseId,
+                        timestamp: buyerResult.calculatedAt,
+                        previousStatus: null,
+                        newStatus: 'COMPLETED',
+                        action: actions.length > 0
+                            ? `${actions.length} Procurement Action(s) Proposed`
+                            : 'No Procurement Actions Required',
+                        agent: 'Buyer Agent',
+                        details: buyerResult.recommendation,
+                        userId: 'System'
+                    });
+                }
+            } catch (histErr) {
+                logger.warn('CaseHistory insert (runBuyer) failed (non-fatal): ' + (histErr.message || histErr));
+            }
+
+            return buyerResult;
         } catch (error) {
             logger.error(`runBuyer error: ${error.message}`);
             return { success: false, agent: 'BUYER', caseId, status: 'FAILED', error: error.message };

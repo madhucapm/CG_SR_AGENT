@@ -19,7 +19,7 @@
                 autoAdjustWidth="true"
                 items="{caseHierarchy>/availableCases}">
                 <core:Item key="{caseHierarchy>caseId}"
-                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                           text="{= ${caseHierarchy>caseId} + (${caseHierarchy>eventTitle} ? ' — ' + ${caseHierarchy>eventTitle} : '')}" />
             </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
@@ -199,7 +199,7 @@
                     <VBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Case ID" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/caseId}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Event" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/eventTitle}" wrapping="true" /></HBox>
-                        <HBox class="sapUiTinyMarginBottom"><Label text="Risk Score" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{= ${caseHierarchy>/caseData/riskScore} + '/100'}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Risk Score" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{= (String(${caseHierarchy>/caseData/riskScore} || 0).indexOf('/') >= 0) ? String(${caseHierarchy>/caseData/riskScore}) : (${caseHierarchy>/caseData/riskScore} + '/100')}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Severity" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/severity}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Impact" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/estimatedImpact}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Region" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/region}" /></HBox>

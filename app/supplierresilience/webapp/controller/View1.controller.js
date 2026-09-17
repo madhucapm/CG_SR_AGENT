@@ -2433,6 +2433,20 @@ sap.ui.define([
             if (sV === "riskAssessment") this._loadCaseDataForRiskAssessment(sC);
             if (sV === "survivalPlanning") this._loadCaseDataForSurvivalPlanning(sC);
             if (sV === "audit") this._loadCaseDataForMonitoring(sC);
+            if (sV === "approvals") {
+                // Reset recommendations to empty state for the new case —
+                // the user must re-run the Recommendation Agent for this case.
+                var oRecModel = this.getView().getModel("recommendationResult");
+                if (oRecModel) {
+                    oRecModel.setData({
+                        busy: false, hasResult: false, caseId: sC,
+                        incidentId: null, topRecommendation: null,
+                        rankedOptionList: [], weightMatrix: null,
+                        portfolioHeadlineTts: null, gapMagnitudeWeeks: null,
+                        agentId: null, timestamp: null, aiNarrative: null
+                    });
+                }
+            }
             MessageToast.show("Switched to case: " + sC);
         },
 
@@ -2487,7 +2501,7 @@ sap.ui.define([
                 matBy[k].push(m);
             });
 
-            var caseScore = parseInt(String(cd.riskScore || 0).replace(/[^0-9]/g, ""), 10) || 0;
+            var caseScore = parseInt(String(cd.riskScore || 0).split("/")[0], 10) || 0;
             var caseSev = (cd.severity || "").toUpperCase();
             var iMax = caseScore, sMax = "", tPOs = 0, pSet = {};
 

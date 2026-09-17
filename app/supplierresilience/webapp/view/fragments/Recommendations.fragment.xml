@@ -19,7 +19,7 @@
                 autoAdjustWidth="true"
                 items="{caseHierarchy>/availableCases}">
                 <core:Item key="{caseHierarchy>caseId}"
-                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                           text="{= ${caseHierarchy>caseId} + (${caseHierarchy>eventTitle} ? ' — ' + ${caseHierarchy>eventTitle} : '')}" />
             </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />

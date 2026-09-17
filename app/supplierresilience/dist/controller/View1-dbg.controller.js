@@ -906,8 +906,17 @@ sap.ui.define([
                 );
                 oCaseH.setProperty("/hierarchyTree", aTree);
 
-                // Load all cases from HANA for the hierarchy panel
-                that._loadAllCasesForHierarchy();
+                // Build selectedCaseTree — single-case array for the hierarchy panel
+                var cd = oData.caseData || {};
+                oCaseH.setProperty("/selectedCaseTree", [{
+                    caseId: cd.caseId || sCaseId,
+                    eventTitle: cd.eventTitle || "",
+                    severity: cd.severity || "",
+                    classification: cd.classification || "",
+                    status: cd.status || "",
+                    suppliers: aTree,
+                    _expanded: true
+                }]);
 
             }).catch(function (oErr) {
                 console.error("[CaseDashboard] Load failed:", oErr);
@@ -2478,7 +2487,7 @@ sap.ui.define([
                 matBy[k].push(m);
             });
 
-            var caseScore = cd.riskScore || 0;
+            var caseScore = parseInt(String(cd.riskScore || 0).replace(/[^0-9]/g, ""), 10) || 0;
             var caseSev = (cd.severity || "").toUpperCase();
             var iMax = caseScore, sMax = "", tPOs = 0, pSet = {};
 

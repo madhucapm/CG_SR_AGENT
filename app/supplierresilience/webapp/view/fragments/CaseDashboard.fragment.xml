@@ -79,7 +79,7 @@
                         <Toolbar><Title text="CASE HIERARCHY" level="H4" /></Toolbar>
                     </headerToolbar>
 
-                    <List items="{caseHierarchy>/allCasesTree}"
+                    <List items="{caseHierarchy>/selectedCaseTree}"
                           showSeparators="Inner"
                           noDataText="No cases found.">
                         <CustomListItem>
@@ -199,7 +199,7 @@
                     <VBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Case ID" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/caseId}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Event" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/eventTitle}" wrapping="true" /></HBox>
-                        <HBox class="sapUiTinyMarginBottom"><Label text="Risk Score" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/riskScore}" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Risk Score" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{= ${caseHierarchy>/caseData/riskScore} + '/100'}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Severity" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/severity}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Impact" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/estimatedImpact}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Region" class="sapUiSmallMarginEnd" width="5rem" /><Text text="{caseHierarchy>/caseData/region}" /></HBox>

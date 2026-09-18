@@ -113,31 +113,12 @@ sap.ui.define([
             // impact results when a real case is active.
             var oRiskAssessmentModel = new JSONModel({
                 kpi: {
-                    highestRisk:      { value: 92, supplier: "ABC Metals" },
-                    suppliersImpacted:{ value: "4",  sub: "Primary metric" },
-                    posAtRisk:        { value: "8",  sub: "Primary metric" },
-                    plants:           { value: "7",  sub: "Affected" }
+                    highestRisk:      { value: "—", supplier: "Select a case" },
+                    suppliersImpacted:{ value: "—", sub: "Select a case" },
+                    posAtRisk:        { value: "—", sub: "Select a case" },
+                    plants:           { value: "—", sub: "Select a case" }
                 },
-                supplierRisks: [
-                    {
-                        supplier: "ABC Metals",
-                        classification: "COMPLETE INTERRUPTION",
-                        riskScore: "92/100",
-                        severity: "CRITICAL",
-                        posAtRisk: "3",
-                        plants: "Mumbai Plant, Pune Plant",
-                        materials: "Coke Can, Sprite Can, Fanta Can"
-                    },
-                    {
-                        supplier: "MetalCorp US",
-                        classification: "TARIFF",
-                        riskScore: "74/100",
-                        severity: "HIGH",
-                        posAtRisk: "2",
-                        plants: "Atlanta Plant, Monterey Plant",
-                        materials: "Soda Can Body, Can Lid"
-                    }
-                ]
+                supplierRisks: []
             });
             this.getView().setModel(oRiskAssessmentModel, "riskAssessment");
 
@@ -146,19 +127,12 @@ sap.ui.define([
             // case material-supply data when a real case is active.
             var oSurvivalPlanningModel = new JSONModel({
                 kpi: {
-                    criticalItems:  { value: "3",      sub: "Coverage < 10 days" },
-                    avgCoverage:    { value: "15 days", sub: "All materials" },
-                    worstGap:       { value: "18 days", sub: "Aluminium Coil - Mumbai" },
-                    totalShortfall: { value: "483 MT",  sub: "Needs mitigation" }
+                    criticalItems:  { value: "—", sub: "Select a case" },
+                    avgCoverage:    { value: "—", sub: "Select a case" },
+                    worstGap:       { value: "—", sub: "Select a case" },
+                    totalShortfall: { value: "—", sub: "Select a case" }
                 },
-                materials: [
-                    { material: "Aluminium Sheet", plant: "Mumbai Plant",      coverage: "8 days",  timeToSurvive: "8 days",  recovery: "2024-03-15", gap: "14 days", shortfall: "240 MT" },
-                    { material: "Aluminium Sheet", plant: "Pune Plant",        coverage: "12 days", timeToSurvive: "12 days", recovery: "2024-03-15", gap: "10 days", shortfall: "130 MT" },
-                    { material: "Aluminium Coil",  plant: "Mumbai Plant",      coverage: "5 days",  timeToSurvive: "5 days",  recovery: "2024-03-18", gap: "18 days", shortfall: "95 MT" },
-                    { material: "Aluminium Ingot", plant: "Atlanta Plant",     coverage: "21 days", timeToSurvive: "21 days", recovery: "2024-03-01", gap: "0 days",  shortfall: "—" },
-                    { material: "PET Resin",       plant: "Ho Chi Minh Plant", coverage: "15 days", timeToSurvive: "15 days", recovery: "2024-03-10", gap: "3 days",  shortfall: "18 MT" },
-                    { material: "Citric Acid",     plant: "Jebel Ali Hub",     coverage: "30 days", timeToSurvive: "30 days", recovery: "2024-03-05", gap: "0 days",  shortfall: "—" }
-                ]
+                materials: []
             });
             this.getView().setModel(oSurvivalPlanningModel, "survivalPlanning");
 
@@ -180,6 +154,19 @@ sap.ui.define([
                 aiNarrative: null
             });
             this.getView().setModel(oRecommendationResultModel, "recommendationResult");
+
+            // Execution Model — tracks STO/PO orders created by the Buyer
+            // Agent when the user approves recommendations. Drives the
+            // Execution Tracking view with real data from S/4HANA.
+            var oExecutionModel = new JSONModel({
+                executionItems: [],
+                stoCreatedCount: 0,
+                poCreatedCount: 0,
+                failedCount: 0,
+                pendingCount: 0,
+                totalCount: 0
+            });
+            this.getView().setModel(oExecutionModel, "execution");
 
             // User model powering the News Feed hero header greeting.
             // The "user" model is set at the Component level (Component.js)
@@ -382,12 +369,183 @@ sap.ui.define([
         },
 
         /**
-         * Recommendations screen — static prototype Approve / Reject.
-         * No backend call, no persistence, no business logic.
-         * Will be replaced with real approval flow in a future phase.
+         * Recommendations screen — Approve a ranked option.
+         * Determines whether it's an AlternatePlant (STO) or
+         * AlternateSupplier (PO) and calls the respective backend
+         * action to create a real order in S/4HANA.
+         *
+         * The result is appended to the execution model which
+         * drives the Execution Tracking view.
          */
-        onRecommendationAction: function () {
-            MessageToast.show("Static prototype — approval flow will be implemented in the next phase.");
+        onRecommendationAction: function (oEvent) {
+            var oView = this.getView();
+            var that = this;
+
+            // Get the recommendation row context
+            var oSource = oEvent.getSource();
+            var oCtx = oSource.getBindingContext("recommendationResult");
+            if (!oCtx) {
+                MessageToast.show("No recommendation context found.");
+                return;
+            }
+
+            var oRec = oCtx.getObject();
+            if (!oRec) {
+                MessageToast.show("No recommendation data available.");
+                return;
+            }
+
+            // Get case ID from the recommendation model
+            var oRecModel = oView.getModel("recommendationResult");
+            var sCaseId = oRecModel.getProperty("/caseId") || "";
+
+            // Determine if this is an STO (plant-based) or PO (supplier-based)
+            // The strategy label from the recommendation agent indicates the type
+            var sStrategy = (oRec.strategyLabel || "").toUpperCase();
+            var bIsSTO = sStrategy.indexOf("PLANT") >= 0 ||
+                         sStrategy.indexOf("STOCK TRANSFER") >= 0 ||
+                         sStrategy.indexOf("INTER-PLANT") >= 0 ||
+                         sStrategy.indexOf("ALTERNATE PLANT") >= 0;
+
+            var sServiceUrl = this._getServiceUrl();
+            var sEndpoint, oPayload, sOrderType;
+
+            if (bIsSTO) {
+                // Stock Transport Order — plant to plant transfer
+                sEndpoint = "createStockTransportOrder";
+                sOrderType = "STO";
+                oPayload = {
+                    sourcePlantId: oRec.plant || "",
+                    targetPlantId: oRec.plant || "",
+                    materialId: oRec.material || "",
+                    quantity: oRec.compositeScore ? 100 : 100,
+                    caseId: sCaseId
+                };
+                // Try to extract source/target from strategy label or plant field
+                // Format may be "Plant X → Plant Y" or just a plant ID
+                var sPlant = oRec.plant || "";
+                if (sPlant.indexOf("→") >= 0 || sPlant.indexOf("->") >= 0) {
+                    var aParts = sPlant.split(/→|->/).map(function(s) { return s.trim(); });
+                    oPayload.sourcePlantId = aParts[0] || sPlant;
+                    oPayload.targetPlantId = aParts[1] || sPlant;
+                } else {
+                    // Use the plant as target; source needs case context
+                    oPayload.targetPlantId = sPlant;
+                    oPayload.sourcePlantId = sPlant;
+                }
+            } else {
+                // Standard Purchase Order — from supplier
+                sEndpoint = "createPurchaseOrder";
+                sOrderType = "PO";
+                oPayload = {
+                    supplierId: oRec.plant || "",
+                    plantId: oRec.plant || "",
+                    materialId: oRec.material || "",
+                    quantity: 100,
+                    caseId: sCaseId
+                };
+            }
+
+            // Add a pending entry to the execution model
+            var oExecModel = oView.getModel("execution");
+            var aItems = oExecModel.getProperty("/executionItems") || [];
+            var iPendingCount = oExecModel.getProperty("/pendingCount") || 0;
+            var iTotal = oExecModel.getProperty("/totalCount") || 0;
+
+            var oNewItem = {
+                id: "EXC-" + String(iTotal + 1).padStart(3, "0"),
+                orderType: sOrderType,
+                type: bIsSTO ? "Stock Transfer" : "Purchase Order",
+                material: oRec.material || "",
+                plant: oRec.plant || "",
+                strategy: oRec.strategyLabel || "",
+                quantity: oPayload.quantity,
+                status: "Processing",
+                poNumber: "",
+                time: new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+                error: ""
+            };
+            aItems.push(oNewItem);
+            oExecModel.setProperty("/executionItems", aItems);
+            oExecModel.setProperty("/pendingCount", iPendingCount + 1);
+            oExecModel.setProperty("/totalCount", iTotal + 1);
+
+            // Disable the button by marking the row
+            var sRecPath = oCtx.getPath();
+            oRecModel.setProperty(sRecPath + "/_approved", true);
+
+            MessageToast.show("Creating " + sOrderType + " for " + (oRec.material || "material") + " …");
+
+            // Call the backend
+            fetch(sServiceUrl + sEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(oPayload)
+            }).then(function (oResp) {
+                if (!oResp.ok) {
+                    return oResp.text().then(function (sBody) {
+                        throw new Error("HTTP " + oResp.status + ": " + sBody.substring(0, 300));
+                    });
+                }
+                return oResp.json();
+            }).then(function (oData) {
+                console.log("[BuyerAgent] " + sEndpoint + " response:", oData);
+
+                // Find the item we just added and update it
+                var aUpdatedItems = oExecModel.getProperty("/executionItems");
+                var iIdx = aUpdatedItems.length - 1;
+                for (var i = aUpdatedItems.length - 1; i >= 0; i--) {
+                    if (aUpdatedItems[i].id === oNewItem.id) { iIdx = i; break; }
+                }
+
+                var iPending = oExecModel.getProperty("/pendingCount") || 1;
+
+                if (oData && oData.success) {
+                    oExecModel.setProperty("/executionItems/" + iIdx + "/status", "Confirmed");
+                    oExecModel.setProperty("/executionItems/" + iIdx + "/poNumber", oData.poNumber || "");
+                    oExecModel.setProperty("/executionItems/" + iIdx + "/time",
+                        new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+
+                    if (sOrderType === "STO") {
+                        var iSto = oExecModel.getProperty("/stoCreatedCount") || 0;
+                        oExecModel.setProperty("/stoCreatedCount", iSto + 1);
+                    } else {
+                        var iPo = oExecModel.getProperty("/poCreatedCount") || 0;
+                        oExecModel.setProperty("/poCreatedCount", iPo + 1);
+                    }
+                    oExecModel.setProperty("/pendingCount", Math.max(0, iPending - 1));
+
+                    MessageToast.show("✅ " + sOrderType + " " + (oData.poNumber || "") + " created successfully!");
+                } else {
+                    var sErr = (oData && oData.error) || "Unknown error";
+                    oExecModel.setProperty("/executionItems/" + iIdx + "/status", "Failed");
+                    oExecModel.setProperty("/executionItems/" + iIdx + "/error", sErr);
+                    var iFailed = oExecModel.getProperty("/failedCount") || 0;
+                    oExecModel.setProperty("/failedCount", iFailed + 1);
+                    oExecModel.setProperty("/pendingCount", Math.max(0, iPending - 1));
+
+                    MessageToast.show("❌ " + sOrderType + " creation failed: " + sErr);
+                }
+
+            }).catch(function (oErr) {
+                console.error("[BuyerAgent] " + sEndpoint + " error:", oErr);
+
+                var aUpdatedItems = oExecModel.getProperty("/executionItems");
+                var iIdx = aUpdatedItems.length - 1;
+                for (var i = aUpdatedItems.length - 1; i >= 0; i--) {
+                    if (aUpdatedItems[i].id === oNewItem.id) { iIdx = i; break; }
+                }
+
+                oExecModel.setProperty("/executionItems/" + iIdx + "/status", "Failed");
+                oExecModel.setProperty("/executionItems/" + iIdx + "/error", oErr.message || "Network error");
+                var iFailed = oExecModel.getProperty("/failedCount") || 0;
+                oExecModel.setProperty("/failedCount", iFailed + 1);
+                var iPending = oExecModel.getProperty("/pendingCount") || 1;
+                oExecModel.setProperty("/pendingCount", Math.max(0, iPending - 1));
+
+                MessageToast.show("❌ " + sOrderType + " creation error: " + (oErr.message || "Unknown"));
+            });
         },
 
         /**
@@ -2414,11 +2572,23 @@ sap.ui.define([
             oCH.setProperty("/availableCasesBusy", true);
             fetch(this._getServiceUrl() + "Cases?$orderby=createdAt desc", {
                 method: "GET", headers: { "Accept": "application/json" }, credentials: "include"
-            }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json();
-            }).then(function (d) {
-                oCH.setProperty("/availableCases", ((d && d.value) || []).map(function (c) {
-                    return { caseId: c.caseId||"", eventTitle: c.eventTitle||"", severity: c.severity||"", status: c.status||"", riskScore: c.riskScore||0, region: c.region||"" };
-                }));
+            }).then(function (r) { return r.ok ? r.json() : { value: [] }; })
+              .then(function (d) {
+                var aCases = ((d && d.value) || [])
+                    // Filter out old CASE-10xx format cases
+                    .filter(function (c) {
+                        var id = c.caseId || "";
+                        return id.indexOf("CASE-100") !== 0 && id.indexOf("CASE-101") !== 0;
+                    })
+                    .map(function (c) {
+                        // Clean eventTitle: remove meaningless values like "—", "\u2014", empty
+                        var sTitle = c.eventTitle || "";
+                        if (sTitle === "\u2014" || sTitle === "—" || sTitle.trim() === "") {
+                            sTitle = "";
+                        }
+                        return { caseId: c.caseId||"", eventTitle: sTitle, severity: c.severity||"", status: c.status||"", riskScore: c.riskScore||0, region: c.region||"" };
+                    });
+                oCH.setProperty("/availableCases", aCases);
                 oCH.setProperty("/availableCasesBusy", false);
             }).catch(function () { oCH.setProperty("/availableCasesBusy", false); });
         },
@@ -2533,7 +2703,7 @@ sap.ui.define([
                 var cls = cd.classification || (sev === "CRITICAL" ? "COMPLETE INTERRUPTION" : sev === "HIGH" ? "DELAYED SUPPLY" : "PARTIAL DISRUPTION");
                 return {
                     supplier: s.name || sid, supplierId: sid,
-                    classification: cls, riskScore: sc + "/100",
+                    classification: cls, riskScore: sc,
                     riskScoreRaw: sc, severity: sev,
                     posAtRisk: String(n),
                     plants: pl.join(", ") || "—",

@@ -42,6 +42,15 @@ let getMaterialStockData = null;
 try { ({ getMaterialStockData } = require('./lib/material-stock-handler')); }
 catch (e) { console.warn('[Service] lib/material-stock-handler not loaded:', e.message); }
 
+// STO / PO Creation Handlers — create real Stock Transport Orders and
+// Purchase Orders in S/4HANA via API_PURCHASEORDER_PROCESS_SRV.
+let createStockTransportOrderFn = null;
+let createPurchaseOrderFn = null;
+try { ({ createStockTransportOrder: createStockTransportOrderFn } = require('./lib/create-sto-handler')); }
+catch (e) { console.warn('[Service] lib/create-sto-handler not loaded:', e.message); }
+try { ({ createPurchaseOrder: createPurchaseOrderFn } = require('./lib/create-po-handler')); }
+catch (e) { console.warn('[Service] lib/create-po-handler not loaded:', e.message); }
+
 // SAP Cloud SDK — used to call the S/4HANA `S4R` destination configured in
 // the BTP Destination service. Loaded defensively so the CAP srv still starts
 // locally even if the SDK is not yet installed.
@@ -658,6 +667,122 @@ module.exports = cds.service.impl(async function () {
         } catch (error) {
             logger.error(`runBuyer error: ${error.message}`);
             return { success: false, agent: 'BUYER', caseId, status: 'FAILED', error: error.message };
+        }
+    });
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ACTION: Create Stock Transport Order (STO) in S/4HANA
+    // Uses API_PLANT_SRV + API_PRODUCT_SRV for org data, then
+    // API_PURCHASEORDER_PROCESS_SRV to POST PO type "UB"
+    // ═════════════════════════════════════════════════════════════════════════
+    this.on('createStockTransportOrder', async (req) => {
+        logger.info('createStockTransportOrder action called');
+
+        if (!createStockTransportOrderFn) {
+            return { success: false, orderType: 'STO', error: 'STO handler module is not available' };
+        }
+        if (!executeHttpRequest) {
+            return { success: false, orderType: 'STO', error: '@sap-cloud-sdk/http-client is not available — cannot call S/4HANA APIs' };
+        }
+
+        const { sourcePlantId, targetPlantId, materialId, quantity, caseId } = req.data;
+
+        if (!sourcePlantId || !targetPlantId || !materialId || !quantity) {
+            return { success: false, orderType: 'STO', error: 'Missing required fields: sourcePlantId, targetPlantId, materialId, quantity' };
+        }
+
+        try {
+            const result = await createStockTransportOrderFn(
+                { sourcePlantId, targetPlantId, materialId, quantity: parseFloat(quantity), caseId },
+                executeHttpRequest,
+                logger
+            );
+
+            // Write CaseHistory entry if caseId is provided
+            if (caseId && result.success) {
+                try {
+                    const { CaseHistory: CH } = cds.entities('supplierresilience');
+                    if (CH) {
+                        const { generateUUID } = require('./lib/utils');
+                        await INSERT.into(CH).entries({
+                            ID: generateUUID(),
+                            caseId,
+                            timestamp: new Date().toISOString(),
+                            previousStatus: null,
+                            newStatus: 'STO_CREATED',
+                            action: `Stock Transport Order ${result.poNumber} Created`,
+                            agent: 'Buyer Agent',
+                            details: `STO ${result.poNumber} created: ${materialId} qty ${quantity} from plant ${sourcePlantId} to plant ${targetPlantId}`,
+                            userId: 'System'
+                        });
+                    }
+                } catch (histErr) {
+                    logger.warn('CaseHistory insert (STO) failed (non-fatal): ' + histErr.message);
+                }
+            }
+
+            return result;
+        } catch (error) {
+            logger.error(`createStockTransportOrder error: ${error.message}`);
+            return { success: false, orderType: 'STO', error: error.message };
+        }
+    });
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ACTION: Create Standard Purchase Order (PO) in S/4HANA
+    // Uses API_PLANT_SRV + API_PRODUCT_SRV for org data, then
+    // API_PURCHASEORDER_PROCESS_SRV to POST PO type "NB"
+    // ═════════════════════════════════════════════════════════════════════════
+    this.on('createPurchaseOrder', async (req) => {
+        logger.info('createPurchaseOrder action called');
+
+        if (!createPurchaseOrderFn) {
+            return { success: false, orderType: 'PO', error: 'PO handler module is not available' };
+        }
+        if (!executeHttpRequest) {
+            return { success: false, orderType: 'PO', error: '@sap-cloud-sdk/http-client is not available — cannot call S/4HANA APIs' };
+        }
+
+        const { supplierId, plantId, materialId, quantity, caseId } = req.data;
+
+        if (!supplierId || !plantId || !materialId || !quantity) {
+            return { success: false, orderType: 'PO', error: 'Missing required fields: supplierId, plantId, materialId, quantity' };
+        }
+
+        try {
+            const result = await createPurchaseOrderFn(
+                { supplierId, plantId, materialId, quantity: parseFloat(quantity), caseId },
+                executeHttpRequest,
+                logger
+            );
+
+            // Write CaseHistory entry if caseId is provided
+            if (caseId && result.success) {
+                try {
+                    const { CaseHistory: CH } = cds.entities('supplierresilience');
+                    if (CH) {
+                        const { generateUUID } = require('./lib/utils');
+                        await INSERT.into(CH).entries({
+                            ID: generateUUID(),
+                            caseId,
+                            timestamp: new Date().toISOString(),
+                            previousStatus: null,
+                            newStatus: 'PO_CREATED',
+                            action: `Purchase Order ${result.poNumber} Created`,
+                            agent: 'Buyer Agent',
+                            details: `PO ${result.poNumber} created: ${materialId} qty ${quantity} from supplier ${supplierId} to plant ${plantId}`,
+                            userId: 'System'
+                        });
+                    }
+                } catch (histErr) {
+                    logger.warn('CaseHistory insert (PO) failed (non-fatal): ' + histErr.message);
+                }
+            }
+
+            return result;
+        } catch (error) {
+            logger.error(`createPurchaseOrder error: ${error.message}`);
+            return { success: false, orderType: 'PO', error: error.message };
         }
     });
 

@@ -47,6 +47,8 @@ service SupplierResilienceService {
     entity EarlyWarningResults as projection on supplierresilience.EarlyWarningResult;
 
     entity SurvivalResults as projection on supplierresilience.SurvivalResult;
+
+    entity RecommendationResults as projection on supplierresilience.RecommendationResult;
     
     entity CaseHistories as projection on supplierresilience.CaseHistory;
 

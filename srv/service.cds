@@ -787,6 +787,7 @@ service SupplierResilienceService {
                 materialCriticality     : Integer;
                 affectedScope           : Integer;
                 revenueExposure         : Integer;
+                affectedSkuScope        : Integer;  // NEW: Points for affected SKU count
                 total                   : Integer;
             };
             scoringNote             : String;
@@ -807,6 +808,19 @@ service SupplierResilienceService {
             };
             affectedPlants          : array of String;
             affectedPlantsCount     : Integer;
+            
+            // NEW: Aggregated Affected SKUs at supplier level (de-duplicated across all POs)
+            affectedSkus            : array of {
+                skuMaterialId           : String;
+                bomId                   : String;
+                bomVariant              : String;
+                affectedComponentId     : String;
+                componentQuantityPerSku : Decimal;
+                plant                   : String;
+            };
+            affectedSkuCount        : Integer;
+            bomApiAvailable         : Boolean;
+            
             totalRevenueExposure    : Decimal;
             topRiskDrivers          : array of String;
             poCount                 : Integer;
@@ -853,6 +867,7 @@ service SupplierResilienceService {
             materialCriticality     : Integer;
             affectedScope           : Integer;
             revenueExposure         : Integer;
+            affectedSkuScope        : Integer;  // NEW: Points for affected SKU count
             total                   : Integer;
         };
         scoringNote             : String;
@@ -920,7 +935,19 @@ service SupplierResilienceService {
         // Impact Data
         affectedPlants          : array of String;
         affectedPlantsCount     : Integer;
-        affectedSkus            : array of String;
+        
+        // NEW: Affected SKUs from BOM Reverse Lookup
+        affectedSkus            : array of {
+            skuMaterialId           : String;
+            bomId                   : String;
+            bomVariant              : String;
+            affectedComponentId     : String;
+            componentQuantityPerSku : Decimal;
+            plant                   : String;
+        };
+        affectedSkuCount        : Integer;
+        bomApiAvailable         : Boolean;
+        
         estimatedRevenueImpact  : Decimal;
         
         // Risk Drivers

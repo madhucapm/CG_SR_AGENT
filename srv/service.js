@@ -42,6 +42,7 @@ let getMaterialStockData = null;
 try { ({ getMaterialStockData } = require('./lib/material-stock-handler')); }
 catch (e) { console.warn('[Service] lib/material-stock-handler not loaded:', e.message); }
 
+<<<<<<< Updated upstream
 // STO / PO Creation Handlers — create real Stock Transport Orders and
 // Purchase Orders in S/4HANA via API_PURCHASEORDER_PROCESS_SRV.
 let createStockTransportOrderFn = null;
@@ -50,6 +51,13 @@ try { ({ createStockTransportOrder: createStockTransportOrderFn } = require('./l
 catch (e) { console.warn('[Service] lib/create-sto-handler not loaded:', e.message); }
 try { ({ createPurchaseOrder: createPurchaseOrderFn } = require('./lib/create-po-handler')); }
 catch (e) { console.warn('[Service] lib/create-po-handler not loaded:', e.message); }
+=======
+// Affected SKU Handler — performs reverse BOM lookup to find finished goods (SKUs)
+// that use a given component material for the Early Warning Agent.
+let getAffectedSkus = null;
+try { ({ getAffectedSkus } = require('./lib/affected-sku-handler')); }
+catch (e) { console.warn('[Service] lib/affected-sku-handler not loaded:', e.message); }
+>>>>>>> Stashed changes
 
 // SAP Cloud SDK — used to call the S/4HANA `S4R` destination configured in
 // the BTP Destination service. Loaded defensively so the CAP srv still starts
@@ -331,9 +339,25 @@ module.exports = cds.service.impl(async function () {
                 }
             }
             
-            const scoreResult = calculateS4RRiskScore(s4rData, supplierOtifData, materialStockData);
-            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData, materialStockData);
-            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData, materialStockData);
+            // NEW: Fetch affected SKUs via reverse BOM lookup
+            let affectedSkuData = null;
+            if (getAffectedSkus && s4rData.materialId) {
+                try {
+                    logger.info(`[SINGLE MODE] Fetching affected SKUs for Material=${s4rData.materialId}, Plant=${s4rData.plant}`);
+                    affectedSkuData = await getAffectedSkus(executeHttpRequest, s4rData.materialId, s4rData.plant);
+                    if (affectedSkuData.success) {
+                        logger.info(`Affected SKUs: ${affectedSkuData.affectedSkuCount} SKU(s) found`);
+                    } else if (affectedSkuData.error) {
+                        logger.warn(`Affected SKU fetch returned error: ${affectedSkuData.error}`);
+                    }
+                } catch (e) { 
+                    logger.warn(`Could not fetch affected SKUs: ${e.message}`); 
+                }
+            }
+            
+            const scoreResult = calculateS4RRiskScore(s4rData, supplierOtifData, materialStockData, affectedSkuData);
+            const topRiskDrivers = buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData, materialStockData, affectedSkuData);
+            const output = buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData, materialStockData, affectedSkuData);
             logger.info(`Early Warning S4R completed: PO=${po}, riskScore=${output.riskScore}`);
             return output;
         } catch (error) {
@@ -439,8 +463,66 @@ module.exports = cds.service.impl(async function () {
                 }
             }
 
-            // STEP 4: Build Supplier Results (now includes stock data)
-            const suppliers = buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap, materialStockMap);
+            // STEP 3.6: Fetch Affected SKUs via BOM Reverse Lookup (NEW)
+            let affectedSkuMap = {};
+            logger.info(`[STEP 3.6] getAffectedSkus function available: ${!!getAffectedSkus}, executeHttpRequest available: ${!!executeHttpRequest}`);
+            if (getAffectedSkus && executeHttpRequest) {
+                // Reuse the same unique material+plant pairs from Step 3.5
+                const materialPlantPairs = [];
+                const seenPairs = new Set();
+                for (const suppId of supplierIds) {
+                    for (const { s4rData } of posBySupplier[suppId]) {
+                        const mat = s4rData.materialId;
+                        const plant = s4rData.plant;
+                        if (mat) {
+                            const key = `${mat}_${plant || ''}`;
+                            if (!seenPairs.has(key)) {
+                                seenPairs.add(key);
+                                materialPlantPairs.push({ materialId: mat, plant });
+                            }
+                        }
+                    }
+                }
+                
+                if (materialPlantPairs.length > 0) {
+                    logger.info(`[STEP 3.6] Fetching affected SKUs for ${materialPlantPairs.length} materials via BOM API`);
+                    logger.info(`[STEP 3.6] Materials to process: ${JSON.stringify(materialPlantPairs)}`);
+                    
+                    // Fetch affected SKUs in parallel with concurrency limit
+                    const BATCH_SIZE = 5;
+                    for (let i = 0; i < materialPlantPairs.length; i += BATCH_SIZE) {
+                        const batch = materialPlantPairs.slice(i, i + BATCH_SIZE);
+                        logger.info(`[STEP 3.6] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}: ${JSON.stringify(batch)}`);
+                        const batchResults = await Promise.all(
+                            batch.map(({ materialId, plant }) =>
+                                getAffectedSkus(executeHttpRequest, materialId, plant)
+                                    .then(data => {
+                                        logger.info(`[STEP 3.6] Result for ${materialId}@${plant}: success=${data?.success}, skuCount=${data?.affectedSkuCount}, bomApiAvailable=${data?.bomApiAvailable}, error=${data?.error || 'none'}`);
+                                        return { key: `${materialId}_${plant || ''}`, data };
+                                    })
+                                    .catch(err => {
+                                        logger.error(`[STEP 3.6] Affected SKU fetch THREW for ${materialId}@${plant}: ${err.message}`);
+                                        return { key: `${materialId}_${plant || ''}`, data: null };
+                                    })
+                            )
+                        );
+                        for (const { key, data } of batchResults) {
+                            if (data && data.success) {
+                                affectedSkuMap[key] = data;
+                                logger.info(`[STEP 3.6] Added ${key} to affectedSkuMap with ${data.affectedSkuCount} SKUs`);
+                            } else {
+                                logger.warn(`[STEP 3.6] Skipping ${key} - data.success is false or null`);
+                            }
+                        }
+                    }
+                    logger.info(`[STEP 3.6] FINAL: Fetched affected SKU data for ${Object.keys(affectedSkuMap).length}/${materialPlantPairs.length} materials`);
+                } else {
+                    logger.warn(`[STEP 3.6] No material+plant pairs to process`);
+                }
+            }
+
+            // STEP 4: Build Supplier Results (now includes stock data and affected SKUs)
+            const suppliers = buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap, materialStockMap, affectedSkuMap);
             logger.info(`[STEP 4] Built ${suppliers.length} supplier results`);
 
             return { success: true, agent: 'EARLY_WARNING', caseId, caseIdGenerated,
@@ -2206,8 +2288,8 @@ module.exports = cds.service.impl(async function () {
         return (supplierOtifData.overduePOs || 0) + (supplierOtifData.partiallyDeliveredPOs || 0);
     }
 
-    /** Build supplier results for multi mode (with material stock data for criticality) */
-    function buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap, materialStockMap = {}) {
+    /** Build supplier results for multi mode (with material stock data and affected SKUs) */
+    function buildMultiModeSupplierResults(supplierIds, posBySupplier, supplierNames, supplierOtifMap, materialStockMap = {}, affectedSkuMap = {}) {
         const results = [];
         for (const suppId of supplierIds) {
             const supplierPOs = posBySupplier[suppId];
@@ -2220,7 +2302,24 @@ module.exports = cds.service.impl(async function () {
             let worstMaterialStockData = null; // Track worst (most critical) stock data for supplier-level scoring
             let maxMaterialCriticalityScore = 0;
             
+            // NEW: Aggregate affected SKUs across all materials for this supplier
+            const supplierAffectedSkusMap = new Map(); // Key: skuMaterialId, Value: SKU object (de-duplicated)
+            let supplierBomApiAvailable = false;
+            
             for (const { poNumber, s4rData } of supplierPOs) {
+                // Look up affected SKU data for this material
+                const skuKey = `${s4rData.materialId}_${s4rData.plant || ''}`;
+                const affectedSkuData = affectedSkuMap[skuKey] || null;
+                if (affectedSkuData?.success) {
+                    supplierBomApiAvailable = true;
+                    // Merge SKUs into supplier-level map (de-duplicate by skuMaterialId)
+                    for (const sku of (affectedSkuData.affectedSkus || [])) {
+                        if (!supplierAffectedSkusMap.has(sku.skuMaterialId)) {
+                            supplierAffectedSkusMap.set(sku.skuMaterialId, sku);
+                        }
+                    }
+                }
+                
                 // Look up stock data for this material+plant combination
                 const stockKey = `${s4rData.materialId}_${s4rData.plant}`;
                 const materialStockData = materialStockMap[stockKey] || null;
@@ -2293,11 +2392,23 @@ module.exports = cds.service.impl(async function () {
                 (s4rData.affectedPlants || []).forEach(p => affectedPlantsSet.add(p));
             }
             
+            // Convert supplier-level affected SKUs Map to array
+            const supplierAffectedSkus = Array.from(supplierAffectedSkusMap.values());
+            const supplierAffectedSkuCount = supplierAffectedSkus.length;
+            
+            // Build aggregated affected SKU data for supplier-level scoring
+            const supplierAffectedSkuData = supplierBomApiAvailable ? {
+                success: true,
+                affectedSkus: supplierAffectedSkus,
+                affectedSkuCount: supplierAffectedSkuCount,
+                bomApiAvailable: true
+            } : null;
+            
             const aggregatedS4RData = { supplierId: suppId, supplierName, delayDays: maxDelayDays,
                 estimatedRevenueImpact: totalRevenueExposure, affectedPlants: Array.from(affectedPlantsSet) };
             
-            // Use worst material stock data for supplier-level scoring
-            const scoreResult = calculateS4RRiskScore(aggregatedS4RData, supplierOtifData, worstMaterialStockData);
+            // Use worst material stock data and aggregated affected SKU data for supplier-level scoring
+            const scoreResult = calculateS4RRiskScore(aggregatedS4RData, supplierOtifData, worstMaterialStockData, supplierAffectedSkuData);
             const topRiskDrivers = buildS4RRiskDrivers(aggregatedS4RData, scoreResult, supplierOtifData, worstMaterialStockData);
             const supplierTrend = deriveSupplierTrend(supplierOtifData);
             const previousDelays = derivePreviousDelays(supplierOtifData);
@@ -2321,7 +2432,9 @@ module.exports = cds.service.impl(async function () {
             if (!hasStockData) {
                 unavailableFields.push('materialCriticality');
             }
-            unavailableFields.push('affectedSkus'); // Always unavailable from S4R
+            if (!supplierBomApiAvailable) {
+                unavailableFields.push('affectedSkus');
+            }
             
             results.push({
                 supplierId: suppId, supplierName,
@@ -2334,7 +2447,8 @@ module.exports = cds.service.impl(async function () {
                     delaySeverity: scoreResult.breakdown.delaySeverity, 
                     materialCriticality: scoreResult.breakdown.materialCriticality || null,
                     affectedScope: scoreResult.breakdown.affectedScope,
-                    revenueExposure: scoreResult.breakdown.revenueExposure, 
+                    revenueExposure: scoreResult.breakdown.revenueExposure,
+                    affectedSkuScope: scoreResult.breakdown.affectedSkuScope || null,
                     total: scoreResult.totalScore 
                 },
                 scoringNote,
@@ -2349,6 +2463,10 @@ module.exports = cds.service.impl(async function () {
                     fromDate: supplierOtifData.fromDate, toDate: supplierOtifData.toDate
                 } : null,
                 affectedPlants: Array.from(affectedPlantsSet), affectedPlantsCount: affectedPlantsSet.size,
+                // NEW: Aggregated affected SKUs at supplier level (de-duplicated across all POs)
+                affectedSkus: supplierBomApiAvailable ? supplierAffectedSkus : null,
+                affectedSkuCount: supplierBomApiAvailable ? supplierAffectedSkuCount : null,
+                bomApiAvailable: supplierBomApiAvailable,
                 totalRevenueExposure, topRiskDrivers, poCount: poDetails.length, poDetails,
                 dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
                 unavailableFields, error: null
@@ -2358,73 +2476,140 @@ module.exports = cds.service.impl(async function () {
         return results;
     }
 
-    /** Calculate risk score using S4R data, supplier OTIF, and material stock data (enhanced) */
-    function calculateS4RRiskScore(s4rData, supplierOtifData = null, materialStockData = null) {
-        const breakdown = { supplierPerformance: 0, delaySeverity: 0, materialCriticality: 0, affectedScope: 0, revenueExposure: 0 };
+    /** Calculate risk score using S4R data, supplier OTIF, material stock data, and affected SKUs (enhanced) */
+    function calculateS4RRiskScore(s4rData, supplierOtifData = null, materialStockData = null, affectedSkuData = null) {
+        const breakdown = { supplierPerformance: 0, delaySeverity: 0, materialCriticality: 0, affectedScope: 0, revenueExposure: 0, affectedSkuScope: 0 };
         
-        // Max possible score now includes supplier performance AND material criticality
-        // Supplier: 15, Delay: 25, MaterialCriticality: 20, AffectedScope: 8, Revenue: 10 = 78
-        const maxPossibleScore = 78;
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // RISK SCORING - Strategic Rebalancing to 100 Points
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // 
+        // Component Weights (Total = 100):
+        //   - Delay Severity:       30 pts (30%) - PRIMARY trigger, most immediate/actionable
+        //   - Material Criticality: 25 pts (25%) - Production impact via stock vs safety stock
+        //   - Supplier Performance: 15 pts (15%) - Historical OTIF context (lagging indicator)
+        //   - Affected SKU Scope:   12 pts (12%) - Downstream BOM impact on finished goods
+        //   - Revenue Exposure:     10 pts (10%) - Financial quantification
+        //   - Affected Scope:        8 pts  (8%) - Geographical spread (plant count)
+        //
+        const maxPossibleScore = 100;
         
+        // ───────────────────────────────────────────────────────────────────────────────
         // 1. SUPPLIER PERFORMANCE - Max 15 points based on historical OTIF
+        // ───────────────────────────────────────────────────────────────────────────────
+        // Rationale: Historical OTIF provides context but is a LAGGING indicator.
+        // Past performance predicts future behavior but shouldn't dominate when 
+        // we have real-time data on current delay situation.
+        // Data Source: 6-month historical analysis from API_PURCHASEORDER_PROCESS_SRV
+        //
         if (supplierOtifData?.success && supplierOtifData.otifPercentage !== null) {
             const otif = supplierOtifData.otifPercentage;
-            if (otif < 50) breakdown.supplierPerformance = 15;       // Critical
-            else if (otif < 70) breakdown.supplierPerformance = 12;  // Poor
-            else if (otif < 85) breakdown.supplierPerformance = 8;   // Below target
-            else if (otif < 90) breakdown.supplierPerformance = 3;   // Acceptable
-            else breakdown.supplierPerformance = 0;                  // Good (>= 90%)
+            if (otif < 50) breakdown.supplierPerformance = 15;       // Critical - severe reliability issues
+            else if (otif < 70) breakdown.supplierPerformance = 12;  // Poor - frequent delivery problems
+            else if (otif < 85) breakdown.supplierPerformance = 8;   // Below target - needs improvement
+            else if (otif < 90) breakdown.supplierPerformance = 3;   // Acceptable - minor concerns
+            else breakdown.supplierPerformance = 0;                  // Good (>= 90%) - reliable supplier
         }
         
-        // 2. DELAY SEVERITY - Max 25 points
+        // ───────────────────────────────────────────────────────────────────────────────
+        // 2. DELAY SEVERITY - Max 30 points (INCREASED from 25)
+        // ───────────────────────────────────────────────────────────────────────────────
+        // Rationale: This is the PRIMARY disruption indicator. When a PO is delayed,
+        // it's the most immediate and actionable signal. Organizations need to act
+        // on delays first; this is the trigger event that initiated the alert.
+        // Data Source: Real-time from PO Schedule Lines & Goods Receipt - highly accurate
+        //
         const delayDays = s4rData.delayDays || 0;
-        if (delayDays > 21) breakdown.delaySeverity = 25;
-        else if (delayDays >= 15) breakdown.delaySeverity = 20;
-        else if (delayDays >= 8) breakdown.delaySeverity = 12;
-        else if (delayDays >= 1) breakdown.delaySeverity = 5;
+        if (delayDays > 21) breakdown.delaySeverity = 30;        // Severe (>3 weeks) - max risk
+        else if (delayDays >= 15) breakdown.delaySeverity = 24;  // Significant (2-3 weeks)
+        else if (delayDays >= 8) breakdown.delaySeverity = 15;   // Moderate (1-2 weeks)
+        else if (delayDays >= 1) breakdown.delaySeverity = 6;    // Minor (<1 week)
+        // 0 days = 0 points (on-time)
 
-        // 3. MATERIAL CRITICALITY - Max 20 points (NEW - based on stock vs safety stock)
+        // ───────────────────────────────────────────────────────────────────────────────
+        // 3. MATERIAL CRITICALITY - Max 25 points (INCREASED from 20)
+        // ───────────────────────────────────────────────────────────────────────────────
+        // Rationale: Stock vs Safety Stock is a DIRECT measure of production continuity risk.
+        // If stock falls below safety stock, production lines could stop - this is a 
+        // LEADING indicator of actual operational impact.
+        // Data Source: Live unrestricted stock from API_MATERIAL_STOCK_SRV - real-time accuracy
+        //
         if (materialStockData?.success) {
             if (materialStockData.isCritical) {
-                // Stock below safety stock = CRITICAL = max 20 points
-                breakdown.materialCriticality = 20;
+                // Stock below safety stock = CRITICAL = max 25 points
+                breakdown.materialCriticality = 25;
             } else if (materialStockData.stockCoverageRatio !== null) {
                 const coverage = parseFloat(materialStockData.stockCoverageRatio);
-                if (coverage < 120) breakdown.materialCriticality = 15;      // Near safety stock
-                else if (coverage < 150) breakdown.materialCriticality = 10; // Moderate coverage
-                else if (coverage < 200) breakdown.materialCriticality = 5;  // Good coverage
+                if (coverage < 120) breakdown.materialCriticality = 19;      // Near safety stock - high risk
+                else if (coverage < 150) breakdown.materialCriticality = 12; // Moderate coverage
+                else if (coverage < 200) breakdown.materialCriticality = 6;  // Good coverage
                 // coverage >= 200% = 0 points (excellent coverage)
             }
         } else if (s4rData.materialCriticality) {
             // Fallback to static criticality from master data if stock data unavailable
             const criticality = (s4rData.materialCriticality || '').toUpperCase();
-            if (criticality === 'CRITICAL') breakdown.materialCriticality = 20;
-            else if (criticality === 'HIGH') breakdown.materialCriticality = 15;
-            else if (criticality === 'MEDIUM') breakdown.materialCriticality = 10;
-            else if (criticality === 'LOW') breakdown.materialCriticality = 5;
+            if (criticality === 'CRITICAL') breakdown.materialCriticality = 25;
+            else if (criticality === 'HIGH') breakdown.materialCriticality = 19;
+            else if (criticality === 'MEDIUM') breakdown.materialCriticality = 12;
+            else if (criticality === 'LOW') breakdown.materialCriticality = 6;
         }
 
-        // 4. AFFECTED SCOPE - Max 8 points
+        // ───────────────────────────────────────────────────────────────────────────────
+        // 4. AFFECTED SCOPE - Max 8 points (unchanged)
+        // ───────────────────────────────────────────────────────────────────────────────
+        // Rationale: Plant count indicates coordination complexity but is less critical
+        // than actual stock/delay. Multi-plant impact adds logistical complexity but
+        // doesn't fundamentally change the disruption severity.
+        // Data Source: PO Items Plant field - straightforward
+        //
         const plantCount = (s4rData.affectedPlants || []).length;
-        if (plantCount >= 4) breakdown.affectedScope = 8;
-        else if (plantCount >= 2) breakdown.affectedScope = 5;
-        else if (plantCount === 1) breakdown.affectedScope = 2;
+        if (plantCount >= 4) breakdown.affectedScope = 8;        // Widespread - multiple facilities
+        else if (plantCount >= 2) breakdown.affectedScope = 5;   // Moderate - several facilities
+        else if (plantCount === 1) breakdown.affectedScope = 2;  // Limited - single facility
+        // 0 plants = 0 points
 
-        // 5. REVENUE EXPOSURE - Max 10 points
+        // ───────────────────────────────────────────────────────────────────────────────
+        // 5. REVENUE EXPOSURE - Max 10 points (unchanged)
+        // ───────────────────────────────────────────────────────────────────────────────
+        // Rationale: Financial impact is important but often correlates with other factors
+        // (more SKUs = more revenue). Serves as a quantification layer.
+        // Data Source: PO Header amount (PurchaseOrderNetAmount) - accurate and direct
+        //
         const revenue = s4rData.estimatedRevenueImpact || 0;
-        if (revenue >= 1000000) breakdown.revenueExposure = 10;
-        else if (revenue >= 500000) breakdown.revenueExposure = 7;
-        else if (revenue >= 100000) breakdown.revenueExposure = 4;
-        else if (revenue > 0) breakdown.revenueExposure = 2;
+        if (revenue >= 1000000) breakdown.revenueExposure = 10;      // High (≥1M)
+        else if (revenue >= 500000) breakdown.revenueExposure = 7;   // Significant (500K-1M)
+        else if (revenue >= 100000) breakdown.revenueExposure = 4;   // Medium (100K-500K)
+        else if (revenue > 0) breakdown.revenueExposure = 2;         // Low (<100K)
+        // ₹0 = 0 points
 
-        const totalScore = breakdown.supplierPerformance + breakdown.delaySeverity + breakdown.materialCriticality + breakdown.affectedScope + breakdown.revenueExposure;
-        const riskPercentage = Math.round((totalScore / maxPossibleScore) * 100);
-        let riskLevel = riskPercentage >= 70 ? 'HIGH' : riskPercentage >= 40 ? 'MEDIUM' : 'LOW';
-        return { totalScore, maxPossibleScore, riskPercentage, riskLevel, breakdown };
+        // ───────────────────────────────────────────────────────────────────────────────
+        // 6. AFFECTED SKU SCOPE - Max 12 points (INCREASED from 10)
+        // ───────────────────────────────────────────────────────────────────────────────
+        // Rationale: BOM reverse lookup reveals DOWNSTREAM IMPACT on finished goods.
+        // A component affecting 10+ SKUs represents significant product portfolio risk
+        // vs single-SKU impact. This captures supply chain ripple effects.
+        // Data Source: BOM API (API_BILL_OF_MATERIAL_SRV) - shows actual product dependencies
+        //
+        if (affectedSkuData?.success && affectedSkuData.affectedSkuCount > 0) {
+            const skuCount = affectedSkuData.affectedSkuCount;
+            if (skuCount >= 10) breakdown.affectedSkuScope = 12;     // 10+ SKUs = maximum impact
+            else if (skuCount >= 5) breakdown.affectedSkuScope = 8;  // 5-9 SKUs = high impact
+            else if (skuCount >= 2) breakdown.affectedSkuScope = 5;  // 2-4 SKUs = medium impact
+            else if (skuCount === 1) breakdown.affectedSkuScope = 2; // 1 SKU = low impact
+        }
+        // 0 SKUs or BOM unavailable = 0 points
+
+        const totalScore = breakdown.supplierPerformance + breakdown.delaySeverity + breakdown.materialCriticality + breakdown.affectedScope + breakdown.revenueExposure + breakdown.affectedSkuScope;
+        
+        // Risk level is now directly based on score out of 100 (no percentage conversion needed)
+        // Thresholds: HIGH ≥70, MEDIUM 40-69, LOW <40
+        let riskLevel = totalScore >= 70 ? 'HIGH' : totalScore >= 40 ? 'MEDIUM' : 'LOW';
+        
+        return { totalScore, maxPossibleScore, riskPercentage: totalScore, riskLevel, breakdown };
     }
 
-    /** Build risk drivers from S4R data, supplier OTIF, and material stock data (enhanced) */
-    function buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData = null, materialStockData = null) {
+    /** Build risk drivers from S4R data, supplier OTIF, material stock data, and affected SKUs (enhanced) */
+    function buildS4RRiskDrivers(s4rData, scoreResult, supplierOtifData = null, materialStockData = null, affectedSkuData = null) {
         const drivers = [];
         
         // 1. SUPPLIER OTIF DRIVERS
@@ -2480,7 +2665,22 @@ module.exports = cds.service.impl(async function () {
         if (plantCount >= 4) drivers.push(`Disruption affects ${plantCount} plants (widespread impact)`);
         else if (plantCount >= 2) drivers.push(`Disruption affects ${plantCount} plants`);
 
-        // 6. PO-SPECIFIC DELIVERY DRIVERS
+        // 6. AFFECTED SKU DRIVERS (NEW - based on BOM reverse lookup)
+        if (affectedSkuData?.success && affectedSkuData.affectedSkuCount > 0) {
+            const skuCount = affectedSkuData.affectedSkuCount;
+            if (skuCount >= 10) {
+                drivers.push(`HIGH IMPACT: ${skuCount} finished goods (SKUs) affected by this component`);
+            } else if (skuCount >= 5) {
+                drivers.push(`SIGNIFICANT: ${skuCount} finished goods (SKUs) depend on this component`);
+            } else if (skuCount >= 2) {
+                drivers.push(`${skuCount} finished goods (SKUs) will be impacted by this disruption`);
+            } else if (skuCount === 1) {
+                const sku = affectedSkuData.affectedSkus[0];
+                drivers.push(`Finished good ${sku.skuMaterialId} depends on this component`);
+            }
+        }
+
+        // 7. PO-SPECIFIC DELIVERY DRIVERS
         if (s4rData.otifForThisPO === 0) drivers.push(`OTIF for this PO: 0% (${s4rData.otifReason})`);
         if (s4rData.deliveryStatus === 'OVERDUE') drivers.push('Delivery is overdue - no goods receipt yet');
         else if (s4rData.deliveryStatus === 'PARTIALLY_DELIVERED') drivers.push(`Partial delivery: ${s4rData.deliveryCompletion}% complete`);
@@ -2488,8 +2688,8 @@ module.exports = cds.service.impl(async function () {
         return drivers;
     }
 
-    /** Build the complete S4R output response (enhanced with supplier OTIF and material stock data) */
-    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData = null, materialStockData = null) {
+    /** Build the complete S4R output response (enhanced with supplier OTIF, material stock, and affected SKU data) */
+    function buildS4ROutput(caseId, caseIdGenerated, s4rData, scoreResult, topRiskDrivers, supplierOtifData = null, materialStockData = null, affectedSkuData = null) {
         // Calculate derived supplier metrics from OTIF data
         const hasOtifData = supplierOtifData?.success && supplierOtifData.otifPercentage !== null;
         const hasStockData = materialStockData?.success;
@@ -2538,7 +2738,12 @@ module.exports = cds.service.impl(async function () {
         if (!hasStockData) {
             unavailableFields.push('unrestrictedStock', 'safetyStock', 'stockCoverageRatio');
         }
-        unavailableFields.push('affectedSkus'); // Always unavailable from S4R
+        
+        // Affected SKU data handling
+        const hasAffectedSkuData = affectedSkuData?.success === true;
+        if (!hasAffectedSkuData) {
+            unavailableFields.push('affectedSkus');
+        }
         
         // Build scoring note
         let scoringNote = '';
@@ -2584,7 +2789,11 @@ module.exports = cds.service.impl(async function () {
             isOnTime: s4rData.isOnTime, isInFull: s4rData.isInFull, otifForThisPO: s4rData.otifForThisPO, otifReason: s4rData.otifReason,
             orderedQuantity: s4rData.orderedQuantity, deliveredQuantity: s4rData.deliveredQuantity,
             quantityUnit: s4rData.quantityUnit, deliveryCompletion: s4rData.deliveryCompletion,
-            affectedPlants: s4rData.affectedPlants, affectedPlantsCount: s4rData.affectedPlants.length, affectedSkus: null,
+            affectedPlants: s4rData.affectedPlants, affectedPlantsCount: s4rData.affectedPlants.length, 
+            // NEW: Affected SKU data from BOM reverse lookup
+            affectedSkus: hasAffectedSkuData ? affectedSkuData.affectedSkus : null,
+            affectedSkuCount: hasAffectedSkuData ? affectedSkuData.affectedSkuCount : null,
+            bomApiAvailable: affectedSkuData?.bomApiAvailable || false,
             estimatedRevenueImpact: s4rData.estimatedRevenueImpact, topRiskDrivers,
             dataSource: 'S4R', calculatedAt: getCurrentTimestamp(),
             availableData: {

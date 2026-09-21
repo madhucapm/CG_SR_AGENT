@@ -1568,4 +1568,52 @@ service SupplierResilienceService {
         calculatedAt        : String;
         error               : String;
     };
+
+
+    /**
+     * Get Alternate BOM
+     *
+     * SCN agent data-fetch tool — Alternate BOM lever.
+     * Given an affected finished-good SKU whose BOM uses a disrupted
+     * raw material, return alternate BOM variants of the SAME SKU that
+     * either omit or substitute the disrupted component.
+     *
+     * Inputs come from the affected-SKU calculation performed by the
+     * Early Warning Agent (lib/affected-sku-handler.js):
+     *   affectedSku       ← affectedSkus[i].skuMaterialId
+     *   affectedComponent ← affectedSkus[i].affectedComponentId
+     *   plant             ← affectedSkus[i].plant   (optional)
+     *
+     * @param affectedSku       - Finished-good SKU (Material), e.g. "FG_COKE_500ML-CAN"
+     * @param affectedComponent - The disrupted raw material,    e.g. "RM_AL-CAN"
+     * @param plant             - Plant of the affected SKU      e.g. "DE01" (optional)
+     */
+    function getAlternateBom(
+        affectedSku         : String,
+        affectedComponent   : String,
+        plant               : String
+    ) returns {
+        success             : Boolean;
+        affectedSku         : String;
+        affectedComponent   : String;
+        plant               : String;
+        affectedBom         : {
+            billOfMaterial      : String;
+            material            : String;
+            components          : array of {
+                component           : String;
+                description         : String;
+            };
+        };
+        alternativeMaterials : array of {
+            material            : String;
+            billOfMaterial      : String;
+            plant               : String;
+            components          : array of {
+                component           : String;
+                description         : String;
+            };
+        };
+        error               : String;
+    };
 }

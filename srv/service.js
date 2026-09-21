@@ -42,22 +42,11 @@ let getMaterialStockData = null;
 try { ({ getMaterialStockData } = require('./lib/material-stock-handler')); }
 catch (e) { console.warn('[Service] lib/material-stock-handler not loaded:', e.message); }
 
-<<<<<<< Updated upstream
-// STO / PO Creation Handlers — create real Stock Transport Orders and
-// Purchase Orders in S/4HANA via API_PURCHASEORDER_PROCESS_SRV.
-let createStockTransportOrderFn = null;
-let createPurchaseOrderFn = null;
-try { ({ createStockTransportOrder: createStockTransportOrderFn } = require('./lib/create-sto-handler')); }
-catch (e) { console.warn('[Service] lib/create-sto-handler not loaded:', e.message); }
-try { ({ createPurchaseOrder: createPurchaseOrderFn } = require('./lib/create-po-handler')); }
-catch (e) { console.warn('[Service] lib/create-po-handler not loaded:', e.message); }
-=======
 // Affected SKU Handler — performs reverse BOM lookup to find finished goods (SKUs)
 // that use a given component material for the Early Warning Agent.
 let getAffectedSkus = null;
 try { ({ getAffectedSkus } = require('./lib/affected-sku-handler')); }
 catch (e) { console.warn('[Service] lib/affected-sku-handler not loaded:', e.message); }
->>>>>>> Stashed changes
 
 // SAP Cloud SDK — used to call the S/4HANA `S4R` destination configured in
 // the BTP Destination service. Loaded defensively so the CAP srv still starts
@@ -68,6 +57,15 @@ try {
 } catch (e) {
     console.warn('[Service] @sap-cloud-sdk/http-client not loaded:', e.message);
 }
+
+// STO / PO Creation Handlers — create real Stock Transport Orders and
+// Purchase Orders in S/4HANA via API_PURCHASEORDER_PROCESS_SRV.
+let createStockTransportOrderFn = null;
+let createPurchaseOrderFn = null;
+try { ({ createStockTransportOrder: createStockTransportOrderFn } = require('./lib/create-sto-handler')); }
+catch (e) { console.warn('[Service] lib/create-sto-handler not loaded:', e.message); }
+try { ({ createPurchaseOrder: createPurchaseOrderFn } = require('./lib/create-po-handler')); }
+catch (e) { console.warn('[Service] lib/create-po-handler not loaded:', e.message); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilities & constants
@@ -1606,6 +1604,21 @@ module.exports = cds.service.impl(async function () {
     this.on('getAlternatePlantSource', async (req) => {
         const altPlantHandler = require('./lib/alternate-plant-source-handler');
         return await altPlantHandler(executeHttpRequest, getCurrentTimestamp, logger, req);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GET ALTERNATE BOM — Scenario & Recommendation Agent data-fetch tool
+    //
+    // Given an affected finished-good SKU whose BOM uses a disrupted raw
+    // material (both sourced from the affected-SKU calculation performed by
+    // the Early Warning Agent via lib/affected-sku-handler.js), return the
+    // alternate BOM variants of the SAME SKU that either avoid or substitute
+    // the disrupted component. Uses API_BILL_OF_MATERIAL_SRV with a single
+    // $expand=to_BillOfMaterialItem call.
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.on('getAlternateBom', async (req) => {
+        const altBomHandler = require('./lib/alternate-bom-handler');
+        return await altBomHandler(executeHttpRequest, getCurrentTimestamp, logger, req);
     });
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -803,5 +803,38 @@ Content-Type: application/json
 ###
 
 ### ═══════════════════════════════════════════════════════════════════════════════
+### SCENARIO 3 — GET ALTERNATE BOM (Alternate Raw Material via BOM)
+### ═══════════════════════════════════════════════════════════════════════════════
+### Given an affected finished-good SKU whose BOM uses a disrupted raw material,
+### return the alternate BOM variants of the SAME SKU that either avoid or
+### substitute the disrupted component. Inputs come from the affected-SKU
+### calculation performed by the Early Warning Agent.
+###   affectedSku       ← affectedSkus[i].skuMaterialId
+###   affectedComponent ← affectedSkus[i].affectedComponentId
+###   plant             ← affectedSkus[i].plant   (optional)
+### ═══════════════════════════════════════════════════════════════════════════════
+
+### getAlternateBom — with plant (typical call from Scenario Agent)
+### Expected: success=true, candidateBoms[] with substitutionType AVOIDS_/SUBSTITUTES_
+GET http://localhost:4004/odata/v4/supplier-resilience/getAlternateBom(affectedSku='FG_COKE_500ML-CAN',affectedComponent='RM_AL-CAN',plant='DE01')
+Content-Type: application/json
+
+###
+
+### getAlternateBom — cross-plant (plant omitted -> all plants considered)
+### Expected: candidate BOMs across any plant of the SKU
+GET http://localhost:4004/odata/v4/supplier-resilience/getAlternateBom(affectedSku='FG_COKE_500ML-CAN',affectedComponent='RM_AL-CAN',plant='')
+Content-Type: application/json
+
+###
+
+### getAlternateBom — missing affectedComponent (validation error)
+### Expected: success=false, error="affectedSku and affectedComponent are required"
+GET http://localhost:4004/odata/v4/supplier-resilience/getAlternateBom(affectedSku='FG_COKE_500ML-CAN',affectedComponent='',plant='')
+Content-Type: application/json
+
+###
+
+### ═══════════════════════════════════════════════════════════════════════════════
 ### END OF TEST SUITE
 ### ═══════════════════════════════════════════════════════════════════════════════

@@ -1,14 +1,15 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!-- Execution Tracking — Static prototype (MVP1). sap_horizon default theme. -->
+    <!-- Execution Tracking — Real S/4HANA PO/STO creation results. sap_horizon. -->
     <VBox width="100%">
 
         <Toolbar design="Transparent">
             <Title text="Execution Tracking" level="H2" />
         </Toolbar>
-        <Text text="Buyer Agent actions against Mock SAP — PO creation, stock transfers, confirmation." class="sapUiSmallMarginBottom" />
+        <Text text="Buyer Agent execution results — real Purchase Orders and Stock Transport Orders created in S/4HANA." class="sapUiSmallMarginBottom" />
 
+        <!-- Case selector -->
         <Toolbar design="Solid" class="sapUiSmallMarginBottom">
             <Label text="CASE ID" />
             <Select
@@ -18,114 +19,123 @@
                 autoAdjustWidth="true"
                 items="{caseHierarchy>/availableCases}">
                 <core:Item key="{caseHierarchy>caseId}"
-                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                           text="{= ${caseHierarchy>caseId} + (${caseHierarchy>eventTitle} ? ' — ' + ${caseHierarchy>eventTitle} : '')}" />
             </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
         </Toolbar>
 
+        <!-- KPI Tiles -->
         <HBox width="100%" class="sapUiSmallMarginBottom">
-            <GenericTile header="CONFIRMED" subheader="Executed in Mock SAP" frameType="OneByOne" class="sapUiTinyMarginEnd">
-                <TileContent><NumericContent value="2" valueColor="Good" /></TileContent>
+            <GenericTile header="STOs CREATED" subheader="Stock Transport Orders" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent>
+                    <NumericContent value="{execution>/stoCreatedCount}" valueColor="Good" />
+                </TileContent>
             </GenericTile>
-            <GenericTile header="SUBMITTED" subheader="Awaiting confirmation" frameType="OneByOne" class="sapUiTinyMarginEnd">
-                <TileContent><NumericContent value="1" valueColor="Neutral" /></TileContent>
+            <GenericTile header="POs CREATED" subheader="Purchase Orders" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent>
+                    <NumericContent value="{execution>/poCreatedCount}" valueColor="Good" />
+                </TileContent>
             </GenericTile>
-            <GenericTile header="PENDING" subheader="Queued" frameType="OneByOne" class="sapUiTinyMarginEnd">
-                <TileContent><NumericContent value="1" /></TileContent>
+            <GenericTile header="FAILED" subheader="Errors" frameType="OneByOne" class="sapUiTinyMarginEnd">
+                <TileContent>
+                    <NumericContent value="{execution>/failedCount}" valueColor="Error" />
+                </TileContent>
             </GenericTile>
-            <GenericTile header="TOTAL AGENT COST" subheader="Buyer Agent (mock)" frameType="OneByOne">
-                <TileContent><NumericContent value="$31" valueColor="Critical" /></TileContent>
+            <GenericTile header="PROCESSING" subheader="In progress" frameType="OneByOne">
+                <TileContent>
+                    <NumericContent value="{execution>/pendingCount}" valueColor="Neutral" />
+                </TileContent>
             </GenericTile>
         </HBox>
 
-        <Panel class="sapUiSmallMarginBottom">
+        <!-- Empty state -->
+        <MessageStrip
+            text="No execution items yet. Approve a recommendation from the Recommendations tab to create a PO or STO in S/4HANA."
+            type="Information"
+            showIcon="true"
+            class="sapUiSmallMarginBottom"
+            visible="{= ${execution>/executionItems}.length === 0 }" />
+
+        <!-- Execution Items Table -->
+        <Panel class="sapUiSmallMarginBottom"
+               visible="{= ${execution>/executionItems}.length > 0 }">
             <headerToolbar>
                 <Toolbar>
                     <Title text="EXECUTION ACTIONS" level="H4" />
                     <ToolbarSpacer />
-                    <Text text="Click an Action ID to jump to its monitoring entry" />
+                    <Text text="{= ${execution>/executionItems}.length } action(s) total" />
                 </Toolbar>
             </headerToolbar>
-            <Table showSeparators="Inner" fixedLayout="false">
+            <Table items="{execution>/executionItems}" showSeparators="Inner" fixedLayout="false">
                 <columns>
-                    <Column width="10%"><Text text="ACTION ID" /></Column>
+                    <Column width="8%"><Text text="ACTION ID" /></Column>
+                    <Column width="9%"><Text text="ORDER TYPE" /></Column>
                     <Column width="12%"><Text text="TYPE" /></Column>
                     <Column width="13%"><Text text="MATERIAL" /></Column>
-                    <Column width="12%"><Text text="SUPPLIER" /></Column>
-                    <Column width="8%"><Text text="QTY" /></Column>
-                    <Column width="10%"><Text text="SYSTEM" /></Column>
-                    <Column width="8%"><Text text="COST" /></Column>
+                    <Column width="13%"><Text text="PLANT / SOURCE" /></Column>
+                    <Column width="12%"><Text text="PO/STO NUMBER" /></Column>
                     <Column width="12%"><Text text="STATUS" /></Column>
+                    <Column width="13%"><Text text="STRATEGY" /></Column>
                     <Column width="8%"><Text text="TIME" /></Column>
                 </columns>
                 <items>
                     <ColumnListItem>
                         <cells>
-                            <Link text="EXC-001" press=".onViewMonitoring" />
-                            <Text text="Purchase Order" />
-                            <Text text="PET Resin" />
-                            <Text text="Indorama Ventures" />
-                            <Text text="200 MT" />
-                            <Text text="Mock S/4HANA" />
-                            <Text text="$12" />
-                            <ObjectStatus text="\u2713 Confirmed" state="Success" />
-                            <Text text="14:22" />
-                        </cells>
-                    </ColumnListItem>
-                    <ColumnListItem>
-                        <cells>
-                            <Link text="EXC-002" press=".onViewMonitoring" />
-                            <Text text="Stock Transfer" />
-                            <Text text="Aluminium Sheet" />
-                            <Text text="Pune to Mumbai" />
-                            <Text text="80 MT" />
-                            <Text text="Mock S/4HANA" />
-                            <Text text="$8" />
-                            <ObjectStatus text="\u2713 Confirmed" state="Success" />
-                            <Text text="14:35" />
-                        </cells>
-                    </ColumnListItem>
-                    <ColumnListItem>
-                        <cells>
-                            <Link text="EXC-003" press=".onViewMonitoring" />
-                            <Text text="Purchase Order" />
-                            <Text text="PET Resin" />
-                            <Text text="PolyAsia Corp" />
-                            <Text text="50 MT" />
-                            <Text text="Mock S/4HANA" />
-                            <Text text="$11" />
-                            <ObjectStatus text="\u21bb Submitted" state="Information" />
-                            <Text text="15:01" />
-                        </cells>
-                    </ColumnListItem>
-                    <ColumnListItem>
-                        <cells>
-                            <Link text="EXC-004" press=".onViewMonitoring" />
-                            <Text text="Purchase Order" />
-                            <Text text="Aluminium Coil" />
-                            <Text text="Delta Metals" />
-                            <Text text="95 MT" />
-                            <Text text="Mock S/4HANA" />
-                            <Text text="$\u2013" />
-                            <ObjectStatus text="\u25cb Pending" state="None" />
-                            <Text text="-" />
+                            <Text text="{execution>id}" />
+                            <ObjectStatus
+                                text="{execution>orderType}"
+                                state="{= ${execution>orderType} === 'STO' ? 'Success' : 'Information' }"
+                                icon="{= ${execution>orderType} === 'STO' ? 'sap-icon://factory' : 'sap-icon://cart-3' }" />
+                            <Text text="{execution>type}" />
+                            <Text text="{execution>material}" />
+                            <Text text="{execution>plant}" />
+                            <Link text="{execution>poNumber}"
+                                  visible="{= !!${execution>poNumber} }"
+                                  press=".onViewMonitoring" />
+                            <ObjectStatus
+                                text="{execution>status}"
+                                state="{= ${execution>status} === 'Confirmed' ? 'Success' : ${execution>status} === 'Failed' ? 'Error' : 'Warning' }" />
+                            <Text text="{execution>strategy}" />
+                            <Text text="{execution>time}" />
                         </cells>
                     </ColumnListItem>
                 </items>
             </Table>
         </Panel>
 
-        <Panel>
+        <!-- Error details (if any failed) -->
+        <Panel headerText="ERROR DETAILS" expandable="true" expanded="false"
+               visible="{= ${execution>/failedCount} > 0 }">
+            <List items="{
+                path: 'execution>/executionItems',
+                filters: [{ path: 'status', operator: 'EQ', value1: 'Failed' }]
+            }">
+                <StandardListItem
+                    title="{execution>id} — {execution>material}"
+                    description="{execution>error}"
+                    icon="sap-icon://message-error"
+                    type="Inactive" />
+            </List>
+        </Panel>
+
+        <!-- Progress -->
+        <Panel visible="{= ${execution>/totalCount} > 0 }">
             <headerToolbar><Toolbar><Title text="PROGRESS" level="H4" /></Toolbar></headerToolbar>
             <HBox class="sapUiSmallMarginBottom">
                 <VBox width="50%" class="sapUiSmallMarginEnd">
                     <Label text="Execution Progress" class="sapUiSmallMarginBottom" />
-                    <ProgressIndicator percentValue="50" displayValue="2 of 4 confirmed" state="Success" />
+                    <ProgressIndicator
+                        percentValue="{= ${execution>/totalCount} > 0 ? Math.round(((${execution>/stoCreatedCount} + ${execution>/poCreatedCount}) / ${execution>/totalCount}) * 100) : 0 }"
+                        displayValue="{= (${execution>/stoCreatedCount} + ${execution>/poCreatedCount}) + ' of ' + ${execution>/totalCount} + ' confirmed' }"
+                        state="{= (${execution>/stoCreatedCount} + ${execution>/poCreatedCount}) === ${execution>/totalCount} ? 'Success' : 'Information' }" />
                 </VBox>
                 <VBox width="50%">
-                    <Label text="Coverage Recovery" class="sapUiSmallMarginBottom" />
-                    <ProgressIndicator percentValue="76" displayValue="280 of 370 MT addressed" state="Information" />
+                    <Label text="STO vs PO Breakdown" class="sapUiSmallMarginBottom" />
+                    <ProgressIndicator
+                        percentValue="{= (${execution>/stoCreatedCount} + ${execution>/poCreatedCount}) > 0 ? Math.round((${execution>/stoCreatedCount} / (${execution>/stoCreatedCount} + ${execution>/poCreatedCount})) * 100) : 0 }"
+                        displayValue="{= ${execution>/stoCreatedCount} + ' STO(s) / ' + ${execution>/poCreatedCount} + ' PO(s)' }"
+                        state="Information" />
                 </VBox>
             </HBox>
         </Panel>

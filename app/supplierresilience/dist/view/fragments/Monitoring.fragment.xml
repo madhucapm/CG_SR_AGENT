@@ -1,7 +1,7 @@
 <core:FragmentDefinition
     xmlns="sap.m"
     xmlns:core="sap.ui.core">
-    <!-- Monitoring — Case Timeline (Static MVP). sap_horizon default theme. -->
+    <!-- Monitoring — Case Timeline. Populated dynamically from getCaseHistory + getCaseHierarchy. -->
     <VBox width="100%">
 
         <Toolbar design="Transparent">
@@ -18,7 +18,7 @@
                 autoAdjustWidth="true"
                 items="{caseHierarchy>/availableCases}">
                 <core:Item key="{caseHierarchy>caseId}"
-                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                           text="{= ${caseHierarchy>caseId} + (${caseHierarchy>eventTitle} ? ' — ' + ${caseHierarchy>eventTitle} : '')}" />
             </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
@@ -37,8 +37,8 @@
                 <Text text="{monitoringModel>/case/event}" />
             </HBox>
             <HBox alignItems="Center">
-                <ObjectStatus text="{monitoringModel>/case/severity}" state="Error" class="sapUiSmallMarginEnd" />
-                <ObjectStatus text="{monitoringModel>/case/classification}" state="Warning" />
+                <ObjectStatus text="{monitoringModel>/case/severity}" state="{= ${monitoringModel>/case/severity} === 'CRITICAL' ? 'Error' : ${monitoringModel>/case/severity} === 'HIGH' ? 'Warning' : 'Information' }" class="sapUiSmallMarginEnd" />
+                <ObjectStatus text="{monitoringModel>/case/classification}" state="{= ${monitoringModel>/case/classification} === 'COMPLETE INTERRUPTION' ? 'Error' : 'Warning' }" />
             </HBox>
         </Panel>
 
@@ -48,6 +48,7 @@
             <!-- LEFT: Agent Activity -->
             <Panel width="100%" expandable="false">
                 <headerToolbar><Toolbar><Title text="AGENT ACTIVITY" level="H4" /></Toolbar></headerToolbar>
+                <Text text="No agent activity recorded for this case yet. Run agents from the Disruptions tab." visible="{= ${monitoringModel>/activities}.length === 0 }" class="sapUiSmallMargin" />
                 <List items="{monitoringModel>/activities}" showSeparators="Inner">
                     <CustomListItem>
                         <HBox alignItems="Center" class="sapUiTinyMarginTopBottom">
@@ -74,7 +75,7 @@
                     <VBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Case ID" class="sapUiSmallMarginEnd" width="6rem" /><Text text="{monitoringModel>/case/caseId}" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Event" class="sapUiSmallMarginEnd" width="6rem" /><Text text="{monitoringModel>/case/event}" wrapping="true" /></HBox>
-                        <HBox class="sapUiTinyMarginBottom"><Label text="Severity" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="{monitoringModel>/case/severity}" state="Error" /></HBox>
+                        <HBox class="sapUiTinyMarginBottom"><Label text="Severity" class="sapUiSmallMarginEnd" width="6rem" /><ObjectStatus text="{monitoringModel>/case/severity}" state="{= ${monitoringModel>/case/severity} === 'CRITICAL' ? 'Error' : ${monitoringModel>/case/severity} === 'HIGH' ? 'Warning' : 'Information' }" /></HBox>
                         <HBox class="sapUiTinyMarginBottom"><Label text="Classification" class="sapUiSmallMarginEnd" width="6rem" /><Text text="{monitoringModel>/case/classification}" /></HBox>
                     </VBox>
                 </Panel>
@@ -84,8 +85,8 @@
                     <List items="{monitoringModel>/agentStatuses}" showSeparators="Inner">
                         <StandardListItem
                             title="{monitoringModel>name}"
-                            info="{= ${monitoringModel>status} === 'completed' ? 'Completed' : 'Pending' }"
-                            infoState="{= ${monitoringModel>status} === 'completed' ? 'Success' : 'None' }" />
+                            info="{= ${monitoringModel>status} === 'completed' ? 'Completed' : ${monitoringModel>status} === 'pending' ? 'Running' : 'Not Run' }"
+                            infoState="{= ${monitoringModel>status} === 'completed' ? 'Success' : ${monitoringModel>status} === 'pending' ? 'Warning' : 'None' }" />
                     </List>
                 </Panel>
 

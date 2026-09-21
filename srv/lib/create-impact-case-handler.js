@@ -88,6 +88,25 @@ module.exports = function buildHandler(logger) {
             if (pR.length) await INSERT.into(CPO).entries(pR);
             if (mR.length) await INSERT.into(CM).entries(mR);
 
+            // ── Write CaseHistory entry for case creation ─────────────────
+            try {
+                const { CaseHistory: CH } = cds.entities('supplierresilience');
+                if (CH) {
+                    await INSERT.into(CH).entries({
+                        ID: generateUUID(), caseId,
+                        timestamp: now,
+                        previousStatus: null,
+                        newStatus: 'Open',
+                        action: 'Case Created',
+                        agent: 'Coordinator Agent',
+                        details: `Case created after human confirmation. ${c.supplierCount} supplier(s), ${c.materialCount} material(s), ${c.plantCount} plant(s), ${c.poCount} PO(s) at risk.`,
+                        userId: 'Impact Analysis'
+                    });
+                }
+            } catch (histErr) {
+                logger.warn('CaseHistory insert failed (non-fatal): ' + (histErr.message || histErr));
+            }
+
             logger.info(`Impact case ${caseId}: ${c.supplierCount}S ${c.poCount}PO ${c.materialCount}M`);
             return {
                 success: true, caseId, message: 'Case ' + caseId + ' created', error: null,

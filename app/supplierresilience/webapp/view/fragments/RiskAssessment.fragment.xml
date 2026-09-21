@@ -18,7 +18,7 @@
                 autoAdjustWidth="true"
                 items="{caseHierarchy>/availableCases}">
                 <core:Item key="{caseHierarchy>caseId}"
-                           text="{caseHierarchy>caseId} — {caseHierarchy>eventTitle}" />
+                           text="{= ${caseHierarchy>caseId} + (${caseHierarchy>eventTitle} ? ' — ' + ${caseHierarchy>eventTitle} : '')}" />
             </Select>
             <Text text="No cases available. Investigate an event in News Feed to create a case."
                   visible="{= ${caseHierarchy>/availableCases}.length === 0 }" />
@@ -59,7 +59,7 @@
                             <cells>
                                 <Text text="{riskAssessment>supplier}" />
                                 <ObjectStatus text="{riskAssessment>classification}" state="{= ${riskAssessment>classification} === 'COMPLETE INTERRUPTION' ? 'Error' : 'Warning' }" />
-                                <ObjectNumber number="{riskAssessment>riskScore}" state="{= parseInt(${riskAssessment>riskScore}) >= 80 ? 'Error' : parseInt(${riskAssessment>riskScore}) >= 60 ? 'Warning' : 'None' }" />
+                                <ObjectNumber number="{riskAssessment>riskScore}" unit="/100" state="{= ${riskAssessment>riskScore} >= 80 ? 'Error' : ${riskAssessment>riskScore} >= 60 ? 'Warning' : 'None' }" />
                                 <ObjectStatus text="{riskAssessment>severity}" state="{= ${riskAssessment>severity} === 'CRITICAL' ? 'Error' : ${riskAssessment>severity} === 'HIGH' ? 'Warning' : ${riskAssessment>severity} === 'MEDIUM' ? 'Information' : 'Success' }" />
                                 <Text text="{riskAssessment>posAtRisk}" />
                                 <Text text="{riskAssessment>plants}" wrapping="true" />

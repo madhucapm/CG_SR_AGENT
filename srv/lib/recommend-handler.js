@@ -138,6 +138,33 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
             };
         }
 
+        // ── Write CaseHistory entry for Recommendation Agent ────────────
+        try {
+            const cds = require('@sap/cds');
+            const { CaseHistory: CH } = cds.entities('supplierresilience');
+            if (CH && parsedPayload.incidentId) {
+                const { generateUUID } = require('./utils');
+                const topRec = agentResponse.topRecommendation || {};
+                const ranked = Array.isArray(agentResponse.rankedOptionList) ? agentResponse.rankedOptionList : [];
+                const detailMsg = topRec.lever
+                    ? `Top recommendation: ${topRec.lever} (rank ${topRec.rank || 1}). ${ranked.length} scenario(s) evaluated.`
+                    : `${ranked.length} scenario(s) evaluated.`;
+                await INSERT.into(CH).entries({
+                    ID: generateUUID(),
+                    caseId: parsedPayload.incidentId,
+                    timestamp: new Date().toISOString(),
+                    previousStatus: null,
+                    newStatus: 'RECOMMENDATIONS_GENERATED',
+                    action: 'Recommendations Generated',
+                    agent: 'Recommendation Agent',
+                    details: detailMsg,
+                    userId: 'System'
+                });
+            }
+        } catch (histErr) {
+            logger.warn('CaseHistory insert (runRecommendation) failed (non-fatal): ' + (histErr.message || histErr));
+        }
+
         // ── Return the Python response as-is, wrapped in a success flag ──
         // The UI expects the raw recommend-scenario JSON shape
         // (rankedOptionList, topRecommendation, weightMatrix, etc.).

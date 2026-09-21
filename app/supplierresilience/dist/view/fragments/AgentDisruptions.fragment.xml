@@ -97,7 +97,7 @@
                 <!-- RECOMMENDATION -->
                 <Panel class="sapUiSmallMarginBottom" width="calc(50% - 0.5rem)">
                     <headerToolbar><Toolbar><core:Icon src="sap-icon://lightbulb" class="sapUiSmallMarginEnd" /><Title text="Recommendation" level="H5" /></Toolbar></headerToolbar>
-                    <Text text="Scenario ranking and mitigation recommendations via Python agent" class="sapUiSmallMarginBottom" />
+                    <Text text="Scenario ranking and mitigation recommendations and substutions" class="sapUiSmallMarginBottom" />
                     <Button text="{= ${agentDisruptions>/agents/recommendation/busy} ? &apos;Running...&apos; : &apos;Run&apos; }" press=".onRunDisruptionRecommendation" type="Emphasized" enabled="{= !${agentDisruptions>/agents/recommendation/busy} }" class="sapUiSmallMarginBottom" />
                     <HBox alignItems="Center" class="sapUiTinyMarginBottom"><Label text="Status:" class="sapUiSmallMarginEnd" /><ObjectStatus text="{agentDisruptions>/agents/recommendation/statusText}" state="{= ${agentDisruptions>/agents/recommendation/status} === &apos;completed&apos; ? &apos;Success&apos; : ${agentDisruptions>/agents/recommendation/status} === &apos;failed&apos; ? &apos;Error&apos; : ${agentDisruptions>/agents/recommendation/status} === &apos;running&apos; ? &apos;Information&apos; : &apos;None&apos; }" /></HBox>
                     <VBox visible="{= ${agentDisruptions>/agents/recommendation/status} === &apos;completed&apos; }" class="sapUiSmallMarginTop"><Label text="Response:" /><core:HTML content="{agentDisruptions>/agents/recommendation/formattedResult}" /></VBox>

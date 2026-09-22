@@ -55,34 +55,37 @@
             type="Information"
             showIcon="true"
             class="sapUiSmallMarginBottom"
-            visible="{= ${execution>/executionItems}.length === 0 }" />
+            visible="{= ${execution>/totalCount} === 0 }" />
 
         <!-- Execution Items Table -->
         <Panel class="sapUiSmallMarginBottom"
-               visible="{= ${execution>/executionItems}.length > 0 }">
+               visible="{= ${execution>/totalCount} > 0 }">
             <headerToolbar>
                 <Toolbar>
-                    <Title text="EXECUTION ACTIONS" level="H4" />
+                    <Title text="EXECUTION DASHBOARD" level="H4" />
                     <ToolbarSpacer />
-                    <Text text="{= ${execution>/executionItems}.length } action(s) total" />
+                    <Text text="{= ${execution>/totalCount} + ' action(s) total' }" />
                 </Toolbar>
             </headerToolbar>
             <Table items="{execution>/executionItems}" showSeparators="Inner" fixedLayout="false">
                 <columns>
-                    <Column width="8%"><Text text="ACTION ID" /></Column>
-                    <Column width="9%"><Text text="ORDER TYPE" /></Column>
-                    <Column width="12%"><Text text="TYPE" /></Column>
-                    <Column width="13%"><Text text="MATERIAL" /></Column>
-                    <Column width="13%"><Text text="PLANT / SOURCE" /></Column>
-                    <Column width="12%"><Text text="PO/STO NUMBER" /></Column>
-                    <Column width="12%"><Text text="STATUS" /></Column>
-                    <Column width="13%"><Text text="STRATEGY" /></Column>
-                    <Column width="8%"><Text text="TIME" /></Column>
+                    <Column width="6%"><Text text="ACTION ID" /></Column>
+                    <Column width="9%"><Text text="CASE ID" /></Column>
+                    <Column width="7%"><Text text="ORDER TYPE" /></Column>
+                    <Column width="9%"><Text text="TYPE" /></Column>
+                    <Column width="11%"><Text text="MATERIAL" /></Column>
+                    <Column width="11%"><Text text="PLANT / SOURCE" /></Column>
+                    <Column width="6%" hAlign="End"><Text text="QTY" /></Column>
+                    <Column width="10%"><Text text="PO/STO NUMBER" /></Column>
+                    <Column width="9%"><Text text="STATUS" /></Column>
+                    <Column width="12%"><Text text="STRATEGY" /></Column>
+                    <Column width="5%"><Text text="TIME" /></Column>
                 </columns>
                 <items>
                     <ColumnListItem>
                         <cells>
                             <Text text="{execution>id}" />
+                            <Text text="{execution>caseId}" />
                             <ObjectStatus
                                 text="{execution>orderType}"
                                 state="{= ${execution>orderType} === 'STO' ? 'Success' : 'Information' }"
@@ -90,6 +93,7 @@
                             <Text text="{execution>type}" />
                             <Text text="{execution>material}" />
                             <Text text="{execution>plant}" />
+                            <ObjectNumber number="{execution>quantity}" />
                             <Link text="{execution>poNumber}"
                                   visible="{= !!${execution>poNumber} }"
                                   press=".onViewMonitoring" />

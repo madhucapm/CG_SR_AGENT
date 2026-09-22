@@ -765,7 +765,7 @@ module.exports = cds.service.impl(async function () {
             return { success: false, orderType: 'STO', error: '@sap-cloud-sdk/http-client is not available — cannot call S/4HANA APIs' };
         }
 
-        const { sourcePlantId, targetPlantId, materialId, quantity, caseId } = req.data;
+        const { sourcePlantId, targetPlantId, materialId, quantity, caseId, supplierId } = req.data;
 
         if (!sourcePlantId || !targetPlantId || !materialId || !quantity) {
             return { success: false, orderType: 'STO', error: 'Missing required fields: sourcePlantId, targetPlantId, materialId, quantity' };
@@ -773,7 +773,7 @@ module.exports = cds.service.impl(async function () {
 
         try {
             const result = await createStockTransportOrderFn(
-                { sourcePlantId, targetPlantId, materialId, quantity: parseFloat(quantity), caseId },
+                { sourcePlantId, targetPlantId, materialId, quantity: parseFloat(quantity), caseId, supplierId },
                 executeHttpRequest,
                 logger
             );
@@ -798,6 +798,32 @@ module.exports = cds.service.impl(async function () {
                     }
                 } catch (histErr) {
                     logger.warn('CaseHistory insert (STO) failed (non-fatal): ' + histErr.message);
+                }
+            }
+
+            // Persist ExecutionItem for the Execution Tracking view
+            if (caseId) {
+                try {
+                    const { ExecutionItem: EI } = cds.entities('supplierresilience');
+                    if (EI) {
+                        const { generateUUID } = require('./lib/utils');
+                        await INSERT.into(EI).entries({
+                            ID: generateUUID(),
+                            caseId,
+                            orderType: 'STO',
+                            type: 'Stock Transfer',
+                            material: materialId,
+                            plant: `${sourcePlantId} → ${targetPlantId}`,
+                            quantity: parseFloat(quantity),
+                            poNumber: result.poNumber || '',
+                            status: result.success ? 'Confirmed' : 'Failed',
+                            strategy: '',
+                            error: result.error || null,
+                            completedAt: new Date().toISOString()
+                        });
+                    }
+                } catch (eiErr) {
+                    logger.warn('ExecutionItem insert (STO) failed (non-fatal): ' + eiErr.message);
                 }
             }
 
@@ -856,6 +882,32 @@ module.exports = cds.service.impl(async function () {
                     }
                 } catch (histErr) {
                     logger.warn('CaseHistory insert (PO) failed (non-fatal): ' + histErr.message);
+                }
+            }
+
+            // Persist ExecutionItem for the Execution Tracking view
+            if (caseId) {
+                try {
+                    const { ExecutionItem: EI } = cds.entities('supplierresilience');
+                    if (EI) {
+                        const { generateUUID } = require('./lib/utils');
+                        await INSERT.into(EI).entries({
+                            ID: generateUUID(),
+                            caseId,
+                            orderType: 'PO',
+                            type: 'Purchase Order',
+                            material: materialId,
+                            plant: plantId,
+                            quantity: parseFloat(quantity),
+                            poNumber: result.poNumber || '',
+                            status: result.success ? 'Confirmed' : 'Failed',
+                            strategy: '',
+                            error: result.error || null,
+                            completedAt: new Date().toISOString()
+                        });
+                    }
+                } catch (eiErr) {
+                    logger.warn('ExecutionItem insert (PO) failed (non-fatal): ' + eiErr.message);
                 }
             }
 

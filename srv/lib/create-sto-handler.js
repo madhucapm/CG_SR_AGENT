@@ -4,7 +4,7 @@
  * Stock Transport Order (STO) Creation Handler
  *
  * Creates a real STO in S/4HANA via API_PURCHASEORDER_PROCESS_SRV
- * with PurchaseOrderType = "UB".
+ * with PurchaseOrderType = "NB" and SupplyingPlant set.
  *
  * Flow:
  *   1. Fetch org data (CompanyCode, PurchasingOrg, PurchasingGroup, BaseUnit)
@@ -33,9 +33,9 @@ const ODATA_PO_SRV = '/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV';
  * @returns {Object} Result with poNumber on success
  */
 async function createStockTransportOrder(params, executeHttpRequest, logger) {
-    const { sourcePlantId, targetPlantId, materialId, quantity, caseId } = params;
+    const { sourcePlantId, targetPlantId, materialId, quantity, caseId, supplierId } = params;
 
-    logger.info(`[STO] Creating STO: ${materialId} from ${sourcePlantId} → ${targetPlantId}, qty=${quantity}`);
+    logger.info(`[STO] Creating STO: ${materialId} from ${sourcePlantId} → ${targetPlantId}, qty=${quantity}, supplier=${supplierId || '(none)'}`);
 
     // ── Step 1: Fetch org data ──────────────────────────────────────────
     const orgData = await getAllOrgData(executeHttpRequest, materialId, targetPlantId, logger);
@@ -49,6 +49,14 @@ async function createStockTransportOrder(params, executeHttpRequest, logger) {
     }
 
     logger.info(`[STO] Org data resolved: CC=${orgData.companyCode}, POrg=${orgData.purchasingOrganization}, PGrp=${orgData.purchasingGroup}, Unit=${orgData.baseUnit}`);
+
+    // Validate required org fields — S/4HANA rejects empty values one by one
+    if (!orgData.purchasingOrganization) {
+        return { success: false, orderType: 'STO', error: 'PurchasingOrganization is empty — not maintained in plant master for ' + targetPlantId };
+    }
+    if (!orgData.companyCode) {
+        return { success: false, orderType: 'STO', error: 'CompanyCode is empty — not maintained in plant master for ' + targetPlantId };
+    }
 
     // ── Step 2: Fetch CSRF token ────────────────────────────────────────
     let csrfToken = '';
@@ -82,8 +90,26 @@ async function createStockTransportOrder(params, executeHttpRequest, logger) {
     }
 
     // ── Step 3: Build STO payload ───────────────────────────────────────
+    // Use PO type "NB" (Standard) with SupplyingPlant set — this is how
+    // many S/4HANA systems handle stock transport orders.  Type "UB" is
+    // not always configured; the SupplyingPlant field is what tells
+    // S/4HANA this is an inter-plant stock transfer.
+    // Delivery date — 14 days from today (reasonable lead time for inter-plant transfer)
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + 14);
+    const sDeliveryDate = deliveryDate.toISOString().split('T')[0] + 'T00:00:00';
+
+    // For type "NB" S/4HANA requires a Supplier.  For inter-plant
+    // transfers the supplier is typically the vendor representing the
+    // supplying plant.  If no supplierId was provided, fail early with
+    // a clear message rather than letting S/4HANA return "Enter a supplier".
+    if (!supplierId) {
+        return { success: false, orderType: 'STO', error: 'Supplier (vendor) is required for STO with PO type NB. Pass supplierId from the case context.' };
+    }
+
     const payload = {
-        PurchaseOrderType: 'UB',
+        PurchaseOrderType: 'NB',
+        Supplier: supplierId,
         SupplyingPlant: sourcePlantId,
         PurchasingOrganization: orgData.purchasingOrganization,
         PurchasingGroup: orgData.purchasingGroup,
@@ -93,7 +119,14 @@ async function createStockTransportOrder(params, executeHttpRequest, logger) {
             Plant: targetPlantId,
             Material: materialId,
             OrderQuantity: String(quantity),
-            PurchaseOrderQuantityUnit: orgData.baseUnit
+            PurchaseOrderQuantityUnit: orgData.baseUnit,
+            NetPriceAmount: '0',
+            NetPriceQuantity: '1',
+            DocumentCurrency: 'EUR',
+            to_ScheduleLine: [{
+                ScheduleLineDeliveryDate: sDeliveryDate,
+                ScheduleLineOrderQuantity: String(quantity)
+            }]
         }]
     };
 
@@ -138,7 +171,7 @@ async function createStockTransportOrder(params, executeHttpRequest, logger) {
             success: true,
             orderType: 'STO',
             poNumber,
-            purchaseOrderType: 'UB',
+            purchaseOrderType: 'NB',
             sourcePlantId,
             targetPlantId,
             materialId,

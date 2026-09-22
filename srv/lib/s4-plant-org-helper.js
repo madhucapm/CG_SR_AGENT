@@ -34,10 +34,16 @@ async function getPlantOrgData(executeHttpRequest, plantId, logger) {
 
         const d = response.data?.d || response.data || {};
 
+        const companyCode = d.CompanyCode || '';
+        // DefaultPurchasingOrganization is often empty in plant master.
+        // Fall back to CompanyCode (they frequently share the same value
+        // in S/4HANA) to avoid "Enter Purchasing Org." errors.
+        const purchasingOrganization = d.DefaultPurchasingOrganization || companyCode;
+
         return {
             success: true,
-            companyCode: d.CompanyCode || '',
-            purchasingOrganization: d.DefaultPurchasingOrganization || '',
+            companyCode,
+            purchasingOrganization,
             plantName: d.PlantName || d.Plant || plantId
         };
     } catch (err) {

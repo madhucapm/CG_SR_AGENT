@@ -296,6 +296,26 @@ entity RecommendationResult : cuid, managed {
 }
 
 /**
+ * Execution Items
+ * Persisted STO/PO creation results from the Buyer Agent.
+ * Drives the Execution Tracking view — survives page refresh and case switching.
+ */
+entity ExecutionItem : cuid, managed {
+    caseId      : String(30) @mandatory;
+    actionId    : String(20);           // EXC-001, EXC-002, …
+    orderType   : String(10);           // STO, PO
+    type        : String(30);           // Stock Transfer, Purchase Order
+    material    : String(40);
+    plant       : String(60);           // "DE02 → DE01" for STO, "DE01" for PO
+    quantity    : Decimal(15,3);
+    poNumber    : String(20);           // PO number from S/4HANA
+    status      : String(20);           // Confirmed, Failed
+    strategy    : String(200);          // recommendation lever text
+    error       : String(500);
+    completedAt : Timestamp;
+}
+
+/**
  * Case History / Timeline
  * Tracks status changes and agent actions for audit trail
  * Used by dashboard to show case timeline

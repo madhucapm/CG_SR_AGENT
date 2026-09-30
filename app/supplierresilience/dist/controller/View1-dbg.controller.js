@@ -395,70 +395,142 @@ sap.ui.define([
                 return;
             }
 
+            // Only the Approve button should trigger creation
+            var sButtonType = oSource.getType ? oSource.getType() : "";
+            if (sButtonType === "Reject") {
+                MessageToast.show("Recommendation #" + (oRec.rank || "") + " rejected.");
+                var sRejectPath = oCtx.getPath();
+                var oRecModelR = oView.getModel("recommendationResult");
+                if (oRecModelR) { oRecModelR.setProperty(sRejectPath + "/_rejected", true); }
+                return;
+            }
+
             // Get case ID from the recommendation model
             var oRecModel = oView.getModel("recommendationResult");
             var sCaseId = oRecModel.getProperty("/caseId") || "";
 
-            // Determine if this is an STO (plant-based) or PO (supplier-based)
-            // The strategy label from the recommendation agent indicates the type
-            var sStrategy = (oRec.strategyLabel || "").toUpperCase();
-            var bIsSTO = sStrategy.indexOf("PLANT") >= 0 ||
-                         sStrategy.indexOf("STOCK TRANSFER") >= 0 ||
-                         sStrategy.indexOf("INTER-PLANT") >= 0 ||
-                         sStrategy.indexOf("ALTERNATE PLANT") >= 0;
+            // ── Resolve context from case models (agentDisruptions) ──────
+            // Ranked options from the Python agent have lever/coverage/cost/
+            // risk/rationale but NOT plant/material/supplier IDs.  We source
+            // actual IDs from the case hierarchy and survival planner data.
+            var oAdModel = oView.getModel("agentDisruptions");
+            var aCaseMaterials = oAdModel ? oAdModel.getProperty("/materials") || [] : [];
+            var aCaseSuppliers = oAdModel ? oAdModel.getProperty("/suppliers") || [] : [];
+            var oSvpResult = oAdModel ? oAdModel.getProperty("/agents/survivalPlanner/result") : null;
+
+            var sTargetPlant = "", sMaterialId = "", nQuantity = 0;
+            if (oSvpResult && Array.isArray(oSvpResult.records) && oSvpResult.records.length > 0) {
+                sTargetPlant = oSvpResult.records[0].plant || "";
+                sMaterialId = oSvpResult.records[0].material || "";
+                nQuantity = oSvpResult.records[0].shortfallQty || oSvpResult.records[0].weeklyDemand || 100;
+            }
+            if ((!sTargetPlant || !sMaterialId) && aCaseMaterials.length > 0) {
+                sTargetPlant = sTargetPlant || aCaseMaterials[0].plant || "";
+                sMaterialId = sMaterialId || aCaseMaterials[0].material || "";
+            }
+            // Fallback: also check caseHierarchy model (populated by Case Dashboard)
+            if (!sTargetPlant || !sMaterialId || aCaseSuppliers.length === 0) {
+                var oCaseH = oView.getModel("caseHierarchy");
+                if (oCaseH) {
+                    var aHierarchyMats = oCaseH.getProperty("/materials") || [];
+                    if (aHierarchyMats.length > 0) {
+                        sTargetPlant = sTargetPlant || aHierarchyMats[0].plant || "";
+                        sMaterialId = sMaterialId || aHierarchyMats[0].material || "";
+                    }
+                    if (aCaseSuppliers.length === 0) {
+                        var aHierarchySuppliers = oCaseH.getProperty("/suppliers") || [];
+                        if (aHierarchySuppliers.length > 0) {
+                            aCaseSuppliers = aHierarchySuppliers;
+                        }
+                    }
+                }
+            }
+            if (!nQuantity || nQuantity <= 0) { nQuantity = 100; }
+
+            // Determine STO vs PO from the lever text
+            var sLever = (oRec.lever || "").toUpperCase();
+            var bIsSTO = sLever.indexOf("PLANT") >= 0 ||
+                         sLever.indexOf("STOCK TRANSFER") >= 0 ||
+                         sLever.indexOf("INTER-PLANT") >= 0 ||
+                         sLever.indexOf("TRANSFER") >= 0;
 
             var sServiceUrl = this._getServiceUrl();
             var sEndpoint, oPayload, sOrderType;
 
             if (bIsSTO) {
-                // Stock Transport Order — plant to plant transfer
                 sEndpoint = "createStockTransportOrder";
                 sOrderType = "STO";
-                oPayload = {
-                    sourcePlantId: oRec.plant || "",
-                    targetPlantId: oRec.plant || "",
-                    materialId: oRec.material || "",
-                    quantity: oRec.compositeScore ? 100 : 100,
-                    caseId: sCaseId
-                };
-                // Try to extract source/target from strategy label or plant field
-                // Format may be "Plant X → Plant Y" or just a plant ID
-                var sPlant = oRec.plant || "";
-                if (sPlant.indexOf("→") >= 0 || sPlant.indexOf("->") >= 0) {
-                    var aParts = sPlant.split(/→|->/).map(function(s) { return s.trim(); });
-                    oPayload.sourcePlantId = aParts[0] || sPlant;
-                    oPayload.targetPlantId = aParts[1] || sPlant;
-                } else {
-                    // Use the plant as target; source needs case context
-                    oPayload.targetPlantId = sPlant;
-                    oPayload.sourcePlantId = sPlant;
-                }
             } else {
-                // Standard Purchase Order — from supplier
                 sEndpoint = "createPurchaseOrder";
                 sOrderType = "PO";
-                oPayload = {
-                    supplierId: oRec.plant || "",
-                    plantId: oRec.plant || "",
-                    materialId: oRec.material || "",
-                    quantity: 100,
-                    caseId: sCaseId
-                };
             }
 
-            // Add a pending entry to the execution model
+            // Validate material + target plant before proceeding
+            if (!sMaterialId) {
+                MessageToast.show("Cannot create " + sOrderType + ": no material ID from case data.");
+                return;
+            }
+            if (!sTargetPlant) {
+                MessageToast.show("Cannot create " + sOrderType + ": no plant available from case data.");
+                return;
+            }
+
+            // For STO: call getAlternatePlantSource to resolve the real
+            // source plant and required quantity from S/4HANA, then create.
+            // For PO: resolve supplier from case data, then create.
+            if (bIsSTO) {
+                // Pass a supplier ID for the STO — S/4HANA type "NB" requires it
+                var sStoSupplierId = "";
+                if (aCaseSuppliers.length > 0) {
+                    sStoSupplierId = aCaseSuppliers[0].supplierId || "";
+                }
+                this._createSTOWithAlternatePlant(oRec, oCtx, sCaseId, sMaterialId, sTargetPlant, sServiceUrl, sStoSupplierId);
+            } else {
+                var sSupplierId = "";
+                if (aCaseSuppliers.length > 0) {
+                    sSupplierId = aCaseSuppliers[0].supplierId || "";
+                }
+                if (!sSupplierId) {
+                    MessageToast.show("Cannot create PO: no supplier ID available from case data.");
+                    return;
+                }
+                oPayload = {
+                    supplierId: sSupplierId, plantId: sTargetPlant,
+                    materialId: sMaterialId, quantity: nQuantity, caseId: sCaseId
+                };
+                console.log("[BuyerAgent] PO payload:", oPayload);
+                this._executeOrderCreation(oRec, oCtx, sOrderType, sEndpoint, oPayload, sServiceUrl, sMaterialId, sTargetPlant, bIsSTO);
+            }
+
+            return; // execution continues in _createSTOWithAlternatePlant or _executeOrderCreation
+        },
+
+        /**
+         * Shared helper — adds an execution-model entry, calls the backend
+         * endpoint, and updates the execution model with the result.
+         * Used by both STO and PO approval flows.
+         */
+        _executeOrderCreation: function (oRec, oCtx, sOrderType, sEndpoint, oPayload, sServiceUrl, sMaterialId, sTargetPlant, bIsSTO) {
+            var that = this;
+            var oView = this.getView();
             var oExecModel = oView.getModel("execution");
+            var oRecModel = oView.getModel("recommendationResult");
             var aItems = oExecModel.getProperty("/executionItems") || [];
             var iPendingCount = oExecModel.getProperty("/pendingCount") || 0;
             var iTotal = oExecModel.getProperty("/totalCount") || 0;
 
+            var sPlantDisplay = bIsSTO
+                ? (oPayload.sourcePlantId + " → " + oPayload.targetPlantId)
+                : (sTargetPlant || "");
+
             var oNewItem = {
                 id: "EXC-" + String(iTotal + 1).padStart(3, "0"),
+                caseId: oPayload.caseId || "",
                 orderType: sOrderType,
                 type: bIsSTO ? "Stock Transfer" : "Purchase Order",
-                material: oRec.material || "",
-                plant: oRec.plant || "",
-                strategy: oRec.strategyLabel || "",
+                material: sMaterialId || "",
+                plant: sPlantDisplay,
+                strategy: oRec.lever || "",
                 quantity: oPayload.quantity,
                 status: "Processing",
                 poNumber: "",
@@ -470,13 +542,13 @@ sap.ui.define([
             oExecModel.setProperty("/pendingCount", iPendingCount + 1);
             oExecModel.setProperty("/totalCount", iTotal + 1);
 
-            // Disable the button by marking the row
-            var sRecPath = oCtx.getPath();
-            oRecModel.setProperty(sRecPath + "/_approved", true);
+            // Mark the recommendation row as approved
+            if (oCtx && oRecModel) {
+                oRecModel.setProperty(oCtx.getPath() + "/_approved", true);
+            }
 
-            MessageToast.show("Creating " + sOrderType + " for " + (oRec.material || "material") + " …");
+            MessageToast.show("Creating " + sOrderType + " for " + (sMaterialId || "material") + " …");
 
-            // Call the backend
             fetch(sServiceUrl + sEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -491,14 +563,11 @@ sap.ui.define([
                 return oResp.json();
             }).then(function (oData) {
                 console.log("[BuyerAgent] " + sEndpoint + " response:", oData);
-
-                // Find the item we just added and update it
-                var aUpdatedItems = oExecModel.getProperty("/executionItems");
-                var iIdx = aUpdatedItems.length - 1;
-                for (var i = aUpdatedItems.length - 1; i >= 0; i--) {
-                    if (aUpdatedItems[i].id === oNewItem.id) { iIdx = i; break; }
+                var aUpdated = oExecModel.getProperty("/executionItems");
+                var iIdx = aUpdated.length - 1;
+                for (var i = aUpdated.length - 1; i >= 0; i--) {
+                    if (aUpdated[i].id === oNewItem.id) { iIdx = i; break; }
                 }
-
                 var iPending = oExecModel.getProperty("/pendingCount") || 1;
 
                 if (oData && oData.success) {
@@ -506,45 +575,111 @@ sap.ui.define([
                     oExecModel.setProperty("/executionItems/" + iIdx + "/poNumber", oData.poNumber || "");
                     oExecModel.setProperty("/executionItems/" + iIdx + "/time",
                         new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
-
                     if (sOrderType === "STO") {
-                        var iSto = oExecModel.getProperty("/stoCreatedCount") || 0;
-                        oExecModel.setProperty("/stoCreatedCount", iSto + 1);
+                        oExecModel.setProperty("/stoCreatedCount", (oExecModel.getProperty("/stoCreatedCount") || 0) + 1);
                     } else {
-                        var iPo = oExecModel.getProperty("/poCreatedCount") || 0;
-                        oExecModel.setProperty("/poCreatedCount", iPo + 1);
+                        oExecModel.setProperty("/poCreatedCount", (oExecModel.getProperty("/poCreatedCount") || 0) + 1);
                     }
                     oExecModel.setProperty("/pendingCount", Math.max(0, iPending - 1));
-
-                    MessageToast.show("✅ " + sOrderType + " " + (oData.poNumber || "") + " created successfully!");
+                    MessageToast.show("✅ " + sOrderType + " " + (oData.poNumber || "") + " created!");
                 } else {
                     var sErr = (oData && oData.error) || "Unknown error";
                     oExecModel.setProperty("/executionItems/" + iIdx + "/status", "Failed");
                     oExecModel.setProperty("/executionItems/" + iIdx + "/error", sErr);
-                    var iFailed = oExecModel.getProperty("/failedCount") || 0;
-                    oExecModel.setProperty("/failedCount", iFailed + 1);
+                    oExecModel.setProperty("/failedCount", (oExecModel.getProperty("/failedCount") || 0) + 1);
                     oExecModel.setProperty("/pendingCount", Math.max(0, iPending - 1));
-
-                    MessageToast.show("❌ " + sOrderType + " creation failed: " + sErr);
+                    MessageToast.show("❌ " + sOrderType + " failed: " + sErr);
                 }
-
+                // Navigate to Execution Tracking tab (on success or failure)
+                setTimeout(function () { that._selectSideNav("planning"); }, 600);
             }).catch(function (oErr) {
                 console.error("[BuyerAgent] " + sEndpoint + " error:", oErr);
-
-                var aUpdatedItems = oExecModel.getProperty("/executionItems");
-                var iIdx = aUpdatedItems.length - 1;
-                for (var i = aUpdatedItems.length - 1; i >= 0; i--) {
-                    if (aUpdatedItems[i].id === oNewItem.id) { iIdx = i; break; }
+                var aUpdated = oExecModel.getProperty("/executionItems");
+                var iIdx = aUpdated.length - 1;
+                for (var i = aUpdated.length - 1; i >= 0; i--) {
+                    if (aUpdated[i].id === oNewItem.id) { iIdx = i; break; }
                 }
-
                 oExecModel.setProperty("/executionItems/" + iIdx + "/status", "Failed");
                 oExecModel.setProperty("/executionItems/" + iIdx + "/error", oErr.message || "Network error");
-                var iFailed = oExecModel.getProperty("/failedCount") || 0;
-                oExecModel.setProperty("/failedCount", iFailed + 1);
+                oExecModel.setProperty("/failedCount", (oExecModel.getProperty("/failedCount") || 0) + 1);
                 var iPending = oExecModel.getProperty("/pendingCount") || 1;
                 oExecModel.setProperty("/pendingCount", Math.max(0, iPending - 1));
+                MessageToast.show("❌ " + sOrderType + " error: " + (oErr.message || "Unknown"));
+                // Navigate to Execution Tracking tab even on network error
+                setTimeout(function () { that._selectSideNav("planning"); }, 600);
+            });
+        },
 
-                MessageToast.show("❌ " + sOrderType + " creation error: " + (oErr.message || "Unknown"));
+        /**
+         * STO creation helper — calls getAlternatePlantSource to resolve the
+         * real source plant and required quantity from S/4HANA, then delegates
+         * to _executeOrderCreation with the correct payload.
+         */
+        _createSTOWithAlternatePlant: function (oRec, oCtx, sCaseId, sMaterialId, sTargetPlant, sServiceUrl, sSupplierId) {
+            var that = this;
+            var oView = this.getView();
+
+            // Show a toast while we resolve the source plant
+            MessageToast.show("Resolving alternate plant for " + sMaterialId + " …");
+
+            // Call getAlternatePlantSource (OData function — uses GET)
+            var sAltUrl = sServiceUrl +
+                "getAlternatePlantSource(affectedMaterial='" + encodeURIComponent(sMaterialId) +
+                "',affectedPlant='" + encodeURIComponent(sTargetPlant) + "')";
+
+            console.log("[BuyerAgent] GET", sAltUrl);
+
+            fetch(sAltUrl, {
+                method: "GET",
+                headers: { "Accept": "application/json" },
+                credentials: "include"
+            }).then(function (oResp) {
+                if (!oResp.ok) {
+                    return oResp.text().then(function (b) {
+                        throw new Error("HTTP " + oResp.status + (b ? ": " + b.substring(0, 300) : ""));
+                    });
+                }
+                return oResp.json();
+            }).then(function (oAlt) {
+                console.log("[BuyerAgent] getAlternatePlantSource result:", oAlt);
+
+                if (!oAlt || oAlt.success === false) {
+                    throw new Error(oAlt && oAlt.error ? oAlt.error : "No alternate plant source found");
+                }
+
+                var aSourcePlants = Array.isArray(oAlt.sourcePlants) ? oAlt.sourcePlants : [];
+                if (aSourcePlants.length === 0) {
+                    throw new Error("No source plants with available stock found for " + sMaterialId);
+                }
+
+                // Pick the best source plant (first = highest available stock)
+                var sBestPlant = aSourcePlants[0].plant || "";
+                if (!sBestPlant) {
+                    throw new Error("Source plant ID is empty in getAlternatePlantSource response");
+                }
+
+                // Use the required qty from S/4HANA open POs if available
+                var nQty = oAlt.requiredQty || 100;
+                if (nQty <= 0) { nQty = 100; }
+
+                var oPayload = {
+                    sourcePlantId: sBestPlant,
+                    targetPlantId: sTargetPlant,
+                    materialId: sMaterialId,
+                    quantity: nQty,
+                    caseId: sCaseId,
+                    supplierId: sSupplierId || ""
+                };
+
+                console.log("[BuyerAgent] STO payload (from S/4HANA):", oPayload);
+
+                that._executeOrderCreation(
+                    oRec, oCtx, "STO", "createStockTransportOrder",
+                    oPayload, sServiceUrl, sMaterialId, sTargetPlant, true
+                );
+            }).catch(function (oErr) {
+                console.error("[BuyerAgent] getAlternatePlantSource failed:", oErr);
+                MessageToast.show("❌ STO: " + (oErr.message || "Failed to resolve source plant"));
             });
         },
 
@@ -582,7 +717,8 @@ sap.ui.define([
             // down to the Case / Supplier / PO / SKU hierarchy.
             var oScope = oDisruptions.getProperty("/scope") || {};
             var iRiskScoreRaw = oImpact.riskScore || "0";
-            var iRiskScore = parseInt(String(iRiskScoreRaw).replace(/[^0-9]/g, ""), 10) || 0;
+            // riskScore may be "27/100" — extract the number before the slash
+            var iRiskScore = parseInt(String(iRiskScoreRaw).split("/")[0], 10) || 0;
             var sSeverity = iRiskScore >= 80 ? "CRITICAL" : iRiskScore >= 60 ? "HIGH" : iRiskScore >= 40 ? "MEDIUM" : "LOW";
 
             var oPayload = {
@@ -1257,6 +1393,16 @@ sap.ui.define([
             }
             if (sKey === "audit" && sExistingCaseId) {
                 this._loadCaseDataForMonitoring(sExistingCaseId);
+            }
+            if (sKey === "approvals" && sExistingCaseId) {
+                this._loadPersistedRecommendations(sExistingCaseId);
+                // Also load case hierarchy into agentDisruptions so that
+                // /materials and /suppliers are available when the user
+                // clicks Approve to create an STO or PO.
+                this._loadCaseDataForAgentDisruptions(sExistingCaseId);
+            }
+            if (sKey === "planning" && sExistingCaseId) {
+                this._loadPersistedExecutionItems(sExistingCaseId);
             }
         },
 
@@ -2010,6 +2156,154 @@ sap.ui.define([
         },
 
         /**
+         * Load persisted recommendation results from the RecommendationResults
+         * OData entity for the given case ID. If a persisted result exists, the
+         * recommendationResult model is populated; otherwise it is reset to the
+         * empty state.
+         *
+         * This is called when the user switches cases on the Recommendations
+         * tab or navigates to the approvals screen.
+         *
+         * @param {string} sCaseId - The case identifier
+         */
+        _loadPersistedExecutionItems: function (sCaseId) {
+            var oExecModel = this.getView().getModel("execution");
+            if (!oExecModel) { return; }
+
+            // Reset while loading
+            oExecModel.setData({
+                executionItems: [], stoCreatedCount: 0, poCreatedCount: 0,
+                failedCount: 0, pendingCount: 0, totalCount: 0
+            });
+
+            if (!sCaseId) { return; }
+
+            var sUrl = this._getServiceUrl() +
+                "ExecutionItems?$filter=caseId eq '" + encodeURIComponent(sCaseId) +
+                "'&$orderby=createdAt desc";
+
+            fetch(sUrl, {
+                method: "GET",
+                headers: { "Accept": "application/json" },
+                credentials: "include"
+            }).then(function (oResp) {
+                if (!oResp.ok) { throw new Error("HTTP " + oResp.status); }
+                return oResp.json();
+            }).then(function (oBody) {
+                var aResults = oBody.value || [];
+                if (aResults.length === 0) {
+                    console.log("[Execution] No persisted items for case", sCaseId);
+                    return;
+                }
+
+                var iSto = 0, iPo = 0, iFailed = 0;
+                var aItems = aResults.map(function (row, idx) {
+                    var sStatus = row.status || "Confirmed";
+                    if (row.orderType === "STO") { iSto++; }
+                    if (row.orderType === "PO") { iPo++; }
+                    if (sStatus === "Failed") { iFailed++; }
+                    return {
+                        id: row.actionId || ("EXC-" + String(idx + 1).padStart(3, "0")),
+                        caseId: row.caseId || sCaseId,
+                        orderType: row.orderType || "",
+                        type: row.type || "",
+                        material: row.material || "",
+                        plant: row.plant || "",
+                        quantity: row.quantity || 0,
+                        poNumber: row.poNumber || "",
+                        status: sStatus,
+                        strategy: row.strategy || "",
+                        time: row.completedAt
+                            ? new Date(row.completedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                            : "",
+                        error: row.error || ""
+                    };
+                });
+
+                oExecModel.setData({
+                    executionItems: aItems,
+                    stoCreatedCount: iSto,
+                    poCreatedCount: iPo,
+                    failedCount: iFailed,
+                    pendingCount: 0,
+                    totalCount: aItems.length
+                });
+                console.log("[Execution] Loaded", aItems.length, "persisted item(s) for case", sCaseId);
+            }).catch(function (oErr) {
+                console.warn("[Execution] Failed to load persisted items:", oErr.message || oErr);
+            });
+        },
+
+        _loadPersistedRecommendations: function (sCaseId) {
+            var that = this;
+            var oRecModel = this.getView().getModel("recommendationResult");
+            if (!oRecModel) { return; }
+
+            // Set busy + reset while loading
+            oRecModel.setData({
+                busy: true, hasResult: false, caseId: sCaseId,
+                incidentId: null, topRecommendation: null,
+                rankedOptionList: [], weightMatrix: null,
+                portfolioHeadlineTts: null, gapMagnitudeWeeks: null,
+                agentId: null, timestamp: null, aiNarrative: null
+            });
+
+            var sUrl = this._getServiceUrl() +
+                "RecommendationResults?$filter=caseId eq '" + encodeURIComponent(sCaseId) +
+                "'&$orderby=createdAt desc&$top=1";
+
+            fetch(sUrl, {
+                method: "GET",
+                headers: { "Accept": "application/json" },
+                credentials: "include"
+            }).then(function (oResp) {
+                if (!oResp.ok) { throw new Error("HTTP " + oResp.status); }
+                return oResp.json();
+            }).then(function (oBody) {
+                var aResults = (oBody.value || oBody.d && oBody.d.results || []);
+                if (aResults.length === 0) {
+                    // No persisted data — show empty state
+                    oRecModel.setProperty("/busy", false);
+                    console.log("[Recommendations] No persisted data for case", sCaseId);
+                    return;
+                }
+
+                var oRow = aResults[0];
+                var aRanked = [];
+                try { aRanked = JSON.parse(oRow.rankedOptionList || "[]"); } catch (e) { /* ignore */ }
+                var oTop = null;
+                try { oTop = JSON.parse(oRow.topRecommendation || "null"); } catch (e) { /* ignore */ }
+                var oWM = null;
+                try { oWM = JSON.parse(oRow.weightMatrix || "null"); } catch (e) { /* ignore */ }
+
+                // Enrich ranked options with UI state (same logic as _populateRecommendationsFromAgent)
+                aRanked.forEach(function (opt) {
+                    var sRisk = (opt.risk || "").toUpperCase();
+                    opt.riskState = sRisk === "LOW" ? "Success" : sRisk === "MEDIUM" ? "Warning" : sRisk === "HIGH" ? "Error" : "None";
+                    opt.isTopRecommendation = (opt.rank === 1);
+                });
+
+                oRecModel.setData({
+                    busy: false, hasResult: true, caseId: sCaseId,
+                    incidentId: oRow.incidentId || sCaseId,
+                    topRecommendation: oTop || (aRanked.length > 0 ? { rank: 1, lever: aRanked[0].lever } : null),
+                    rankedOptionList: aRanked,
+                    weightMatrix: oWM,
+                    portfolioHeadlineTts: oRow.portfolioHeadlineTts || null,
+                    gapMagnitudeWeeks: oRow.gapMagnitudeWeeks || null,
+                    agentId: oRow.agentId || "SCN",
+                    timestamp: oRow.calculatedAt || null,
+                    aiNarrative: oRow.aiNarrative || null
+                });
+                console.log("[Recommendations] Loaded persisted data for case", sCaseId,
+                    "—", aRanked.length, "ranked option(s)");
+            }).catch(function (oErr) {
+                console.warn("[Recommendations] Failed to load persisted data:", oErr.message || oErr);
+                oRecModel.setProperty("/busy", false);
+            });
+        },
+
+        /**
          * Enhance the Recommendation Agent response using the LLM.
          * @param {Object} oData      - recommend-scenario response
          * @param {string} sModelPath - e.g. "/agents/recommendation"
@@ -2604,18 +2898,16 @@ sap.ui.define([
             if (sV === "survivalPlanning") this._loadCaseDataForSurvivalPlanning(sC);
             if (sV === "audit") this._loadCaseDataForMonitoring(sC);
             if (sV === "approvals") {
-                // Reset recommendations to empty state for the new case —
-                // the user must re-run the Recommendation Agent for this case.
-                var oRecModel = this.getView().getModel("recommendationResult");
-                if (oRecModel) {
-                    oRecModel.setData({
-                        busy: false, hasResult: false, caseId: sC,
-                        incidentId: null, topRecommendation: null,
-                        rankedOptionList: [], weightMatrix: null,
-                        portfolioHeadlineTts: null, gapMagnitudeWeeks: null,
-                        agentId: null, timestamp: null, aiNarrative: null
-                    });
-                }
+                // Try to load persisted recommendations for the new case.
+                // If none are found the model stays in its empty state.
+                this._loadPersistedRecommendations(sC);
+                // Also load case hierarchy into agentDisruptions so that
+                // /materials and /suppliers are available when the user
+                // clicks Approve to create an STO or PO.
+                this._loadCaseDataForAgentDisruptions(sC);
+            }
+            if (sV === "planning") {
+                this._loadPersistedExecutionItems(sC);
             }
             MessageToast.show("Switched to case: " + sC);
         },

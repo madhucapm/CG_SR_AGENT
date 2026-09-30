@@ -52,6 +52,8 @@ service SupplierResilienceService {
     
     entity CaseHistories as projection on supplierresilience.CaseHistory;
 
+    entity ExecutionItems as projection on supplierresilience.ExecutionItem;
+
     entity CaseSuppliers as projection on supplierresilience.CaseSupplier;
     entity CasePurchaseOrders as projection on supplierresilience.CasePurchaseOrder;
     entity CaseMaterials as projection on supplierresilience.CaseMaterial;
@@ -1568,6 +1570,84 @@ service SupplierResilienceService {
         calculatedAt        : String;
         error               : String;
     };
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STOCK TRANSPORT ORDER & PURCHASE ORDER CREATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Create Stock Transport Order (STO) in S/4HANA
+     *
+     * Uses API_PLANT_SRV + API_PRODUCT_SRV to resolve org data, then
+     * API_PURCHASEORDER_PROCESS_SRV to POST a PO with type "UB".
+     *
+     * @param sourcePlantId - Supplying plant (stock transferred FROM here)
+     * @param targetPlantId - Receiving plant (stock transferred TO here)
+     * @param materialId    - Material number
+     * @param quantity      - Quantity to transfer
+     * @param caseId        - Optional case ID for audit trail
+     */
+    action createStockTransportOrder(
+        sourcePlantId   : String,
+        targetPlantId   : String,
+        materialId      : String,
+        quantity        : Decimal,
+        caseId          : String,
+        supplierId      : String
+    ) returns {
+        success                 : Boolean;
+        orderType               : String;
+        poNumber                : String;
+        purchaseOrderType       : String;
+        sourcePlantId           : String;
+        targetPlantId           : String;
+        materialId              : String;
+        quantity                : Decimal;
+        unit                    : String;
+        companyCode             : String;
+        purchasingOrganization  : String;
+        purchasingGroup         : String;
+        createdAt               : String;
+        error                   : String;
+    };
+
+    /**
+     * Create Standard Purchase Order (PO) in S/4HANA
+     *
+     * Uses API_PLANT_SRV + API_PRODUCT_SRV to resolve org data, then
+     * API_PURCHASEORDER_PROCESS_SRV to POST a PO with type "NB".
+     *
+     * @param supplierId - Supplier / vendor number
+     * @param plantId    - Receiving plant
+     * @param materialId - Material number
+     * @param quantity   - Order quantity
+     * @param caseId     - Optional case ID for audit trail
+     */
+    action createPurchaseOrder(
+        supplierId      : String,
+        plantId         : String,
+        materialId      : String,
+        quantity        : Decimal,
+        caseId          : String
+    ) returns {
+        success                 : Boolean;
+        orderType               : String;
+        poNumber                : String;
+        purchaseOrderType       : String;
+        supplierId              : String;
+        plantId                 : String;
+        materialId              : String;
+        quantity                : Decimal;
+        unit                    : String;
+        companyCode             : String;
+        purchasingOrganization  : String;
+        purchasingGroup         : String;
+        createdAt               : String;
+        error                   : String;
+    };
+
+
 
 
     /**

@@ -165,6 +165,41 @@ module.exports = function buildHandler(executeHttpRequest, logger) {
             logger.warn('CaseHistory insert (runRecommendation) failed (non-fatal): ' + (histErr.message || histErr));
         }
 
+        // ── Persist recommendation result to RecommendationResults ────────
+        // UPSERT so switching cases and re-running updates the same row.
+        try {
+            const cds = require('@sap/cds');
+            const { RecommendationResult: RR } = cds.entities('supplierresilience');
+            if (RR && parsedPayload.incidentId) {
+                const { generateUUID } = require('./utils');
+                const sCaseId = parsedPayload.incidentId;
+                const topRec = agentResponse.topRecommendation || {};
+                const ranked = Array.isArray(agentResponse.rankedOptionList) ? agentResponse.rankedOptionList : [];
+
+                // Delete any existing recommendation for this case first
+                await DELETE.from(RR).where({ caseId: sCaseId });
+
+                await INSERT.into(RR).entries({
+                    ID: generateUUID(),
+                    caseId: sCaseId,
+                    status: 'COMPLETED',
+                    incidentId: agentResponse.incidentId || sCaseId,
+                    topRecommendation: JSON.stringify(topRec),
+                    rankedOptionList: JSON.stringify(ranked),
+                    weightMatrix: JSON.stringify(agentResponse.weightMatrix || null),
+                    portfolioHeadlineTts: agentResponse.portfolioHeadlineTts || null,
+                    gapMagnitudeWeeks: agentResponse.gapMagnitudeWeeks || null,
+                    aiNarrative: null,
+                    agentId: agentResponse.agentId || 'SCN',
+                    calculatedAt: new Date().toISOString(),
+                    error: null
+                });
+                logger.info(`runRecommendation: persisted recommendation for case ${sCaseId}`);
+            }
+        } catch (persistErr) {
+            logger.warn('RecommendationResult persist failed (non-fatal): ' + (persistErr.message || persistErr));
+        }
+
         // ── Return the Python response as-is, wrapped in a success flag ──
         // The UI expects the raw recommend-scenario JSON shape
         // (rankedOptionList, topRecommendation, weightMatrix, etc.).

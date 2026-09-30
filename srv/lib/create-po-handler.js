@@ -50,6 +50,14 @@ async function createPurchaseOrder(params, executeHttpRequest, logger) {
 
     logger.info(`[PO] Org data resolved: CC=${orgData.companyCode}, POrg=${orgData.purchasingOrganization}, PGrp=${orgData.purchasingGroup}, Unit=${orgData.baseUnit}`);
 
+    // Validate required org fields — S/4HANA rejects empty values one by one
+    if (!orgData.purchasingOrganization) {
+        return { success: false, orderType: 'PO', error: 'PurchasingOrganization is empty — not maintained in plant master for ' + plantId };
+    }
+    if (!orgData.companyCode) {
+        return { success: false, orderType: 'PO', error: 'CompanyCode is empty — not maintained in plant master for ' + plantId };
+    }
+
     // ── Step 2: Fetch CSRF token ────────────────────────────────────────
     let csrfToken = '';
     let cookies = [];
@@ -81,6 +89,11 @@ async function createPurchaseOrder(params, executeHttpRequest, logger) {
     }
 
     // ── Step 3: Build PO payload ────────────────────────────────────────
+    // Delivery date — 14 days from today (standard lead time)
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + 14);
+    const sDeliveryDate = deliveryDate.toISOString().split('T')[0] + 'T00:00:00';
+
     const payload = {
         PurchaseOrderType: 'NB',
         Supplier: supplierId,
@@ -92,7 +105,14 @@ async function createPurchaseOrder(params, executeHttpRequest, logger) {
             Plant: plantId,
             Material: materialId,
             OrderQuantity: String(quantity),
-            PurchaseOrderQuantityUnit: orgData.baseUnit
+            PurchaseOrderQuantityUnit: orgData.baseUnit,
+            NetPriceAmount: '1',
+            NetPriceQuantity: '1',
+            DocumentCurrency: 'EUR',
+            to_ScheduleLine: [{
+                ScheduleLineDeliveryDate: sDeliveryDate,
+                ScheduleLineOrderQuantity: String(quantity)
+            }]
         }]
     };
 

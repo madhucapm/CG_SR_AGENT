@@ -1515,12 +1515,16 @@ service SupplierResilienceService {
         material            : String;
         plant               : String;
         excludedSuppliers   : array of String;
-        candidateSuppliers  : array of {
-            supplier                : String;
-            unitPrice               : Decimal;
-            leadTimeDays            : Integer;
-            historicalReliability   : String;   // HIGH / MEDIUM / LOW / UNKNOWN
-        };
+        candidateSuppliers : array of {
+    supplier                : String;
+    purchasingOrganization  : String;
+    purchasingGroup         : String;
+    companyCode             : String;
+    currency                : String;
+    unitPrice               : Decimal;
+    leadTimeDays            : Integer;
+    historicalReliability   : String;
+};
         sourcedFromApis     : array of String;
         dataSource          : String;
         calculatedAt        : String;

@@ -17,6 +17,9 @@
  */
 
 'use strict';
+const {
+    getAllOrgData
+} = require('./s4-plant-org-helper');
 
 const supplierOtifHandler = require('./supplier-otif-handler');
 
@@ -89,27 +92,29 @@ function deduplicateBySupplier(rows) {
 
 async function fetchPricingForSupplier(material, plant, supplier, destination, opts, executeHttpRequest, logger) {
     const url =
-        `/sap/opu/odata/sap/API_INFORECORD_PROCESS_SRV/A_PurgInfoRecdOrgPlantData` +
-        `?$filter=${encodeURIComponent(`Material eq '${material}' and Plant eq '${plant}' and Supplier eq '${supplier}'`)}` +
-        `&$select=Supplier,NetPriceAmount,MaterialPlannedDeliveryDurn` +
-        `&$format=json`;
+    `/sap/opu/odata/sap/API_INFORECORD_PROCESS_SRV/A_PurgInfoRecdOrgPlantData` +
+    `?$filter=${encodeURIComponent(`Material eq '${material}' and Plant eq '${plant}' and Supplier eq '${supplier}'`)}` +
+    `&$select=Supplier,NetPriceAmount,MaterialPlannedDeliveryDurn,Currency` +
+    `&$format=json`;
     try {
         const resp = await executeHttpRequest(destination, { ...opts, url });
         const rows = resp?.data?.d?.results || resp?.data?.value || [];
         if (rows.length === 0) {
             const fallbackUrl =
-                `/sap/opu/odata/sap/API_INFORECORD_PROCESS_SRV/A_PurgInfoRecdOrgPlantData` +
-                `?$filter=${encodeURIComponent(`Material eq '${material}' and Supplier eq '${supplier}'`)}` +
-                `&$select=Supplier,Plant,NetPriceAmount,MaterialPlannedDeliveryDurn` +
-                `&$format=json`;
+    `/sap/opu/odata/sap/API_INFORECORD_PROCESS_SRV/A_PurgInfoRecdOrgPlantData` +
+    `?$filter=${encodeURIComponent(`Material eq '${material}' and Supplier eq '${supplier}'`)}` +
+    `&$select=Supplier,Plant,NetPriceAmount,MaterialPlannedDeliveryDurn,Currency` +
+    `&$format=json`;
+
             const fbResp = await executeHttpRequest(destination, { ...opts, url: fallbackUrl });
             const fbRows = fbResp?.data?.d?.results || fbResp?.data?.value || [];
-            if (fbRows.length === 0) return { unitPrice: null, leadTimeDays: null };
+            if (fbRows.length === 0) return { unitPrice: null, leadTimeDays: null, currency: null};
             const preferred = fbRows.find(r => r.Plant === plant) || fbRows[0];
             return {
-                unitPrice: toNumber(preferred.NetPriceAmount),
-                leadTimeDays: toNumber(preferred.MaterialPlannedDeliveryDurn)
-            };
+    unitPrice: toNumber(preferred.NetPriceAmount),
+    leadTimeDays: toNumber(preferred.MaterialPlannedDeliveryDurn),
+    currency: preferred.Currency || null
+};
         }
         let cheapest = rows[0];
         for (const r of rows) {
@@ -117,13 +122,14 @@ async function fetchPricingForSupplier(material, plant, supplier, destination, o
             const nxt = toNumber(r.NetPriceAmount)         ?? Number.POSITIVE_INFINITY;
             if (nxt < cur) cheapest = r;
         }
-        return {
-            unitPrice: toNumber(cheapest.NetPriceAmount),
-            leadTimeDays: toNumber(cheapest.MaterialPlannedDeliveryDurn)
-        };
+      return {
+    unitPrice: toNumber(cheapest.NetPriceAmount),
+    leadTimeDays: toNumber(cheapest.MaterialPlannedDeliveryDurn),
+    currency: cheapest.Currency || null
+};
     } catch (err) {
         logger.warn(`[alt-source-data] Info-record fetch failed for supplier ${supplier}: ${err?.message || err}`);
-        return { unitPrice: null, leadTimeDays: null };
+        return { unitPrice: null, leadTimeDays: null, currency: null };
     }
 }
 
@@ -146,17 +152,61 @@ async function enrichAllSuppliers(candidates, material, plant, destination, opts
     if (candidates.length === 0) return [];
     logger.info(`[alt-source-data] Enriching ${candidates.length} supplier(s) with pricing + OTIF`);
     return Promise.all(candidates.map(async (c) => {
-        const [pricing, reliability] = await Promise.all([
-            fetchPricingForSupplier(material, plant, c.supplier, destination, opts, executeHttpRequest, logger),
-            fetchReliabilityForSupplier(c.supplier, executeHttpRequest, getCurrentTimestamp, logger)
-        ]);
-        return {
-            supplier: c.supplier,
-            unitPrice: pricing.unitPrice,
-            leadTimeDays: pricing.leadTimeDays,
-            historicalReliability: reliability
-        };
-    }));
+
+    const [pricing, reliability, orgData] = await Promise.all([
+
+        fetchPricingForSupplier(
+            material,
+            plant,
+            c.supplier,
+            destination,
+            opts,
+            executeHttpRequest,
+            logger
+        ),
+
+        fetchReliabilityForSupplier(
+            c.supplier,
+            executeHttpRequest,
+            getCurrentTimestamp,
+            logger
+        ),
+
+        getAllOrgData(
+            executeHttpRequest,
+            material,
+            plant,
+            logger
+        )
+
+    ]);
+
+    return {
+
+        supplier: c.supplier,
+
+        purchasingOrganization:
+            orgData?.purchasingOrganization || null,
+
+        purchasingGroup:
+            orgData?.purchasingGroup || null,
+
+        companyCode:
+            orgData?.companyCode || null,
+
+        currency:
+            pricing.currency,
+
+        unitPrice:
+            pricing.unitPrice,
+
+        leadTimeDays:
+            pricing.leadTimeDays,
+
+        historicalReliability:
+            reliability
+    };
+}));
 }
 
 
